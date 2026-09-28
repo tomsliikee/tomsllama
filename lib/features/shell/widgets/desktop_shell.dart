@@ -186,6 +186,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                         child: ArtifactCanvasView(
                           isCanvasOpen: chatState.isCanvasOpen,
                           onCloseCanvas: () => chatNotifier.closeCanvas(),
+                          language: chatState.canvasLanguage,
                           canvasPanel: Container(
                             color: appColors.codeBackground,
                             padding: const EdgeInsets.all(16.0),
@@ -199,12 +200,34 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                                       chatState.canvasLanguage ?? 'code',
                                       style: AppTypography.code.copyWith(
                                         color: appColors.accent,
+                                        fontSize: 12.0,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
                                     InkWell(
-                                      onTap: () => chatNotifier.closeCanvas(),
-                                      child: Icon(Icons.close, size: 16.0, color: appColors.textSecondary),
+                                      onTap: () {
+                                        if (chatState.canvasContent != null) {
+                                          Clipboard.setData(ClipboardData(text: chatState.canvasContent!));
+                                        }
+                                      },
+                                      borderRadius: BorderRadius.circular(6.0),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 2.0),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.copy_rounded, size: 13.0, color: appColors.textSecondary),
+                                            const SizedBox(width: 4.0),
+                                            Text(
+                                              'Copy',
+                                              style: AppTypography.uiControl.copyWith(
+                                                color: appColors.textSecondary,
+                                                fontSize: 11.5,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -225,7 +248,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                             ),
                           ),
                           chatPanel: Padding(
-                            padding: const EdgeInsets.fromLTRB(4.0, 10.0, 10.0, 12.0),
+                            padding: EdgeInsets.fromLTRB(4.0, 10.0, chatState.isCanvasOpen ? 5.0 : 10.0, 12.0),
                             child: Container(
                               decoration: BoxDecoration(
                                 color: appColors.surface,

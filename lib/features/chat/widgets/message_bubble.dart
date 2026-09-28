@@ -41,13 +41,14 @@ class MessageBubble extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 680),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 24.0),
-          child: isUser ? _buildUserMessage(appColors) : _buildAssistantMessage(),
+          child: isUser ? _buildUserMessage(context, appColors) : _buildAssistantMessage(),
         ),
       ),
     );
   }
 
-  Widget _buildUserMessage(AppThemeExtension appColors) {
+  Widget _buildUserMessage(BuildContext context, AppThemeExtension appColors) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return Align(
       alignment: Alignment.centerRight,
       child: ConstrainedBox(
@@ -58,6 +59,22 @@ class MessageBubble extends StatelessWidget {
             color: appColors.surface,
             border: Border.all(color: appColors.borderSubtle),
             borderRadius: BorderRadius.circular(16.0),
+            boxShadow: [
+              BoxShadow(
+                color: isDark
+                    ? Colors.black.withValues(alpha: 0.35)
+                    : Colors.black.withValues(alpha: 0.06),
+                blurRadius: isDark ? 16.0 : 12.0,
+                offset: const Offset(0, 4),
+              ),
+              BoxShadow(
+                color: isDark
+                    ? Colors.black.withValues(alpha: 0.20)
+                    : Colors.black.withValues(alpha: 0.03),
+                blurRadius: 4.0,
+                offset: const Offset(0, 1),
+              ),
+            ],
           ),
           child: SelectableText(
             message.content,
