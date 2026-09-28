@@ -1,0 +1,74 @@
+name: tomsllama
+description: A calm, minimalist, anti-ai-slop native desktop client for Ollama.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+  flutter: '>=3.19.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.5.1
+
+  # Network & Streaming
+  http: ^1.2.1
+
+  # Database & File System
+  sqflite_common_ffi: ^2.3.3
+  path_provider: ^2.1.3
+  path: ^1.9.0
+
+  # Markdown, Code Highlighting & Math
+  flutter_markdown: ^0.6.22
+  markdown: ^7.2.2
+  flutter_highlight: ^0.7.0
+  highlight: ^0.7.0
+  flutter_math_fork: ^0.7.2
+
+  # Desktop Integration
+  window_manager: ^0.3.9
+  tray_manager: ^0.2.3
+  desktop_drop: ^0.4.4
+
+  # Utilities
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.2
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/fonts/
+    - assets/app_icon.png
+  fonts:
+    - family: Newsreader
+      fonts:
+        - asset: assets/fonts/Newsreader-Regular.ttf
+        - asset: assets/fonts/Newsreader-Italic.ttf
+          style: italic
+        - asset: assets/fonts/Newsreader-SemiBold.ttf
+          weight: 600
+    - family: GeistMono
+      fonts:
+        - asset: assets/fonts/GeistMono-Regular.ttf
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+    - family: FiraCode
+      fonts:
+        - asset: assets/fonts/FiraCode-Regular.ttf
+        - asset: assets/fonts/FiraCode-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/FiraCode-SemiBold.ttf
+          weight: 600

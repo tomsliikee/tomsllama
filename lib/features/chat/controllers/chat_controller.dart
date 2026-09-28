@@ -1,0 +1,323 @@
+import 'dart:async';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/models/message.dart';
+import '../../../../core/models/persona.dart';
+import '../../../../core/services/database_service.dart';
+import '../../../../core/services/ollama_service.dart';
+import '../../../../core/services/title_service.dart';
+import '../../../../core/services/localization_service.dart';
+import '../../../../core/services/context_manager.dart';
+import '../../../../core/utils/think_parser.dart';
+import '../../sidebar/controllers/sidebar_controller.dart';
+
+class ChatState {
+  final String? conversationId;
+  final List<Message> messages;
+  final bool isGenerating;
+  final String activePersonaName;
+  final double temperature;
+  final bool isCanvasOpen;
+  final String? canvasContent;
+  final String? canvasLanguage;
+  final String? errorMessage;
+
+  const ChatState({
+    this.conversationId,
+    this.messages = const [],
+    this.isGenerating = false,
+    this.activePersonaName = 'Architect',
+    this.temperature = 0.7,
+    this.isCanvasOpen = false,
+    this.canvasContent,
+    this.canvasLanguage,
+    this.errorMessage,
+  });
+
+  ChatState copyWith({
+    String? conversationId,
+    List<Message>? messages,
+    bool? isGenerating,
+    String? activePersonaName,
+    double? temperature,
+    bool? isCanvasOpen,
+    String? canvasContent,
+    String? canvasLanguage,
+    String? errorMessage,
+    bool clearCanvas = false,
+  }) {
+    return ChatState(
+      conversationId: conversationId ?? this.conversationId,
+      messages: messages ?? this.messages,
+      isGenerating: isGenerating ?? this.isGenerating,
+      activePersonaName: activePersonaName ?? this.activePersonaName,
+      temperature: temperature ?? this.temperature,
+      isCanvasOpen: isCanvasOpen ?? this.isCanvasOpen,
+      canvasContent: clearCanvas ? null : (canvasContent ?? this.canvasContent),
+      canvasLanguage: clearCanvas ? null : (canvasLanguage ?? this.canvasLanguage),
+      errorMessage: errorMessage,
+    );
+  }
+}
+
+class ChatNotifier extends StateNotifier<ChatState> {
+  final DatabaseService _db = DatabaseService();
+  final OllamaService _ollama = OllamaService();
+  final Ref _ref;
+  StreamSubscription<String>? _activeStream;
+
+  ChatNotifier(this._ref) : super(const ChatState());
+
+  Future<void> loadConversation(String conversationId) async {
+    _activeStream?.cancel();
+    state = state.copyWith(
+      conversationId: conversationId,
+      isGenerating: false,
+      errorMessage: null,
+      clearCanvas: true,
+      isCanvasOpen: false,
+    );
+    final msgs = await _db.getMessagesForConversation(conversationId);
+    if (!mounted || state.conversationId != conversationId) return;
+    state = state.copyWith(messages: msgs);
+  }
+
+  Future<void> startNewChat() async {
+    _activeStream?.cancel();
+
+    // 1. If current conversation had messages, ensure it has a good title
+    if (state.conversationId != null && state.messages.isNotEmpty) {
+      final convId = state.conversationId!;
+      final allConvs = await _db.getConversations();
+      final match = allConvs.where((c) => c.id == convId).firstOrNull;
+      if (match != null) {
+        final firstUserMsg = state.messages.where((m) => m.role == 'user').firstOrNull;
+        if (firstUserMsg != null &&
+            (match.title.isEmpty ||
+                match.title == 'Neuer Chat' ||
+                match.title == '+ New Chat' ||
+                match.title == 'New Chat')) {
+          final title = firstUserMsg.content.length > 25
+              ? '${firstUserMsg.content.substring(0, 25)}...'
+              : firstUserMsg.content;
+          await _ref.read(sidebarProvider.notifier).updateTitle(convId, title);
+        }
+      }
+    }
+
+    // 2. If current conversation already exists and has 0 messages, just keep using it!
+    if (state.conversationId != null && state.messages.isEmpty) {
+      _ref.read(sidebarProvider.notifier).setActiveConversation(state.conversationId!);
+      return;
+    }
+
+    // 3. Create a brand new conversation in the database & sidebar!
+    final title = I18n.isGerman ? 'Neuer Chat' : 'New Chat';
+    final newConv = await _ref.read(sidebarProvider.notifier).createNewConversation(title: title);
+
+    // 4. Set state to the new conversation
+    state = state.copyWith(
+      conversationId: newConv.id,
+      messages: [],
+      isGenerating: false,
+      errorMessage: null,
+      clearCanvas: true,
+      isCanvasOpen: false,
+    );
+  }
+
+  void setPersona(String personaName) {
+    state = state.copyWith(activePersonaName: personaName);
+  }
+
+  void setTemperature(double temp) {
+    state = state.copyWith(temperature: temp);
+  }
+
+  void openInCanvas(String code, String language) {
+    state = state.copyWith(
+      isCanvasOpen: true,
+      canvasContent: code,
+      canvasLanguage: language,
+    );
+  }
+
+  void closeCanvas() {
+    state = state.copyWith(isCanvasOpen: false);
+  }
+
+  Future<void> sendMessage(String text, String modelName) async {
+    if (text.trim().isEmpty || state.isGenerating) return;
+
+    // 1. Ensure active conversation exists
+    String convId = state.conversationId ?? '';
+    bool isFirstMessageInConv = false;
+    if (convId.isEmpty) {
+      final newConv = await _ref.read(sidebarProvider.notifier).createNewConversation(
+        title: text.length > 25 ? '${text.substring(0, 25)}...' : text,
+      );
+      convId = newConv.id;
+      isFirstMessageInConv = true;
+      state = state.copyWith(conversationId: convId);
+    } else {
+      // Check if this conversation had 0 user messages so far
+      if (!state.messages.any((m) => m.role == 'user')) {
+        isFirstMessageInConv = true;
+        final previewTitle = text.length > 25 ? '${text.substring(0, 25)}...' : text;
+        await _ref.read(sidebarProvider.notifier).updateTitle(convId, previewTitle);
+      }
+    }
+
+    // 2. Add user message
+    final now = DateTime.now();
+    final userMsg = Message(
+      id: '${now.millisecondsSinceEpoch}_user',
+      conversationId: convId,
+      role: 'user',
+      content: text,
+      createdAt: now,
+    );
+    await _db.saveMessage(userMsg);
+
+    // 3. Add placeholder assistant message
+    final assistantMsgId = '${now.millisecondsSinceEpoch + 1}_assistant';
+    final assistantMsg = Message(
+      id: assistantMsgId,
+      conversationId: convId,
+      role: 'assistant',
+      content: '',
+      createdAt: DateTime.now(),
+    );
+
+    final updatedMessages = [...state.messages, userMsg, assistantMsg];
+    state = state.copyWith(
+      messages: updatedMessages,
+      isGenerating: true,
+      errorMessage: null,
+    );
+
+    // 4. Prepare message payload for Ollama with sliding window context management
+    final rawHistory = updatedMessages
+        .where((m) => m.role == 'user' || (m.role == 'assistant' && m.id != assistantMsgId))
+        .toList();
+    final windowed = ContextManager.applySlidingWindow(messages: rawHistory);
+    final promptMessages = windowed
+        .map((m) => {'role': m.role, 'content': m.content})
+        .toList();
+
+    // Add system persona if defined
+    final matchedPersona = Persona.defaultPersonas.firstWhere(
+      (p) => p.name.toLowerCase() == state.activePersonaName.toLowerCase(),
+      orElse: () => Persona.defaultPersonas.first,
+    );
+    if (matchedPersona.systemPrompt.trim().isNotEmpty) {
+      promptMessages.insert(0, {
+        'role': 'system',
+        'content': matchedPersona.systemPrompt,
+      });
+    }
+
+    final rawStreamBuffer = StringBuffer();
+    final stopwatch = Stopwatch()..start();
+    int tokenEstimate = 0;
+
+    try {
+      final stream = _ollama.streamChat(modelName, promptMessages, temperature: state.temperature);
+      _activeStream = stream.listen(
+        (chunk) {
+          if (!mounted) return;
+          rawStreamBuffer.write(chunk);
+          tokenEstimate++;
+
+          final parsed = ThinkParser.parse(rawStreamBuffer.toString());
+
+          final currentAssistant = Message(
+            id: assistantMsgId,
+            conversationId: convId,
+            role: 'assistant',
+            content: parsed.content,
+            thinkContent: parsed.thinkContent.isNotEmpty ? parsed.thinkContent : null,
+            createdAt: now,
+            tokens: tokenEstimate,
+            generationDurationMs: stopwatch.elapsedMilliseconds,
+          );
+
+          final msgs = List<Message>.from(state.messages);
+          if (msgs.isNotEmpty && msgs.last.id == assistantMsgId) {
+            msgs[msgs.length - 1] = currentAssistant;
+          }
+          state = state.copyWith(messages: msgs);
+        },
+        onError: (err) {
+          if (!mounted) return;
+          final msgs = state.messages.where((m) => m.id != assistantMsgId).toList();
+          state = state.copyWith(
+            messages: msgs,
+            isGenerating: false,
+            errorMessage: 'Stream error: $err',
+          );
+        },
+        onDone: () async {
+          stopwatch.stop();
+          if (!mounted) return;
+
+          if (rawStreamBuffer.isEmpty) {
+            final msgs = state.messages.where((m) => m.id != assistantMsgId).toList();
+            state = state.copyWith(messages: msgs, isGenerating: false);
+            return;
+          }
+
+          final parsed = ThinkParser.parse(rawStreamBuffer.toString());
+
+          final finalizedMsg = Message(
+            id: assistantMsgId,
+            conversationId: convId,
+            role: 'assistant',
+            content: parsed.content,
+            thinkContent: parsed.thinkContent.isNotEmpty ? parsed.thinkContent : null,
+            createdAt: now,
+            tokens: tokenEstimate,
+            generationDurationMs: stopwatch.elapsedMilliseconds,
+          );
+
+          await _db.saveMessage(finalizedMsg);
+          if (!mounted) return;
+
+          state = state.copyWith(isGenerating: false);
+
+          // Auto-summarize title in background if it was the first user message
+          if (isFirstMessageInConv) {
+            try {
+              final title = await TitleService.generateTitle([userMsg], modelOverride: modelName);
+              if (title.isNotEmpty && title != 'New Chat' && title != 'Neuer Chat') {
+                await _ref.read(sidebarProvider.notifier).updateTitle(convId, title);
+              }
+            } catch (_) {
+              // Title generation is non-critical background task
+            }
+          }
+        },
+        cancelOnError: true,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isGenerating: false,
+        errorMessage: 'Failed to start stream: $e',
+      );
+    }
+  }
+
+  void stopGeneration() {
+    _activeStream?.cancel();
+    state = state.copyWith(isGenerating: false);
+  }
+
+  @override
+  void dispose() {
+    _activeStream?.cancel();
+    super.dispose();
+  }
+}
+
+final chatProvider = StateNotifierProvider<ChatNotifier, ChatState>((ref) {
+  return ChatNotifier(ref);
+});
