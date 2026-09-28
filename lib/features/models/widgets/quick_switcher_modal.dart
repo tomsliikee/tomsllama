@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/conversation.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/services/localization_service.dart';
 
 class QuickSwitcherModal extends StatefulWidget {
   final List<Conversation> conversations;
@@ -68,7 +69,7 @@ class _QuickSwitcherModalState extends State<QuickSwitcherModal> {
                 fontSize: 18.0,
               ),
               decoration: InputDecoration(
-                hintText: 'Search chats... (Type to filter)',
+                hintText: I18n.quickSearchPlaceholder,
                 hintStyle: TextStyle(color: appColors.textSecondary),
                 prefixIcon: Icon(Icons.search, color: appColors.textSecondary),
                 border: OutlineInputBorder(
@@ -95,7 +96,7 @@ class _QuickSwitcherModalState extends State<QuickSwitcherModal> {
                   final c = _filtered[index];
                   return ListTile(
                     title: Text(
-                      c.title.isEmpty ? 'New Chat' : c.title,
+                      c.title.isEmpty ? I18n.newChatTitle : c.title,
                       style: AppTypography.uiControl.copyWith(color: appColors.textPrimary),
                     ),
                     subtitle: Text(

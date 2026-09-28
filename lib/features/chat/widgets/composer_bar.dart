@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:desktop_drop/desktop_drop.dart';
@@ -35,6 +36,7 @@ class ComposerBar extends StatefulWidget {
 class _ComposerBarState extends State<ComposerBar> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
+  final GlobalKey<_SendButtonState> _sendButtonKey = GlobalKey<_SendButtonState>();
   bool _isDragging = false;
   bool _hasText = false;
   bool _isFocused = false;
@@ -72,6 +74,7 @@ class _ComposerBarState extends State<ComposerBar> {
   void _handleSend() {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
+    _sendButtonKey.currentState?.triggerCuteAnimation();
     widget.onSend(text);
     _controller.clear();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -199,6 +202,7 @@ class _ComposerBarState extends State<ComposerBar> {
                   // Bottom Bar: Persona Chip & Send Button (1:1 style_preview.html)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       // Persona Chip
                       _PersonaChip(
@@ -207,8 +211,9 @@ class _ComposerBarState extends State<ComposerBar> {
                         onSelectPersona: widget.onSelectPersona,
                       ),
                       
-                      // Send Button
+                      // Send Button with Cute Llama Animation
                       _SendButton(
+                        key: _sendButtonKey,
                         isGenerating: widget.isGenerating,
                         hasText: _hasText,
                         onTap: widget.isGenerating ? widget.onStop : (_hasText ? _handleSend : null),
@@ -257,6 +262,27 @@ class _PersonaChipState extends State<_PersonaChip> {
     }
 
     final targetOffset = renderBox.localToGlobal(Offset.zero, ancestor: overlay);
+    final ScrollController scrollController = ScrollController();
+
+    // Primary roles (Standard, Senior Coder, Security Guard, Project Planner, Marketing Expert)
+    const primaryOrder = ['standard', 'coder', 'security', 'planner', 'marketing'];
+    final primaryPersonas = <Persona>[];
+    for (final id in primaryOrder) {
+      final match = Persona.defaultPersonas.where((p) => p.id == id);
+      if (match.isNotEmpty) primaryPersonas.add(match.first);
+    }
+
+    // Additional roles (Deep Analyst, Tech Writer, Architect, Social Media Expert, Creative Writer)
+    const additionalOrder = ['analyst', 'writer', 'architect', 'social_media', 'creative_writer'];
+    final additionalPersonas = <Persona>[];
+    for (final id in additionalOrder) {
+      final match = Persona.defaultPersonas.where((p) => p.id == id);
+      if (match.isNotEmpty) additionalPersonas.add(match.first);
+    }
+
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    // Dynamic height bounded between 165.0 and 225.0 depending on window height
+    final double listHeight = (screenHeight * 0.30).clamp(165.0, 225.0);
 
     await showGeneralDialog<void>(
       context: context,
@@ -282,7 +308,7 @@ class _PersonaChipState extends State<_PersonaChip> {
               child: Material(
                 color: Colors.transparent,
                 child: Container(
-                  width: 310.0,
+                  width: 295.0,
                   padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 6.0),
                   decoration: BoxDecoration(
                     color: appColors.surface,
@@ -290,7 +316,7 @@ class _PersonaChipState extends State<_PersonaChip> {
                     border: Border.all(color: appColors.borderSubtle),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
+                        color: Colors.black.withValues(alpha: 0.10),
                         blurRadius: 18.0,
                         offset: const Offset(0, -6),
                       ),
@@ -303,7 +329,7 @@ class _PersonaChipState extends State<_PersonaChip> {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
                         child: Text(
-                          'ROLLE & HAUPTPROMPT',
+                          I18n.roleAndPrompt,
                           style: AppTypography.uiControl.copyWith(
                             color: appColors.textSecondary,
                             fontSize: 10.5,
@@ -313,58 +339,46 @@ class _PersonaChipState extends State<_PersonaChip> {
                         ),
                       ),
                       const SizedBox(height: 4.0),
-                      ...Persona.defaultPersonas.map((p) {
-                        final isCurrent = p.name.toLowerCase() == widget.personaName.toLowerCase();
-                        return InkWell(
-                          onTap: () {
-                            Navigator.of(dialogContext).pop();
-                            widget.onSelectPersona?.call(p.name);
-                            widget.onTap();
-                          },
-                          borderRadius: BorderRadius.circular(10.0),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 7.0),
-                            decoration: BoxDecoration(
-                              color: isCurrent ? appColors.accentSubtle : Colors.transparent,
-                              borderRadius: BorderRadius.circular(10.0),
-                            ),
-                            child: Row(
-                              children: [
-                                if (isCurrent)
-                                  Icon(Icons.check, size: 14.0, color: appColors.accent)
-                                else
-                                  const SizedBox(width: 14.0),
-                                const SizedBox(width: 8.0),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        p.name,
-                                        style: AppTypography.uiControl.copyWith(
-                                          color: isCurrent ? appColors.accent : appColors.textPrimary,
-                                          fontSize: 12.0,
-                                          fontWeight: isCurrent ? FontWeight.w600 : FontWeight.w500,
-                                        ),
+                      SizedBox(
+                        height: listHeight,
+                        child: Scrollbar(
+                          controller: scrollController,
+                          thumbVisibility: true,
+                          thickness: 3.5,
+                          radius: const Radius.circular(4.0),
+                          child: ListView(
+                            controller: scrollController,
+                            padding: const EdgeInsets.only(right: 6.0),
+                            children: [
+                              ...primaryPersonas.map((p) => _buildPersonaItem(p, dialogContext, appColors)),
+                              Padding(
+                                padding: const EdgeInsets.only(left: 10.0, top: 8.0, bottom: 4.0, right: 6.0),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      I18n.additionalRoles,
+                                      style: AppTypography.uiControl.copyWith(
+                                        color: appColors.textSecondary.withValues(alpha: 0.65),
+                                        fontSize: 10.0,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: 0.6,
                                       ),
-                                      if (p.description.isNotEmpty)
-                                        Text(
-                                          p.description,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: AppTypography.uiControl.copyWith(
-                                            color: appColors.textSecondary,
-                                            fontSize: 10.5,
-                                          ),
-                                        ),
-                                    ],
-                                  ),
+                                    ),
+                                    const SizedBox(width: 8.0),
+                                    Expanded(
+                                      child: Container(
+                                        height: 1.0,
+                                        color: appColors.borderSubtle.withValues(alpha: 0.5),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
+                              ),
+                              ...additionalPersonas.map((p) => _buildPersonaItem(p, dialogContext, appColors)),
+                            ],
                           ),
-                        );
-                      }),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -373,6 +387,59 @@ class _PersonaChipState extends State<_PersonaChip> {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildPersonaItem(Persona p, BuildContext dialogContext, AppThemeExtension appColors) {
+    final isCurrent = p.name.toLowerCase() == widget.personaName.toLowerCase();
+    return InkWell(
+      onTap: () {
+        Navigator.of(dialogContext).pop();
+        widget.onSelectPersona?.call(p.name);
+        widget.onTap();
+      },
+      borderRadius: BorderRadius.circular(10.0),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.5),
+        decoration: BoxDecoration(
+          color: isCurrent ? appColors.accentSubtle : Colors.transparent,
+          borderRadius: BorderRadius.circular(10.0),
+        ),
+        child: Row(
+          children: [
+            if (isCurrent)
+              Icon(Icons.check, size: 14.0, color: appColors.accent)
+            else
+              const SizedBox(width: 14.0),
+            const SizedBox(width: 8.0),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    p.name,
+                    style: AppTypography.uiControl.copyWith(
+                      color: isCurrent ? appColors.accent : appColors.textPrimary,
+                      fontSize: 12.0,
+                      fontWeight: isCurrent ? FontWeight.w600 : FontWeight.w500,
+                    ),
+                  ),
+                  if (p.description.isNotEmpty)
+                    Text(
+                      p.description,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.uiControl.copyWith(
+                        color: appColors.textSecondary,
+                        fontSize: 10.5,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -442,6 +509,7 @@ class _SendButton extends StatefulWidget {
   final VoidCallback? onTap;
 
   const _SendButton({
+    super.key,
     required this.isGenerating,
     required this.hasText,
     required this.onTap,
@@ -451,8 +519,50 @@ class _SendButton extends StatefulWidget {
   State<_SendButton> createState() => _SendButtonState();
 }
 
-class _SendButtonState extends State<_SendButton> {
+class _SendButtonState extends State<_SendButton> with SingleTickerProviderStateMixin {
+  late final AnimationController _animController;
+  int _animIndex = 0;
   bool _isPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  void triggerCuteAnimation() {
+    if (!mounted) return;
+    setState(() {
+      _animIndex = (_animIndex + 1) % 3;
+    });
+    _animController.forward(from: 0.0);
+  }
+
+  double _calculateHeightFactor(double t) {
+    if (t < 0.18) {
+      return Curves.easeOutBack.transform(t / 0.18).clamp(0.0, 1.08);
+    } else if (t < 0.78) {
+      return 1.0;
+    } else {
+      final subT = (t - 0.78) / 0.22;
+      return (1.0 - Curves.easeInOutCubic.transform(subT)).clamp(0.0, 1.0);
+    }
+  }
+
+  double _calculateCuteProgress(double t) {
+    if (t < 0.18) return 0.0;
+    if (t > 0.78) return 1.0;
+    return (t - 0.18) / 0.60;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -466,38 +576,274 @@ class _SendButtonState extends State<_SendButton> {
         ? appColors.textPrimary
         : Colors.white;
 
-    return MouseRegion(
-      cursor: widget.onTap != null ? SystemMouseCursors.click : SystemMouseCursors.basic,
-      child: GestureDetector(
-        onTapDown: (_) => setState(() => _isPressed = true),
-        onTapUp: (_) => setState(() => _isPressed = false),
-        onTapCancel: () => setState(() => _isPressed = false),
-        onTap: widget.onTap,
-        child: AnimatedScale(
-          scale: _isPressed ? 0.96 : 1.0,
-          duration: const Duration(milliseconds: 100),
-          curve: const Cubic(0.34, 1.56, 0.64, 1),
-          child: Opacity(
-            opacity: widget.hasText || widget.isGenerating ? 1.0 : 0.6,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 7.0),
-              decoration: BoxDecoration(
-                color: bgColor,
-                borderRadius: BorderRadius.circular(16.0),
-                border: widget.isGenerating ? Border.all(color: appColors.borderSubtle) : null,
-              ),
-              child: Text(
-                widget.isGenerating ? I18n.stop : I18n.send,
-                style: AppTypography.uiControl.copyWith(
-                  color: textColor,
-                  fontSize: 12.0,
-                  fontWeight: FontWeight.w500,
+    return AnimatedBuilder(
+      animation: _animController,
+      builder: (context, _) {
+        final double animValue = _animController.value;
+        final double heightFactor = animValue > 0.0 ? _calculateHeightFactor(animValue) : 0.0;
+        final double cuteProgress = animValue > 0.0 ? _calculateCuteProgress(animValue) : 0.0;
+        final double extensionHeight = heightFactor * 44.0;
+
+        return MouseRegion(
+          cursor: widget.onTap != null ? SystemMouseCursors.click : SystemMouseCursors.basic,
+          child: GestureDetector(
+            onTapDown: (_) => setState(() => _isPressed = true),
+            onTapUp: (_) => setState(() => _isPressed = false),
+            onTapCancel: () => setState(() => _isPressed = false),
+            onTap: () {
+              if (widget.onTap != null) {
+                if (!widget.isGenerating && widget.hasText) {
+                  triggerCuteAnimation();
+                }
+                widget.onTap!();
+              }
+            },
+            child: AnimatedScale(
+              scale: _isPressed ? 0.96 : 1.0,
+              duration: const Duration(milliseconds: 100),
+              curve: const Cubic(0.34, 1.56, 0.64, 1),
+              child: Opacity(
+                opacity: widget.hasText || widget.isGenerating ? 1.0 : 0.6,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: bgColor,
+                    borderRadius: BorderRadius.circular(16.0),
+                    border: widget.isGenerating ? Border.all(color: appColors.borderSubtle) : null,
+                    boxShadow: extensionHeight > 1.0
+                        ? [
+                            BoxShadow(
+                              color: appColors.accent.withValues(alpha: 0.28),
+                              blurRadius: 12.0,
+                              offset: const Offset(0, -3),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Cute upward animated Llama extension
+                      if (extensionHeight > 0.5)
+                        SizedBox(
+                          height: extensionHeight,
+                          width: 78.0,
+                          child: ClipRect(
+                            child: CustomPaint(
+                              painter: _CuteLlamaPainter(
+                                cuteProgress: cuteProgress,
+                                animType: _animIndex,
+                                llamaColor: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                      // Base Send Button Content
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 7.0),
+                        child: Text(
+                          widget.isGenerating ? I18n.stop : I18n.send,
+                          style: AppTypography.uiControl.copyWith(
+                            color: textColor,
+                            fontSize: 12.0,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
+  }
+}
+
+/// Painter for the cute Llama animation with 3 joyful variations:
+/// 0: Ear Wiggle & Sparkles
+/// 1: Bouncy Hop & Floating Heart
+/// 2: Eager Nod & Wink
+class _CuteLlamaPainter extends CustomPainter {
+  final double cuteProgress; // 0.0 to 1.0
+  final int animType;        // 0, 1, 2
+  final Color llamaColor;
+
+  _CuteLlamaPainter({
+    required this.cuteProgress,
+    required this.animType,
+    required this.llamaColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2 + 1.0);
+
+    double yOffset = 0.0;
+    double rotation = 0.0;
+    bool isWinking = false;
+    double earWiggle = 0.0;
+
+    if (animType == 0) {
+      // 0: Ear Wiggle & Sparkles
+      rotation = math.sin(cuteProgress * math.pi * 4) * 0.08;
+      earWiggle = math.sin(cuteProgress * math.pi * 8) * 0.25;
+    } else if (animType == 1) {
+      // 1: Bouncy Hop & Floating Heart
+      yOffset = -((math.sin(cuteProgress * math.pi * 4)).abs()) * 4.0;
+      rotation = math.sin(cuteProgress * math.pi * 2) * 0.04;
+    } else {
+      // 2: Eager Nod & Wink
+      yOffset = math.sin(cuteProgress * math.pi * 6) * 2.2;
+      isWinking = cuteProgress >= 0.25 && cuteProgress <= 0.70;
+    }
+
+    canvas.save();
+    canvas.translate(center.dx, center.dy + yOffset);
+    canvas.rotate(rotation);
+
+    // Draw cute Llama head, neck, and ears
+    _drawLlama(canvas, earWiggle, isWinking);
+
+    canvas.restore();
+
+    // Draw floating cute effects in canvas coordinate space
+    if (animType == 0) {
+      _drawSparkles(canvas, center);
+    } else if (animType == 1) {
+      _drawHeart(canvas, center);
+    } else {
+      _drawNodStars(canvas, center);
+    }
+  }
+
+  void _drawLlama(Canvas canvas, double earWiggle, bool isWinking) {
+    const double scale = 0.82;
+
+    final Path bodyPath = Path()
+      ..moveTo(-5.0 * scale, 10.0 * scale)
+      ..lineTo(-4.5 * scale, 0.0 * scale)
+      // Left ear (with gentle wiggle)
+      ..lineTo((-5.5 + earWiggle * 2.2) * scale, -9.5 * scale)
+      ..lineTo(-2.0 * scale, -4.5 * scale)
+      // Right ear (with opposite gentle wiggle)
+      ..lineTo((0.5 - earWiggle * 2.2) * scale, -8.5 * scale)
+      ..lineTo(2.0 * scale, -3.0 * scale)
+      // Snout
+      ..lineTo(8.5 * scale, -1.0 * scale)
+      ..lineTo(9.0 * scale, 2.0 * scale)
+      ..lineTo(7.0 * scale, 3.5 * scale)
+      ..lineTo(3.5 * scale, 3.5 * scale)
+      ..lineTo(4.0 * scale, 10.0 * scale)
+      ..close();
+
+    // Body fill
+    final fillPaint = Paint()
+      ..color = llamaColor.withValues(alpha: 0.22)
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(bodyPath, fillPaint);
+
+    // Body outline
+    final outlinePaint = Paint()
+      ..color = llamaColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(bodyPath, outlinePaint);
+
+    // Cute blush cheek
+    final blushPaint = Paint()
+      ..color = Colors.pinkAccent.shade100.withValues(alpha: 0.65)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(const Offset(3.69, 1.64), 1.31, blushPaint);
+
+    // Eye: round dot or cute wink arc
+    if (isWinking) {
+      final winkPaint = Paint()
+        ..color = llamaColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(
+        const Offset(0.41, -0.41),
+        const Offset(2.46, 0.41),
+        winkPaint,
+      );
+    } else {
+      final eyePaint = Paint()
+        ..color = llamaColor
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(const Offset(1.64, -0.41), 0.82, eyePaint);
+    }
+  }
+
+  void _drawSparkles(Canvas canvas, Offset center) {
+    final double sparkleScale = (math.sin(cuteProgress * math.pi)).clamp(0.0, 1.0);
+    if (sparkleScale <= 0.05) return;
+
+    // Sparkle 1: Top-left gold star
+    final Offset s1 = Offset(center.dx - 18.0, center.dy - 8.0);
+    _draw4PointStar(canvas, s1, 3.8 * sparkleScale, Colors.amberAccent);
+
+    // Sparkle 2: Top-right bright star
+    final Offset s2 = Offset(center.dx + 16.0, center.dy - 10.0);
+    _draw4PointStar(canvas, s2, 3.2 * sparkleScale, Colors.white);
+  }
+
+  void _drawHeart(Canvas canvas, Offset center) {
+    final double heartProgress = (cuteProgress * 1.3).clamp(0.0, 1.0);
+    if (heartProgress <= 0.05 || heartProgress >= 0.95) return;
+
+    final double hx = center.dx + 14.0;
+    final double hy = center.dy - 4.0 - heartProgress * 15.0;
+    final double hs = (math.sin(heartProgress * math.pi)).clamp(0.0, 1.0) * 2.2;
+
+    final Path heartPath = Path()
+      ..moveTo(hx, hy + hs * 0.8)
+      ..cubicTo(hx - hs * 1.8, hy - hs * 1.5, hx - hs * 2.5, hy + hs * 0.8, hx, hy + hs * 2.5)
+      ..cubicTo(hx + hs * 2.5, hy + hs * 0.8, hx + hs * 1.8, hy - hs * 1.5, hx, hy + hs * 0.8)
+      ..close();
+
+    final Paint heartPaint = Paint()
+      ..color = Colors.pinkAccent.shade100.withValues(alpha: (1.0 - heartProgress * 0.7))
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(heartPath, heartPaint);
+  }
+
+  void _drawNodStars(Canvas canvas, Offset center) {
+    final double starScale = (math.sin(cuteProgress * math.pi)).clamp(0.0, 1.0);
+    if (starScale <= 0.05) return;
+
+    // A tiny star floating from the snout
+    final Offset p1 = Offset(center.dx + 17.0, center.dy - 6.0);
+    _draw4PointStar(canvas, p1, 3.0 * starScale, Colors.amberAccent);
+
+    final Offset p2 = Offset(center.dx - 16.0, center.dy - 5.0);
+    _draw4PointStar(canvas, p2, 2.4 * starScale, Colors.white);
+  }
+
+  void _draw4PointStar(Canvas canvas, Offset pos, double size, Color color) {
+    final Path path = Path()
+      ..moveTo(pos.dx, pos.dy - size)
+      ..quadraticBezierTo(pos.dx, pos.dy, pos.dx + size, pos.dy)
+      ..quadraticBezierTo(pos.dx, pos.dy, pos.dx, pos.dy + size)
+      ..quadraticBezierTo(pos.dx, pos.dy, pos.dx - size, pos.dy)
+      ..quadraticBezierTo(pos.dx, pos.dy, pos.dx, pos.dy - size)
+      ..close();
+
+    final Paint paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _CuteLlamaPainter oldDelegate) {
+    return oldDelegate.cuteProgress != cuteProgress ||
+        oldDelegate.animType != animType ||
+        oldDelegate.llamaColor != llamaColor;
   }
 }

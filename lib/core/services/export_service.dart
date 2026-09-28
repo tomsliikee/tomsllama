@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:markdown/markdown.dart' as md;
 import '../models/conversation.dart';
 import '../models/message.dart';
+import 'localization_service.dart';
 
 class ExportService {
   static Future<bool> exportToMarkdown(Conversation conversation, List<Message> messages, String path) async {
@@ -14,11 +15,11 @@ class ExportService {
       for (final msg in messages) {
         if (msg.role == 'system') continue; // usually skip system prompts in export
         
-        final roleName = msg.role == 'user' ? 'You' : 'Assistant';
+        final roleName = msg.role == 'user' ? I18n.you : I18n.assistant;
         buffer.writeln('### $roleName');
         
         if (msg.thinkContent != null && msg.thinkContent!.isNotEmpty) {
-          buffer.writeln('<details><summary>Thought Process</summary>');
+          buffer.writeln('<details><summary>${I18n.thoughtProcess}</summary>');
           buffer.writeln(msg.thinkContent);
           buffer.writeln('</details>\n');
         }
@@ -64,7 +65,7 @@ class ExportService {
         if (msg.role == 'system') continue;
         
         final cssClass = msg.role == 'user' ? 'user' : 'assistant';
-        final roleName = msg.role == 'user' ? 'You' : 'Assistant';
+        final roleName = msg.role == 'user' ? I18n.you : I18n.assistant;
         
         buffer.writeln('<div class="message $cssClass">');
         buffer.writeln('<strong>$roleName</strong><br/><br/>');

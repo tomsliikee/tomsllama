@@ -6,12 +6,14 @@ import '../../../core/services/localization_service.dart';
 import '../../shell/widgets/tomsllama_logo.dart';
 import 'chat_list_item.dart';
 
-class SidebarView extends StatelessWidget {
+class SidebarView extends StatefulWidget {
   final List<Conversation> conversations;
   final String? activeConversationId;
   final VoidCallback onNewChat;
   final ValueChanged<String> onSelectChat;
   final ValueChanged<String>? onDeleteChat;
+  final ValueChanged<String>? onTogglePinChat;
+  final void Function(int oldIndex, int newIndex)? onReorder;
   final ValueChanged<String>? onExportChat;
   final TextEditingController? searchController;
   final ValueChanged<String>? onSearchChanged;
@@ -24,11 +26,20 @@ class SidebarView extends StatelessWidget {
     required this.onNewChat,
     required this.onSelectChat,
     this.onDeleteChat,
+    this.onTogglePinChat,
+    this.onReorder,
     this.onExportChat,
     this.searchController,
     this.onSearchChanged,
     this.onSearchClear,
   });
+
+  @override
+  State<SidebarView> createState() => _SidebarViewState();
+}
+
+class _SidebarViewState extends State<SidebarView> {
+  bool _isDragging = false;
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +59,7 @@ class SidebarView extends StatelessWidget {
               const SizedBox(width: 8.0),
               // Separated New Chat Floating Pill
               Expanded(
-                child: _NewChatButton(onTap: onNewChat),
+                child: _NewChatButton(onTap: widget.onNewChat),
               ),
             ],
           ),
@@ -83,9 +94,9 @@ class SidebarView extends StatelessWidget {
 
                   const SizedBox(height: 6.0),
 
-                  // Chat History List
+                  // Chat History List with Reorderable Drag-and-Drop and Tactile Jiggle Animation
                   Expanded(
-                    child: conversations.isEmpty
+                    child: widget.conversations.isEmpty
                         ? Padding(
                             padding: const EdgeInsets.all(12.0),
                             child: Text(
@@ -96,16 +107,58 @@ class SidebarView extends StatelessWidget {
                               ),
                             ),
                           )
-                        : ListView.builder(
-                            itemCount: conversations.length,
+                        : ReorderableListView.builder(
+                            buildDefaultDragHandles: false,
+                            itemCount: widget.conversations.length,
+                            onReorderStart: (index) {
+                              setState(() => _isDragging = true);
+                            },
+                            onReorderEnd: (index) {
+                              setState(() => _isDragging = false);
+                            },
+                            onReorderItem: (oldIndex, newIndex) {
+                              widget.onReorder?.call(oldIndex, newIndex);
+                            },
+                            proxyDecorator: (child, index, animation) {
+                              return Material(
+                                color: Colors.transparent,
+                                child: WobbleItem(
+                                  isWobbling: true,
+                                  index: index,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(10.0),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: 0.18),
+                                          blurRadius: 14.0,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: child,
+                                  ),
+                                ),
+                              );
+                            },
                             itemBuilder: (context, index) {
-                              final c = conversations[index];
+                              final c = widget.conversations[index];
                               return ChatListItem(
+                                key: ValueKey(c.id),
                                 conversation: c,
-                                isSelected: c.id == activeConversationId,
-                                onTap: () => onSelectChat(c.id),
-                                onDelete: onDeleteChat != null ? () => onDeleteChat!(c.id) : null,
-                                onExport: onExportChat != null ? () => onExportChat!(c.id) : null,
+                                index: index,
+                                isWobbling: _isDragging,
+                                isSelected: c.id == widget.activeConversationId,
+                                onTap: () => widget.onSelectChat(c.id),
+                                onTogglePin: widget.onTogglePinChat != null
+                                    ? () => widget.onTogglePinChat!(c.id)
+                                    : null,
+                                onDelete: widget.onDeleteChat != null
+                                    ? () => widget.onDeleteChat!(c.id)
+                                    : null,
+                                onExport: widget.onExportChat != null
+                                    ? () => widget.onExportChat!(c.id)
+                                    : null,
                               );
                             },
                           ),

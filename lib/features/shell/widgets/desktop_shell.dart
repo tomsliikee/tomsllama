@@ -178,6 +178,9 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                               }
                             }
                           },
+                          onTogglePinChat: (id) => sidebarNotifier.togglePin(id),
+                          onReorder: (oldIndex, newIndex) =>
+                              sidebarNotifier.reorderConversations(oldIndex, newIndex),
                           onExportChat: (_) {},
                         ),
                       
@@ -186,46 +189,28 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                         child: ArtifactCanvasView(
                           isCanvasOpen: chatState.isCanvasOpen,
                           onCloseCanvas: () => chatNotifier.closeCanvas(),
+                          language: chatState.canvasLanguage,
+                          onCopy: () {
+                            if (chatState.canvasContent != null) {
+                              Clipboard.setData(ClipboardData(text: chatState.canvasContent!));
+                            }
+                          },
                           canvasPanel: Container(
                             color: appColors.codeBackground,
                             padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      chatState.canvasLanguage ?? 'code',
-                                      style: AppTypography.code.copyWith(
-                                        color: appColors.accent,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    InkWell(
-                                      onTap: () => chatNotifier.closeCanvas(),
-                                      child: Icon(Icons.close, size: 16.0, color: appColors.textSecondary),
-                                    ),
-                                  ],
+                            child: SingleChildScrollView(
+                              child: SelectableText(
+                                chatState.canvasContent ?? '',
+                                style: AppTypography.code.copyWith(
+                                  color: appColors.textPrimary,
+                                  fontSize: 13.0,
+                                  height: 1.5,
                                 ),
-                                const Divider(height: 24.0),
-                                Expanded(
-                                  child: SingleChildScrollView(
-                                    child: SelectableText(
-                                      chatState.canvasContent ?? '',
-                                      style: AppTypography.code.copyWith(
-                                        color: appColors.textPrimary,
-                                        fontSize: 13.0,
-                                        height: 1.5,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
                           ),
                           chatPanel: Padding(
-                            padding: const EdgeInsets.fromLTRB(4.0, 10.0, 10.0, 12.0),
+                            padding: EdgeInsets.fromLTRB(4.0, 10.0, chatState.isCanvasOpen ? 5.0 : 10.0, 12.0),
                             child: Container(
                               decoration: BoxDecoration(
                                 color: appColors.surface,

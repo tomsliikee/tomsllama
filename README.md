@@ -22,10 +22,11 @@ The user interface emphasizes typography and reading comfort, using serif typogr
 - Model picker and temperature slider: Switch models from the top bar and adjust generation temperature with a slider and quick presets (Code, Balanced, Creative).
 - System personas: Quickly switch system prompts for roles such as Software Architect, Senior Developer, Security Auditor, and Technical Writer.
 - Local SQLite storage: All conversations and messages are stored on disk in SQLite (`~/Documents/tomsllama/tomsllama.db`). Switching or creating chats never loses history.
-- Three built-in themes:
+- Four built-in themes:
   - Claude: Warm ivory paper background with terracotta accents.
   - Pond: Clean mineral light background with slate teal accents.
   - Dark: Low-contrast charcoal background with warm highlights.
+  - Pond Dark: Deep mineral slate background with luminous teal accents.
 - Drag and drop: Drop code or text files into the input box to automatically format them into code blocks.
 - Offline fonts: Ships with local font files (Newsreader, Inter, Fira Code) so no fonts are loaded from Google servers.
 - Dual-language support: Automatically adapts to English or German based on system locale.

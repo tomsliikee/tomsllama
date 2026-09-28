@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
-// Note: We would have a real settings service/riverpod provider here.
+import '../../../core/services/localization_service.dart';
 // For now, we mock the UI.
 
 class SettingsDialog extends ConsumerStatefulWidget {
@@ -40,26 +40,27 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Settings', style: AppTypography.headline.copyWith(color: appColors.textPrimary, fontSize: 20.0)),
+            Text(I18n.settingsTitle, style: AppTypography.headline.copyWith(color: appColors.textPrimary, fontSize: 20.0)),
             const SizedBox(height: 24.0),
             
             Expanded(
               child: ListView(
                 children: [
-                  _buildSectionTitle('Theme', appColors),
+                  _buildSectionTitle(I18n.theme, appColors),
                   const SizedBox(height: 8.0),
-                  Row(
+                  Wrap(
+                    spacing: 10.0,
+                    runSpacing: 8.0,
                     children: [
-                      _buildThemeOption(0, 'Claude (Alabaster)', appColors),
-                      const SizedBox(width: 12.0),
-                      _buildThemeOption(1, 'Pond (Mint)', appColors),
-                      const SizedBox(width: 12.0),
-                      _buildThemeOption(2, 'Dark (Carbon)', appColors),
+                      _buildThemeOption(0, I18n.themeClaudeAlabaster, appColors),
+                      _buildThemeOption(1, I18n.themePondMint, appColors),
+                      _buildThemeOption(2, I18n.themeDarkCarbon, appColors),
+                      _buildThemeOption(3, I18n.themePondDarkMineral, appColors),
                     ],
                   ),
                   
                   const SizedBox(height: 24.0),
-                  _buildSectionTitle('Ollama API URL', appColors),
+                  _buildSectionTitle(I18n.ollamaApiUrl, appColors),
                   const SizedBox(height: 8.0),
                   TextField(
                     controller: _urlController,
@@ -72,7 +73,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                   ),
                   
                   const SizedBox(height: 24.0),
-                  _buildSectionTitle('Default Persona', appColors),
+                  _buildSectionTitle(I18n.defaultPersona, appColors),
                   const SizedBox(height: 8.0),
                   TextField(
                     controller: _personaController,
@@ -98,7 +99,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                   backgroundColor: appColors.textPrimary,
                   foregroundColor: appColors.background,
                 ),
-                child: const Text('Save & Close'),
+                child: Text(I18n.saveAndClose),
               ),
             ),
           ],

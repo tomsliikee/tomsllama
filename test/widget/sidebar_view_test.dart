@@ -54,4 +54,37 @@ void main() {
     await tester.pumpAndSettle();
     expect(newChatClicked, isTrue);
   });
+
+  testWidgets('SidebarView displays pinned conversation icon and triggers pin callback', (WidgetTester tester) async {
+    final now = DateTime.now();
+    final conversations = [
+      Conversation(id: '1', title: 'Pinned Chat', createdAt: now, updatedAt: now, isPinned: true),
+      Conversation(id: '2', title: 'Regular Chat', createdAt: now, updatedAt: now, isPinned: false),
+    ];
+
+    String? pinnedToggledId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: claudeTheme,
+        home: Scaffold(
+          body: SidebarView(
+            conversations: conversations,
+            activeConversationId: '1',
+            onNewChat: () {},
+            onSelectChat: (_) {},
+            onTogglePinChat: (id) => pinnedToggledId = id,
+          ),
+        ),
+      ),
+    );
+
+    // Pinned chat should have push pin icon visible
+    expect(find.byIcon(Icons.push_pin_rounded), findsOneWidget);
+
+    // Tap pin icon
+    await tester.tap(find.byIcon(Icons.push_pin_rounded));
+    await tester.pumpAndSettle();
+    expect(pinnedToggledId, '1');
+  });
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/services/localization_service.dart';
 
 class TelemetryFooter extends StatefulWidget {
   final int tokens;
@@ -46,7 +47,10 @@ class _TelemetryFooterState extends State<TelemetryFooter> {
     
     return Padding(
       padding: const EdgeInsets.only(top: 12.0),
-      child: Row(
+      child: Wrap(
+        spacing: 8.0,
+        runSpacing: 6.0,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           Text(
             metricsText,
@@ -54,21 +58,21 @@ class _TelemetryFooterState extends State<TelemetryFooter> {
               color: appColors.textSecondary.withValues(alpha: 0.6),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10.0),
-            child: Text('·', style: TextStyle(color: appColors.textSecondary.withValues(alpha: 0.6))),
+          Text(
+            '·',
+            style: TextStyle(color: appColors.textSecondary.withValues(alpha: 0.6)),
           ),
           _ActionLink(
-            label: 'Regenerate',
+            label: I18n.regenerate,
             onTap: widget.onRegenerate,
             appColors: appColors,
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10.0),
-            child: Text('·', style: TextStyle(color: appColors.textSecondary.withValues(alpha: 0.6))),
+          Text(
+            '·',
+            style: TextStyle(color: appColors.textSecondary.withValues(alpha: 0.6)),
           ),
           _ActionLink(
-            label: _copied ? 'Copied' : 'Copy MD',
+            label: _copied ? I18n.copied : I18n.copyMd,
             onTap: _copyContent,
             appColors: appColors,
             colorOverride: _copied ? Colors.green : null,

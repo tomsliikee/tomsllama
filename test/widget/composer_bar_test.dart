@@ -44,4 +44,45 @@ void main() {
 
     expect(sentText, 'Hello World');
   });
+
+  testWidgets('ComposerBar opens scrollable persona menu with primary and additional sections', (WidgetTester tester) async {
+    String? selectedPersona;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: claudeTheme,
+        home: Scaffold(
+          body: ComposerBar(
+            isGenerating: false,
+            activePersonaName: 'Standard',
+            onSend: (_) {},
+            onStop: () {},
+            onPersonaTap: () {},
+            onSelectPersona: (p) => selectedPersona = p,
+          ),
+        ),
+      ),
+    );
+
+    // Tap persona chip to open dropdown
+    await tester.tap(find.text('Standard'));
+    await tester.pumpAndSettle();
+
+    // Verify header and primary role are immediately in view
+    expect(find.text('ROLLE & HAUPTPROMPT'), findsOneWidget);
+    expect(find.text('Senior Coder'), findsOneWidget);
+
+    // Scroll down to reveal the additional section
+    await tester.drag(find.byType(ListView), const Offset(0, -120));
+    await tester.pumpAndSettle();
+
+    expect(find.text('ZUSÄTZLICHE'), findsOneWidget);
+    expect(find.text('Deep Analyst'), findsOneWidget);
+
+    // Tap a role
+    await tester.tap(find.text('Deep Analyst'));
+    await tester.pumpAndSettle();
+
+    expect(selectedPersona, 'Deep Analyst');
+  });
 }

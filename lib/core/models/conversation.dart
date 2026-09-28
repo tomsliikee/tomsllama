@@ -4,6 +4,9 @@ class Conversation {
   final DateTime createdAt;
   final DateTime updatedAt;
   final int totalTokens;
+  final bool isPinned;
+  final int sortOrder;
+  final String persona;
 
   const Conversation({
     required this.id,
@@ -11,6 +14,9 @@ class Conversation {
     required this.createdAt,
     required this.updatedAt,
     this.totalTokens = 0,
+    this.isPinned = false,
+    this.sortOrder = 0,
+    this.persona = 'Standard',
   });
 
   Map<String, dynamic> toMap() {
@@ -20,6 +26,9 @@ class Conversation {
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'total_tokens': totalTokens,
+      'is_pinned': isPinned ? 1 : 0,
+      'sort_order': sortOrder,
+      'persona': persona,
     };
   }
 
@@ -30,6 +39,9 @@ class Conversation {
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
       totalTokens: map['total_tokens'] as int? ?? 0,
+      isPinned: (map['is_pinned'] as int? ?? 0) == 1,
+      sortOrder: map['sort_order'] as int? ?? 0,
+      persona: (map['persona'] as String?) ?? 'Standard',
     );
   }
 
@@ -39,6 +51,9 @@ class Conversation {
     DateTime? createdAt,
     DateTime? updatedAt,
     int? totalTokens,
+    bool? isPinned,
+    int? sortOrder,
+    String? persona,
   }) {
     return Conversation(
       id: id ?? this.id,
@@ -46,6 +61,9 @@ class Conversation {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       totalTokens: totalTokens ?? this.totalTokens,
+      isPinned: isPinned ?? this.isPinned,
+      sortOrder: sortOrder ?? this.sortOrder,
+      persona: persona ?? this.persona,
     );
   }
 }
