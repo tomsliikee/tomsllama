@@ -25,7 +25,7 @@ class ChatState {
     this.conversationId,
     this.messages = const [],
     this.isGenerating = false,
-    this.activePersonaName = 'Architect',
+    this.activePersonaName = 'Standard',
     this.temperature = 0.7,
     this.isCanvasOpen = false,
     this.canvasContent,
@@ -69,8 +69,15 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   Future<void> loadConversation(String conversationId) async {
     _activeStream?.cancel();
+
+    // Retrieve the persona saved specifically for this conversation
+    final allConvs = await _db.getConversations();
+    final conv = allConvs.where((c) => c.id == conversationId).firstOrNull;
+    final persona = conv?.persona ?? 'Standard';
+
     state = state.copyWith(
       conversationId: conversationId,
+      activePersonaName: persona,
       isGenerating: false,
       errorMessage: null,
       clearCanvas: true,
@@ -104,19 +111,24 @@ class ChatNotifier extends StateNotifier<ChatState> {
       }
     }
 
-    // 2. If current conversation already exists and has 0 messages, just keep using it!
+    // 2. If current conversation already exists and has 0 messages, just reset persona to Standard!
     if (state.conversationId != null && state.messages.isEmpty) {
       _ref.read(sidebarProvider.notifier).setActiveConversation(state.conversationId!);
+      state = state.copyWith(activePersonaName: 'Standard');
       return;
     }
 
-    // 3. Create a brand new conversation in the database & sidebar!
+    // 3. Create a brand new conversation in the database & sidebar with Standard persona
     final title = I18n.isGerman ? 'Neuer Chat' : 'New Chat';
-    final newConv = await _ref.read(sidebarProvider.notifier).createNewConversation(title: title);
+    final newConv = await _ref.read(sidebarProvider.notifier).createNewConversation(
+      title: title,
+      persona: 'Standard',
+    );
 
     // 4. Set state to the new conversation
     state = state.copyWith(
       conversationId: newConv.id,
+      activePersonaName: 'Standard',
       messages: [],
       isGenerating: false,
       errorMessage: null,
@@ -127,6 +139,9 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   void setPersona(String personaName) {
     state = state.copyWith(activePersonaName: personaName);
+    if (state.conversationId != null && state.conversationId!.isNotEmpty) {
+      _ref.read(sidebarProvider.notifier).updatePersona(state.conversationId!, personaName);
+    }
   }
 
   void setTemperature(double temp) {
@@ -154,6 +169,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     if (convId.isEmpty) {
       final newConv = await _ref.read(sidebarProvider.notifier).createNewConversation(
         title: text.length > 25 ? '${text.substring(0, 25)}...' : text,
+        persona: state.activePersonaName,
       );
       convId = newConv.id;
       isFirstMessageInConv = true;

@@ -23,7 +23,8 @@ void main() {
               updated_at TEXT NOT NULL,
               total_tokens INTEGER DEFAULT 0,
               is_pinned INTEGER DEFAULT 0,
-              sort_order INTEGER DEFAULT 0
+              sort_order INTEGER DEFAULT 0,
+              persona TEXT DEFAULT 'Standard'
             )
           ''');
 

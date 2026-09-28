@@ -76,13 +76,17 @@ class SidebarNotifier extends StateNotifier<SidebarState> {
     );
   }
 
-  Future<Conversation> createNewConversation({String title = 'Neuer Chat'}) async {
+  Future<Conversation> createNewConversation({
+    String title = 'Neuer Chat',
+    String persona = 'Standard',
+  }) async {
     final now = DateTime.now();
     final newConv = Conversation(
       id: now.millisecondsSinceEpoch.toString(),
       title: title,
       createdAt: now,
       updatedAt: now,
+      persona: persona,
     );
     await _db.saveConversation(newConv);
     final updatedList = [newConv, ...state.conversations];
@@ -98,6 +102,17 @@ class SidebarNotifier extends StateNotifier<SidebarState> {
     final updatedList = state.conversations.map((c) {
       if (c.id == id) {
         return c.copyWith(title: title);
+      }
+      return c;
+    }).toList();
+    state = state.copyWith(conversations: updatedList);
+  }
+
+  Future<void> updatePersona(String id, String persona) async {
+    await _db.updateConversationPersona(id, persona);
+    final updatedList = state.conversations.map((c) {
+      if (c.id == id) {
+        return c.copyWith(persona: persona);
       }
       return c;
     }).toList();

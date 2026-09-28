@@ -55,6 +55,9 @@ class DatabaseService {
           try {
             await db.execute('ALTER TABLE conversations ADD COLUMN sort_order INTEGER DEFAULT 0;');
           } catch (_) {}
+          try {
+            await db.execute("ALTER TABLE conversations ADD COLUMN persona TEXT DEFAULT 'Standard';");
+          } catch (_) {}
         },
       ),
     );
@@ -71,7 +74,8 @@ class DatabaseService {
         updated_at TEXT NOT NULL,
         total_tokens INTEGER DEFAULT 0,
         is_pinned INTEGER DEFAULT 0,
-        sort_order INTEGER DEFAULT 0
+        sort_order INTEGER DEFAULT 0,
+        persona TEXT DEFAULT 'Standard'
       )
     ''');
 
@@ -98,16 +102,26 @@ class DatabaseService {
       )
     ''');
     
-    // Add default Architect persona
+    // Add default Standard persona
     await db.insert('personas', {
-      'id': 'default-architect',
-      'name': 'Architect',
-      'system_prompt': 'You are a highly capable software architect. You provide clean, minimal, and secure code.'
+      'id': 'default-standard',
+      'name': 'Standard',
+      'system_prompt': 'You are a calm, highly capable AI assistant. Answer directly, concisely and accurately without fluff, conversational filler, or unnecessary apologies.'
     });
   }
 
   // --- Conversations ---
   
+  Future<void> updateConversationPersona(String id, String persona) async {
+    final db = await database;
+    await db.update(
+      'conversations',
+      {'persona': persona},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   Future<void> saveConversation(Conversation conversation) async {
     final db = await database;
     await db.insert(
