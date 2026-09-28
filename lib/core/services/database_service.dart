@@ -49,6 +49,12 @@ class DatabaseService {
         onCreate: _onCreate,
         onOpen: (db) async {
           await db.execute('PRAGMA foreign_keys = ON;');
+          try {
+            await db.execute('ALTER TABLE conversations ADD COLUMN is_pinned INTEGER DEFAULT 0;');
+          } catch (_) {}
+          try {
+            await db.execute('ALTER TABLE conversations ADD COLUMN sort_order INTEGER DEFAULT 0;');
+          } catch (_) {}
         },
       ),
     );
@@ -63,7 +69,9 @@ class DatabaseService {
         title TEXT NOT NULL,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
-        total_tokens INTEGER DEFAULT 0
+        total_tokens INTEGER DEFAULT 0,
+        is_pinned INTEGER DEFAULT 0,
+        sort_order INTEGER DEFAULT 0
       )
     ''');
 
@@ -121,8 +129,35 @@ class DatabaseService {
 
   Future<List<Conversation>> getConversations() async {
     final db = await database;
-    final maps = await db.query('conversations', orderBy: 'updated_at DESC');
+    final maps = await db.query(
+      'conversations',
+      orderBy: 'is_pinned DESC, sort_order ASC, updated_at DESC',
+    );
     return maps.map((map) => Conversation.fromMap(map)).toList();
+  }
+
+  Future<void> togglePinConversation(String id, bool isPinned) async {
+    final db = await database;
+    await db.update(
+      'conversations',
+      {'is_pinned': isPinned ? 1 : 0},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> updateConversationsOrder(List<Conversation> conversations) async {
+    final db = await database;
+    final batch = db.batch();
+    for (int i = 0; i < conversations.length; i++) {
+      batch.update(
+        'conversations',
+        {'sort_order': i},
+        where: 'id = ?',
+        whereArgs: [conversations[i].id],
+      );
+    }
+    await batch.commit(noResult: true);
   }
 
   Future<void> deleteConversation(String id) async {

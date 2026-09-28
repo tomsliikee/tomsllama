@@ -178,6 +178,9 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                               }
                             }
                           },
+                          onTogglePinChat: (id) => sidebarNotifier.togglePin(id),
+                          onReorder: (oldIndex, newIndex) =>
+                              sidebarNotifier.reorderConversations(oldIndex, newIndex),
                           onExportChat: (_) {},
                         ),
                       

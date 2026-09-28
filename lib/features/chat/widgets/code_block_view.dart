@@ -55,14 +55,13 @@ class _CodeBlockViewState extends ConsumerState<CodeBlockView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header Floating Pill Row
-          Row(
-            children: [
-              // Language Floating Pill
-              Container(
+          // Header Floating Pill Row with responsive wrapping
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final languagePill = Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
                 decoration: BoxDecoration(
-                  color: appColors.surface,
+                  color: appColors.codeBackground,
                   border: Border.all(color: appColors.borderSubtle, width: 1.0),
                   borderRadius: BorderRadius.circular(16.0),
                 ),
@@ -85,25 +84,48 @@ class _CodeBlockViewState extends ConsumerState<CodeBlockView> {
                     ),
                   ],
                 ),
-              ),
-              const Spacer(),
-              // Separate Pill 1: Split-View Canvas
-              _CodeActionPill(
+              );
+
+              final splitViewPill = _CodeActionPill(
                 label: I18n.splitViewCanvas,
                 icon: Icons.splitscreen_outlined,
                 onTap: _openInCanvas,
                 appColors: appColors,
-              ),
-              const SizedBox(width: 8.0),
-              // Separate Pill 2: Copy
-              _CodeActionPill(
+              );
+
+              final copyPill = _CodeActionPill(
                 label: _copied ? I18n.copied : I18n.copy,
                 icon: _copied ? Icons.check_rounded : Icons.copy_rounded,
                 onTap: _copyToClipboard,
                 isActive: _copied,
                 appColors: appColors,
-              ),
-            ],
+              );
+
+              // If there is plenty of room, pin language left and actions right.
+              // Otherwise wrap them naturally to next line to prevent any overflow.
+              if (constraints.maxWidth >= 380) {
+                return Row(
+                  children: [
+                    languagePill,
+                    const Spacer(),
+                    splitViewPill,
+                    const SizedBox(width: 8.0),
+                    copyPill,
+                  ],
+                );
+              }
+
+              return Wrap(
+                spacing: 8.0,
+                runSpacing: 6.0,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  languagePill,
+                  splitViewPill,
+                  copyPill,
+                ],
+              );
+            },
           ),
           const SizedBox(height: 8.0),
           // Code Box Container: beautifully rounded with 18px radius
@@ -172,7 +194,7 @@ class _CodeActionPillState extends State<_CodeActionPill> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
         decoration: BoxDecoration(
-          color: _isHovered ? appColors.accentSubtle : appColors.surface,
+          color: _isHovered ? appColors.accentSubtle : appColors.codeBackground,
           border: Border.all(
             color: _isHovered
                 ? appColors.accent.withValues(alpha: 0.3)

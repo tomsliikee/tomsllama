@@ -103,6 +103,47 @@ class SidebarNotifier extends StateNotifier<SidebarState> {
     }).toList();
     state = state.copyWith(conversations: updatedList);
   }
+
+  Future<void> togglePin(String id) async {
+    final index = state.conversations.indexWhere((c) => c.id == id);
+    if (index == -1) return;
+
+    final current = state.conversations[index];
+    final newPinned = !current.isPinned;
+    await _db.togglePinConversation(id, newPinned);
+
+    final updated = List<Conversation>.from(state.conversations);
+    updated[index] = current.copyWith(isPinned: newPinned);
+    _sortConversations(updated);
+
+    state = state.copyWith(conversations: updated);
+    await _db.updateConversationsOrder(updated);
+  }
+
+  Future<void> reorderConversations(int oldIndex, int newIndex) async {
+    if (state.searchQuery.trim().isNotEmpty) return;
+    if (oldIndex < 0 || oldIndex >= state.conversations.length) return;
+    if (newIndex < 0 || newIndex >= state.conversations.length) return;
+
+    final list = List<Conversation>.from(state.conversations);
+    final item = list.removeAt(oldIndex);
+    list.insert(newIndex, item);
+
+    state = state.copyWith(conversations: list);
+    await _db.updateConversationsOrder(list);
+  }
+
+  void _sortConversations(List<Conversation> list) {
+    list.sort((a, b) {
+      if (a.isPinned != b.isPinned) {
+        return a.isPinned ? -1 : 1;
+      }
+      if (a.sortOrder != b.sortOrder) {
+        return a.sortOrder.compareTo(b.sortOrder);
+      }
+      return b.updatedAt.compareTo(a.updatedAt);
+    });
+  }
 }
 
 final sidebarProvider = StateNotifierProvider<SidebarNotifier, SidebarState>((ref) {

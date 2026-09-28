@@ -21,7 +21,9 @@ void main() {
               title TEXT NOT NULL,
               created_at TEXT NOT NULL,
               updated_at TEXT NOT NULL,
-              total_tokens INTEGER DEFAULT 0
+              total_tokens INTEGER DEFAULT 0,
+              is_pinned INTEGER DEFAULT 0,
+              sort_order INTEGER DEFAULT 0
             )
           ''');
 
