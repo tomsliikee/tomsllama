@@ -283,7 +283,7 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               _buildTempPreset(
-                                label: '0.2 Code',
+                                label: I18n.tempCode,
                                 isSelected: (currentTemp - 0.2).abs() < 0.01,
                                 onTap: () {
                                   setPopoverState(() => currentTemp = 0.2);
@@ -292,7 +292,7 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
                                 appColors: appColors,
                               ),
                               _buildTempPreset(
-                                label: '0.7 Normal',
+                                label: I18n.tempNormal,
                                 isSelected: (currentTemp - 0.7).abs() < 0.01,
                                 onTap: () {
                                   setPopoverState(() => currentTemp = 0.7);
@@ -301,7 +301,7 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
                                 appColors: appColors,
                               ),
                               _buildTempPreset(
-                                label: '1.0 Kreativ',
+                                label: I18n.tempCreative,
                                 isSelected: (currentTemp - 1.0).abs() < 0.01,
                                 onTap: () {
                                   setPopoverState(() => currentTemp = 1.0);

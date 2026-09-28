@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/services/localization_service.dart';
 
 class TelemetryFooter extends StatefulWidget {
   final int tokens;
@@ -62,7 +63,7 @@ class _TelemetryFooterState extends State<TelemetryFooter> {
             style: TextStyle(color: appColors.textSecondary.withValues(alpha: 0.6)),
           ),
           _ActionLink(
-            label: 'Regenerate',
+            label: I18n.regenerate,
             onTap: widget.onRegenerate,
             appColors: appColors,
           ),
@@ -71,7 +72,7 @@ class _TelemetryFooterState extends State<TelemetryFooter> {
             style: TextStyle(color: appColors.textSecondary.withValues(alpha: 0.6)),
           ),
           _ActionLink(
-            label: _copied ? 'Copied' : 'Copy MD',
+            label: _copied ? I18n.copied : I18n.copyMd,
             onTap: _copyContent,
             appColors: appColors,
             colorOverride: _copied ? Colors.green : null,

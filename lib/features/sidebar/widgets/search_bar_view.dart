@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/services/localization_service.dart';
 
 class SearchBarView extends StatelessWidget {
   final TextEditingController controller;
@@ -36,7 +37,7 @@ class SearchBarView extends StatelessWidget {
               onChanged: onChanged,
               style: AppTypography.uiControl.copyWith(color: appColors.textPrimary),
               decoration: InputDecoration(
-                hintText: 'Search chats...',
+                hintText: I18n.searchChats,
                 hintStyle: AppTypography.uiControl.copyWith(color: appColors.textSecondary),
                 border: InputBorder.none,
                 isDense: true,

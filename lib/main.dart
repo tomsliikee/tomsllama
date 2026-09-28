@@ -7,6 +7,7 @@ import 'dart:io';
 import 'core/theme/app_theme.dart';
 import 'features/shell/widgets/desktop_shell.dart';
 import 'core/services/database_service.dart';
+import 'core/services/localization_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,9 +42,9 @@ void main() async {
       await trayManager.setIcon('assets/app_icon.png');
       final menu = Menu(
         items: [
-          MenuItem(key: 'show_window', label: 'Show tomsllama'),
+          MenuItem(key: 'show_window', label: I18n.showApp),
           MenuItem.separator(),
-          MenuItem(key: 'exit_app', label: 'Exit'),
+          MenuItem(key: 'exit_app', label: I18n.exitApp),
         ],
       );
       await trayManager.setContextMenu(menu);

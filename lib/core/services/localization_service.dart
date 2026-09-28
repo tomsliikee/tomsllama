@@ -13,6 +13,7 @@ class I18n {
   // Common UI strings
   static String get appName => 'tomsllama';
   static String get newChat => isGerman ? '+ Neuer Chat' : '+ New Chat';
+  static String get newChatTitle => isGerman ? 'Neuer Chat' : 'New Chat';
   static String get history => isGerman ? 'VERLAUF' : 'HISTORY';
   static String get noChats => isGerman ? 'Keine Chats vorhanden' : 'No conversations yet';
   static String get manageModels => isGerman ? 'Modelle verwalten...' : 'Manage models...';
@@ -61,4 +62,91 @@ class I18n {
         ? 'Nachricht an $model schreiben... (Enter zum Senden, Shift+Enter für Zeilenumbruch)'
         : 'Message $model... (Enter to send, Shift+Enter for new line)';
   }
+
+  // Settings & Theme
+  static String get theme => isGerman ? 'Design' : 'Theme';
+  static String get themeClaudeAlabaster => 'Claude (Alabaster)';
+  static String get themePondMint => 'Pond (Mint)';
+  static String get themeDarkCarbon => 'Dark (Carbon)';
+  static String get themePondDarkMineral => 'Pond Dark (Mineral)';
+  static String get ollamaApiUrl => 'Ollama API URL';
+  static String get defaultPersona => isGerman ? 'Standard-Persona' : 'Default Persona';
+  static String get saveAndClose => isGerman ? 'Speichern & Schließen' : 'Save & Close';
+
+  // Model Manager
+  static String get modelManager => isGerman ? 'Modellverwaltung' : 'Model Manager';
+  static String get pull => isGerman ? 'Herunterladen' : 'Pull';
+  static String get installedModels => isGerman ? 'Installierte Modelle' : 'Installed Models';
+  static String get modelHintText => 'e.g., qwen2.5-coder:1.5b';
+
+  // Persona Dropdown
+  static String get additionalRoles => isGerman ? 'ZUSÄTZLICHE' : 'ADDITIONAL';
+
+  // Temperature Presets
+  static String get tempCode => '0.2 Code';
+  static String get tempNormal => '0.7 Normal';
+  static String get tempCreative => isGerman ? '1.0 Kreativ' : '1.0 Creative';
+
+  // Canvas & Code Block
+  static String get canvas => 'Canvas';
+
+  // Quick Switcher
+  static String get quickSearchPlaceholder => isGerman
+      ? 'Chats durchsuchen... (Tippen zum Filtern)'
+      : 'Search chats... (Type to filter)';
+  static String get searchChats => isGerman ? 'Chats durchsuchen...' : 'Search chats...';
+
+  // Export
+  static String get you => isGerman ? 'Du' : 'You';
+  static String get assistant => 'Assistant';
+  static String get thoughtProcess => isGerman ? 'Denkprozess' : 'Thought Process';
+
+  // System Tray
+  static String get showApp => isGerman ? 'tomsllama anzeigen' : 'Show tomsllama';
+  static String get exitApp => isGerman ? 'Beenden' : 'Exit';
+
+  // Drag-and-Drop
+  static String get dropFileHere => isGerman ? 'Datei hier ablegen...' : 'Drop file here...';
+
+  // Persona Names
+  static String get personaStandard => 'Standard';
+  static String get personaStandardDesc => isGerman
+      ? 'Ausgewogener, präziser und ruhiger Allround-Assistent.'
+      : 'Balanced, precise and calm all-round assistant.';
+  static String get personaArchitect => 'Architect';
+  static String get personaArchitectDesc => isGerman
+      ? 'System-Design, SOLID, Skalierbarkeit & saubere Architektur.'
+      : 'System design, SOLID, scalability & clean architecture.';
+  static String get personaCoder => 'Senior Coder';
+  static String get personaCoderDesc => isGerman
+      ? 'Pragmatischer, fehlerfreier und performanter Produktionscode.'
+      : 'Pragmatic, bug-free and performant production code.';
+  static String get personaSecurity => 'Security Guard';
+  static String get personaSecurityDesc => isGerman
+      ? 'Schwachstellenanalyse, Härtung und Risikominimierung.'
+      : 'Vulnerability analysis, hardening and risk mitigation.';
+  static String get personaWriter => 'Tech Writer';
+  static String get personaWriterDesc => isGerman
+      ? 'Prägnante Dokumentation und Spezifikationen.'
+      : 'Concise documentation and specifications.';
+  static String get personaAnalyst => 'Deep Analyst';
+  static String get personaAnalystDesc => isGerman
+      ? 'Strukturierte Logik-, Daten- und Ursachenanalyse.'
+      : 'Structured logic, data and root cause analysis.';
+  static String get personaPlanner => 'Project Planner';
+  static String get personaPlannerDesc => isGerman
+      ? 'Roadmaps, Sprint-Ziele, Meilensteine & strukturierte Projektplanung.'
+      : 'Roadmaps, sprint goals, milestones & structured project planning.';
+  static String get personaCreativeWriter => isGerman ? 'Kreativer Schreiber' : 'Creative Writer';
+  static String get personaCreativeWriterDesc => isGerman
+      ? 'Storytelling, kreative Texte, Drehbücher & fesselnde Prosa.'
+      : 'Storytelling, creative texts, screenplays & captivating prose.';
+  static String get personaMarketing => isGerman ? 'Marketing-Experte' : 'Marketing Expert';
+  static String get personaMarketingDesc => isGerman
+      ? 'Positionierung, Go-to-Market Strategien & Conversion Copywriting.'
+      : 'Positioning, go-to-market strategies & conversion copywriting.';
+  static String get personaSocialMedia => isGerman ? 'Social-Media-Experte' : 'Social Media Expert';
+  static String get personaSocialMediaDesc => isGerman
+      ? 'Plattform-Strategien, Hooks, Viralität & Community Growth.'
+      : 'Platform strategies, hooks, virality & community growth.';
 }

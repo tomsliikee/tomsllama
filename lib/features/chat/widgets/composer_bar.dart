@@ -329,7 +329,7 @@ class _PersonaChipState extends State<_PersonaChip> {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
                         child: Text(
-                          'ROLLE & HAUPTPROMPT',
+                          I18n.roleAndPrompt,
                           style: AppTypography.uiControl.copyWith(
                             color: appColors.textSecondary,
                             fontSize: 10.5,
@@ -356,7 +356,7 @@ class _PersonaChipState extends State<_PersonaChip> {
                                 child: Row(
                                   children: [
                                     Text(
-                                      'ZUSÄTZLICHE',
+                                      I18n.additionalRoles,
                                       style: AppTypography.uiControl.copyWith(
                                         color: appColors.textSecondary.withValues(alpha: 0.65),
                                         fontSize: 10.0,

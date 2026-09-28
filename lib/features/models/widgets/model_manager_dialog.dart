@@ -5,6 +5,7 @@ import '../../../core/models/pull_progress.dart';
 import '../../../core/services/ollama_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/services/localization_service.dart';
 
 class ModelManagerDialog extends StatefulWidget {
   const ModelManagerDialog({super.key});
@@ -96,7 +97,7 @@ class _ModelManagerDialogState extends State<ModelManagerDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Model Manager',
+              I18n.modelManager,
               style: AppTypography.headline.copyWith(color: appColors.textPrimary, fontSize: 20.0),
             ),
             const SizedBox(height: 24.0),
@@ -110,7 +111,7 @@ class _ModelManagerDialogState extends State<ModelManagerDialog> {
                     enabled: !_isPulling,
                     style: AppTypography.uiControl.copyWith(color: appColors.textPrimary),
                     decoration: InputDecoration(
-                      hintText: 'e.g., qwen2.5-coder:1.5b',
+                      hintText: I18n.modelHintText,
                       hintStyle: TextStyle(color: appColors.textSecondary),
                       border: OutlineInputBorder(
                         borderSide: BorderSide(color: appColors.border),
@@ -130,7 +131,7 @@ class _ModelManagerDialogState extends State<ModelManagerDialog> {
                     foregroundColor: appColors.background,
                     padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
                   ),
-                  child: const Text('Pull'),
+                  child: Text(I18n.pull),
                 ),
               ],
             ),
@@ -154,7 +155,7 @@ class _ModelManagerDialogState extends State<ModelManagerDialog> {
             
             // Installed Models List
             Text(
-              'Installed Models',
+              I18n.installedModels,
               style: AppTypography.uiControl.copyWith(color: appColors.textSecondary, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 12.0),
@@ -187,7 +188,7 @@ class _ModelManagerDialogState extends State<ModelManagerDialog> {
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: Text('Close', style: TextStyle(color: appColors.textPrimary)),
+                child: Text(I18n.close, style: TextStyle(color: appColors.textPrimary)),
               ),
             ),
           ],

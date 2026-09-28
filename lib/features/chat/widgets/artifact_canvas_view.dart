@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/services/localization_service.dart';
 
 class ArtifactCanvasView extends StatelessWidget {
   final Widget chatPanel;
@@ -95,7 +96,7 @@ class _CanvasWrapper extends StatelessWidget {
                   ),
                   const SizedBox(width: 6.0),
                   Text(
-                    'Canvas',
+                    I18n.canvas,
                     style: AppTypography.uiControl.copyWith(
                       color: appColors.textPrimary,
                       fontWeight: FontWeight.w600,
