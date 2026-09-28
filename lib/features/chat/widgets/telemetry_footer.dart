@@ -46,7 +46,10 @@ class _TelemetryFooterState extends State<TelemetryFooter> {
     
     return Padding(
       padding: const EdgeInsets.only(top: 12.0),
-      child: Row(
+      child: Wrap(
+        spacing: 8.0,
+        runSpacing: 6.0,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           Text(
             metricsText,
@@ -54,18 +57,18 @@ class _TelemetryFooterState extends State<TelemetryFooter> {
               color: appColors.textSecondary.withValues(alpha: 0.6),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10.0),
-            child: Text('·', style: TextStyle(color: appColors.textSecondary.withValues(alpha: 0.6))),
+          Text(
+            '·',
+            style: TextStyle(color: appColors.textSecondary.withValues(alpha: 0.6)),
           ),
           _ActionLink(
             label: 'Regenerate',
             onTap: widget.onRegenerate,
             appColors: appColors,
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10.0),
-            child: Text('·', style: TextStyle(color: appColors.textSecondary.withValues(alpha: 0.6))),
+          Text(
+            '·',
+            style: TextStyle(color: appColors.textSecondary.withValues(alpha: 0.6)),
           ),
           _ActionLink(
             label: _copied ? 'Copied' : 'Copy MD',

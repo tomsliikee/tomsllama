@@ -51,56 +51,89 @@ class _CodeBlockViewState extends ConsumerState<CodeBlockView> {
     );
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 16.0),
-      decoration: BoxDecoration(
-        color: appColors.codeBackground,
-        border: Border.all(color: appColors.borderSubtle, width: 1.0),
-        borderRadius: BorderRadius.circular(12.0),
-      ),
-      clipBehavior: Clip.antiAlias,
+      margin: const EdgeInsets.symmetric(vertical: 14.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header Bar (1:1 style_preview.html)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 7.0),
-            decoration: BoxDecoration(
-              color: appColors.surface, // #FFFFFF in Claude and Pond
-              border: Border(bottom: BorderSide(color: appColors.borderSubtle, width: 1.0)),
-            ),
-            child: Row(
-              children: [
-                // Language Badge
-                Text(
-                  widget.language.isEmpty ? 'code' : widget.language,
-                  style: AppTypography.code.copyWith(
-                    color: appColors.accent,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 11.0,
-                  ),
+          // Header Floating Pill Row
+          Row(
+            children: [
+              // Language Floating Pill
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
+                decoration: BoxDecoration(
+                  color: appColors.surface,
+                  border: Border.all(color: appColors.borderSubtle, width: 1.0),
+                  borderRadius: BorderRadius.circular(16.0),
                 ),
-                const Spacer(),
-                
-                // Split-View Canvas Button
-                _CodeActionBtn(
-                  label: I18n.splitViewCanvas,
-                  onTap: _openInCanvas,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.code_rounded,
+                      size: 13.0,
+                      color: appColors.accent,
+                    ),
+                    const SizedBox(width: 5.0),
+                    Text(
+                      widget.language.isEmpty ? 'code' : widget.language,
+                      style: AppTypography.code.copyWith(
+                        color: appColors.accent,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 11.5,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12.0),
-
-                // Copy Button
-                _CodeActionBtn(
-                  label: _copied ? I18n.copied : I18n.copy,
-                  onTap: _copyToClipboard,
-                  isActive: _copied,
+              ),
+              const Spacer(),
+              // Actions Floating Pill (Split-View Canvas + Copy)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.5),
+                decoration: BoxDecoration(
+                  color: appColors.surface,
+                  border: Border.all(color: appColors.borderSubtle, width: 1.0),
+                  borderRadius: BorderRadius.circular(16.0),
                 ),
-              ],
-            ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _CodeActionBtn(
+                      label: I18n.splitViewCanvas,
+                      icon: Icons.splitscreen_outlined,
+                      onTap: _openInCanvas,
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                      child: Text(
+                        '·',
+                        style: TextStyle(
+                          color: appColors.textSecondary.withValues(alpha: 0.4),
+                          fontSize: 12.0,
+                        ),
+                      ),
+                    ),
+                    _CodeActionBtn(
+                      label: _copied ? I18n.copied : I18n.copy,
+                      icon: _copied ? Icons.check_rounded : Icons.copy_rounded,
+                      onTap: _copyToClipboard,
+                      isActive: _copied,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          
-          // Code Body
-          Padding(
-            padding: const EdgeInsets.all(12.0),
+          const SizedBox(height: 8.0),
+          // Code Box Container: beautifully rounded with 18px radius
+          Container(
+            decoration: BoxDecoration(
+              color: appColors.codeBackground,
+              border: Border.all(color: appColors.borderSubtle, width: 1.0),
+              borderRadius: BorderRadius.circular(18.0),
+            ),
+            clipBehavior: Clip.antiAlias,
+            padding: const EdgeInsets.all(14.0),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: HighlightView(
@@ -123,11 +156,13 @@ class _CodeBlockViewState extends ConsumerState<CodeBlockView> {
 
 class _CodeActionBtn extends StatefulWidget {
   final String label;
+  final IconData? icon;
   final VoidCallback onTap;
   final bool isActive;
 
   const _CodeActionBtn({
     required this.label,
+    this.icon,
     required this.onTap,
     this.isActive = false,
   });
@@ -153,13 +188,22 @@ class _CodeActionBtnState extends State<_CodeActionBtn> {
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: widget.onTap,
-        child: Text(
-          widget.label,
-          style: AppTypography.code.copyWith(
-            color: color,
-            fontSize: 11.0,
-            fontWeight: widget.isActive ? FontWeight.w500 : FontWeight.w400,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (widget.icon != null) ...[
+              Icon(widget.icon, size: 12.0, color: color),
+              const SizedBox(width: 4.0),
+            ],
+            Text(
+              widget.label,
+              style: AppTypography.code.copyWith(
+                color: color,
+                fontSize: 11.0,
+                fontWeight: widget.isActive ? FontWeight.w500 : FontWeight.w400,
+              ),
+            ),
+          ],
         ),
       ),
     );

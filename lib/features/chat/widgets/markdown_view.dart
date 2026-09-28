@@ -38,6 +38,19 @@ class MarkdownView extends StatelessWidget {
       selectable: true,
       styleSheet: MarkdownStyleSheet(
         p: baseTextStyle,
+        strong: AppTypography.bodyItalic.copyWith(
+          color: appColors.textPrimary,
+          fontFamily: AppTypography.serifFamily,
+          fontStyle: FontStyle.italic,
+          fontWeight: FontWeight.w600,
+          fontSize: isThinkBlock ? 12.0 : 16.5,
+        ),
+        em: AppTypography.bodyItalic.copyWith(
+          color: appColors.textPrimary,
+          fontFamily: AppTypography.serifFamily,
+          fontStyle: FontStyle.italic,
+          fontSize: isThinkBlock ? 12.0 : 16.5,
+        ),
         h1: AppTypography.headline.copyWith(color: appColors.textPrimary, fontSize: 24),
         h2: AppTypography.headline.copyWith(fontSize: 20, color: appColors.textPrimary),
         h3: AppTypography.headline.copyWith(fontSize: 17, color: appColors.textPrimary),

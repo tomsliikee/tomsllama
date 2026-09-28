@@ -48,13 +48,14 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                 children: [
                   _buildSectionTitle('Theme', appColors),
                   const SizedBox(height: 8.0),
-                  Row(
+                  Wrap(
+                    spacing: 10.0,
+                    runSpacing: 8.0,
                     children: [
                       _buildThemeOption(0, 'Claude (Alabaster)', appColors),
-                      const SizedBox(width: 12.0),
                       _buildThemeOption(1, 'Pond (Mint)', appColors),
-                      const SizedBox(width: 12.0),
                       _buildThemeOption(2, 'Dark (Carbon)', appColors),
+                      _buildThemeOption(3, 'Pond Dark (Mineral)', appColors),
                     ],
                   ),
                   

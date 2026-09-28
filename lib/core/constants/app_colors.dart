@@ -39,4 +39,17 @@ class AppColors {
   static const Color darkAccentSubtle = Color(0xFF2A1F1B);
   static const Color darkCodeBackground = Color(0xFF201F1E);
   static const Color darkHover = Color(0x0AFFFFFF); // 4% white
+
+  // Pond Dark Mineral Palette (2nd Dark Theme)
+  static const Color pondDarkBackground = Color(0xFF12171A);
+  static const Color pondDarkSidebar = Color(0xFF0E1315);
+  static const Color pondDarkSurface = Color(0xFF192024);
+  static const Color pondDarkTextPrimary = Color(0xFFE5ECEF);
+  static const Color pondDarkTextSecondary = Color(0xFF7E8F96);
+  static const Color pondDarkBorder = Color(0xFF232D33);
+  static const Color pondDarkBorderSubtle = Color(0xFF1B2429);
+  static const Color pondDarkAccent = Color(0xFF4CA0B7);
+  static const Color pondDarkAccentSubtle = Color(0xFF14262E);
+  static const Color pondDarkCodeBackground = Color(0xFF151B1E);
+  static const Color pondDarkHover = Color(0x0AFFFFFF); // 4% white
 }

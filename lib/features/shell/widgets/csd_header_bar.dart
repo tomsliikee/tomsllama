@@ -524,13 +524,16 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
     AppThemeType currentTheme,
     AppThemeExtension appColors,
   ) {
-    const double tabWidth = 66.0;
-    final int activeIndex = currentTheme == AppThemeType.claude
-        ? 0
-        : (currentTheme == AppThemeType.pond ? 1 : 2);
+    const double tabWidth = 72.0;
+    final int activeIndex = switch (currentTheme) {
+      AppThemeType.claude => 0,
+      AppThemeType.pond => 1,
+      AppThemeType.dark => 2,
+      AppThemeType.pondDark => 3,
+    };
 
     return Container(
-      width: tabWidth * 3 + 12.0,
+      width: tabWidth * 4 + 12.0,
       height: 32.0,
       padding: const EdgeInsets.all(2.5),
       decoration: BoxDecoration(
@@ -581,6 +584,13 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
                   isActive: activeIndex == 2,
                   width: tabWidth,
                   onTap: () => ref.read(themeProvider.notifier).setTheme(AppThemeType.dark),
+                  appColors: appColors,
+                ),
+                _buildThemeTab(
+                  label: 'Pond Dark',
+                  isActive: activeIndex == 3,
+                  width: tabWidth,
+                  onTap: () => ref.read(themeProvider.notifier).setTheme(AppThemeType.pondDark),
                   appColors: appColors,
                 ),
               ],

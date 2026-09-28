@@ -5,11 +5,13 @@ import '../services/settings_service.dart';
 import 'claude_theme.dart';
 import 'pond_theme.dart';
 import 'dark_theme.dart';
+import 'pond_dark_theme.dart';
 
 enum AppThemeType {
   claude,
   pond,
   dark,
+  pondDark,
 }
 
 class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
@@ -128,5 +130,7 @@ ThemeData getThemeData(AppThemeType type) {
       return pondTheme;
     case AppThemeType.dark:
       return darkTheme;
+    case AppThemeType.pondDark:
+      return pondDarkTheme;
   }
 }
