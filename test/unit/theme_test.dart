@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tomsllama/core/theme/app_theme.dart';
-import 'package:tomsllama/core/theme/claude_theme.dart';
-import 'package:tomsllama/core/theme/pond_theme.dart';
-import 'package:tomsllama/core/theme/dark_theme.dart';
 import 'package:tomsllama/core/theme/pond_dark_theme.dart';
 
 void main() {

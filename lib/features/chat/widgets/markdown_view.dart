@@ -59,10 +59,10 @@ class MarkdownView extends StatelessWidget {
           color: appColors.textPrimary,
           fontSize: 13.0,
         ),
-        codeblockDecoration: BoxDecoration(
-          color: appColors.codeBackground,
-          borderRadius: BorderRadius.circular(4.0),
+        codeblockDecoration: const BoxDecoration(
+          color: Colors.transparent,
         ),
+        codeblockPadding: EdgeInsets.zero,
       ),
       extensionSet: md.ExtensionSet(
         md.ExtensionSet.gitHubFlavored.blockSyntaxes,

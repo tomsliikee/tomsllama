@@ -7,6 +7,7 @@ class ArtifactCanvasView extends StatelessWidget {
   final Widget? canvasPanel;
   final bool isCanvasOpen;
   final VoidCallback? onCloseCanvas;
+  final VoidCallback? onCopy;
   final String? language;
 
   const ArtifactCanvasView({
@@ -15,6 +16,7 @@ class ArtifactCanvasView extends StatelessWidget {
     this.canvasPanel,
     this.isCanvasOpen = false,
     this.onCloseCanvas,
+    this.onCopy,
     this.language,
   });
 
@@ -40,6 +42,7 @@ class ArtifactCanvasView extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(5.0, 10.0, 10.0, 12.0),
                   child: _CanvasWrapper(
                     onClose: onCloseCanvas,
+                    onCopy: onCopy,
                     appColors: appColors,
                     language: language,
                     child: canvasPanel ?? const SizedBox.shrink(),
@@ -55,12 +58,14 @@ class ArtifactCanvasView extends StatelessWidget {
 class _CanvasWrapper extends StatelessWidget {
   final Widget child;
   final VoidCallback? onClose;
+  final VoidCallback? onCopy;
   final AppThemeExtension appColors;
   final String? language;
 
   const _CanvasWrapper({
     required this.child,
     this.onClose,
+    this.onCopy,
     required this.appColors,
     this.language,
   });
@@ -70,7 +75,7 @@ class _CanvasWrapper extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Canvas Header Row: single pill for "Canvas" in menu bar style + close pill
+        // Canvas Header Row: single pill for "Canvas" in menu bar style + copy pill + close pill
         Row(
           children: [
             Container(
@@ -110,6 +115,13 @@ class _CanvasWrapper extends StatelessWidget {
                 ],
               ),
             ),
+            if (onCopy != null) ...[
+              const SizedBox(width: 8.0),
+              _CanvasCopyPill(
+                onCopy: onCopy,
+                appColors: appColors,
+              ),
+            ],
             const Spacer(),
             if (onClose != null)
               InkWell(
@@ -147,6 +159,76 @@ class _CanvasWrapper extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _CanvasCopyPill extends StatefulWidget {
+  final VoidCallback? onCopy;
+  final AppThemeExtension appColors;
+
+  const _CanvasCopyPill({
+    required this.onCopy,
+    required this.appColors,
+  });
+
+  @override
+  State<_CanvasCopyPill> createState() => _CanvasCopyPillState();
+}
+
+class _CanvasCopyPillState extends State<_CanvasCopyPill> {
+  bool _copied = false;
+  bool _isHovered = false;
+
+  void _handleCopy() {
+    widget.onCopy?.call();
+    setState(() => _copied = true);
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted) setState(() => _copied = false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appColors = widget.appColors;
+    final color = _copied
+        ? Colors.green
+        : (_isHovered ? appColors.accent : appColors.textSecondary);
+
+    return InkWell(
+      onTap: _handleCopy,
+      borderRadius: BorderRadius.circular(18.0),
+      onHover: (hovered) => setState(() => _isHovered = hovered),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
+        decoration: BoxDecoration(
+          color: _isHovered ? appColors.accentSubtle : appColors.surface,
+          border: Border.all(
+            color: _isHovered ? appColors.accent.withValues(alpha: 0.3) : appColors.borderSubtle,
+            width: 1.0,
+          ),
+          borderRadius: BorderRadius.circular(18.0),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _copied ? Icons.check_rounded : Icons.copy_rounded,
+              size: 13.0,
+              color: color,
+            ),
+            const SizedBox(width: 4.5),
+            Text(
+              _copied ? 'Copied' : 'Copy',
+              style: AppTypography.uiControl.copyWith(
+                color: color,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

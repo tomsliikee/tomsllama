@@ -87,40 +87,21 @@ class _CodeBlockViewState extends ConsumerState<CodeBlockView> {
                 ),
               ),
               const Spacer(),
-              // Actions Floating Pill (Split-View Canvas + Copy)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.5),
-                decoration: BoxDecoration(
-                  color: appColors.surface,
-                  border: Border.all(color: appColors.borderSubtle, width: 1.0),
-                  borderRadius: BorderRadius.circular(16.0),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _CodeActionBtn(
-                      label: I18n.splitViewCanvas,
-                      icon: Icons.splitscreen_outlined,
-                      onTap: _openInCanvas,
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 6.0),
-                      child: Text(
-                        '·',
-                        style: TextStyle(
-                          color: appColors.textSecondary.withValues(alpha: 0.4),
-                          fontSize: 12.0,
-                        ),
-                      ),
-                    ),
-                    _CodeActionBtn(
-                      label: _copied ? I18n.copied : I18n.copy,
-                      icon: _copied ? Icons.check_rounded : Icons.copy_rounded,
-                      onTap: _copyToClipboard,
-                      isActive: _copied,
-                    ),
-                  ],
-                ),
+              // Separate Pill 1: Split-View Canvas
+              _CodeActionPill(
+                label: I18n.splitViewCanvas,
+                icon: Icons.splitscreen_outlined,
+                onTap: _openInCanvas,
+                appColors: appColors,
+              ),
+              const SizedBox(width: 8.0),
+              // Separate Pill 2: Copy
+              _CodeActionPill(
+                label: _copied ? I18n.copied : I18n.copy,
+                icon: _copied ? Icons.check_rounded : Icons.copy_rounded,
+                onTap: _copyToClipboard,
+                isActive: _copied,
+                appColors: appColors,
               ),
             ],
           ),
@@ -154,52 +135,62 @@ class _CodeBlockViewState extends ConsumerState<CodeBlockView> {
   }
 }
 
-class _CodeActionBtn extends StatefulWidget {
+class _CodeActionPill extends StatefulWidget {
   final String label;
-  final IconData? icon;
+  final IconData icon;
   final VoidCallback onTap;
   final bool isActive;
+  final AppThemeExtension appColors;
 
-  const _CodeActionBtn({
+  const _CodeActionPill({
     required this.label,
-    this.icon,
+    required this.icon,
     required this.onTap,
     this.isActive = false,
+    required this.appColors,
   });
 
   @override
-  State<_CodeActionBtn> createState() => _CodeActionBtnState();
+  State<_CodeActionPill> createState() => _CodeActionPillState();
 }
 
-class _CodeActionBtnState extends State<_CodeActionBtn> {
+class _CodeActionPillState extends State<_CodeActionPill> {
   bool _isHovered = false;
 
   @override
   Widget build(BuildContext context) {
-    final appColors = context.appColors;
+    final appColors = widget.appColors;
 
     final color = widget.isActive
         ? appColors.accent
         : (_isHovered ? appColors.accent : appColors.textSecondary);
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onTap,
+    return InkWell(
+      onTap: widget.onTap,
+      borderRadius: BorderRadius.circular(16.0),
+      onHover: (hovered) => setState(() => _isHovered = hovered),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
+        decoration: BoxDecoration(
+          color: _isHovered ? appColors.accentSubtle : appColors.surface,
+          border: Border.all(
+            color: _isHovered
+                ? appColors.accent.withValues(alpha: 0.3)
+                : appColors.borderSubtle,
+            width: 1.0,
+          ),
+          borderRadius: BorderRadius.circular(16.0),
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (widget.icon != null) ...[
-              Icon(widget.icon, size: 12.0, color: color),
-              const SizedBox(width: 4.0),
-            ],
+            Icon(widget.icon, size: 12.5, color: color),
+            const SizedBox(width: 5.0),
             Text(
               widget.label,
-              style: AppTypography.code.copyWith(
+              style: AppTypography.uiControl.copyWith(
                 color: color,
-                fontSize: 11.0,
+                fontSize: 11.5,
                 fontWeight: widget.isActive ? FontWeight.w500 : FontWeight.w400,
               ),
             ),

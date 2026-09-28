@@ -187,64 +187,23 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                           isCanvasOpen: chatState.isCanvasOpen,
                           onCloseCanvas: () => chatNotifier.closeCanvas(),
                           language: chatState.canvasLanguage,
+                          onCopy: () {
+                            if (chatState.canvasContent != null) {
+                              Clipboard.setData(ClipboardData(text: chatState.canvasContent!));
+                            }
+                          },
                           canvasPanel: Container(
                             color: appColors.codeBackground,
                             padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      chatState.canvasLanguage ?? 'code',
-                                      style: AppTypography.code.copyWith(
-                                        color: appColors.accent,
-                                        fontSize: 12.0,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    InkWell(
-                                      onTap: () {
-                                        if (chatState.canvasContent != null) {
-                                          Clipboard.setData(ClipboardData(text: chatState.canvasContent!));
-                                        }
-                                      },
-                                      borderRadius: BorderRadius.circular(6.0),
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 2.0),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(Icons.copy_rounded, size: 13.0, color: appColors.textSecondary),
-                                            const SizedBox(width: 4.0),
-                                            Text(
-                                              'Copy',
-                                              style: AppTypography.uiControl.copyWith(
-                                                color: appColors.textSecondary,
-                                                fontSize: 11.5,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                            child: SingleChildScrollView(
+                              child: SelectableText(
+                                chatState.canvasContent ?? '',
+                                style: AppTypography.code.copyWith(
+                                  color: appColors.textPrimary,
+                                  fontSize: 13.0,
+                                  height: 1.5,
                                 ),
-                                const Divider(height: 24.0),
-                                Expanded(
-                                  child: SingleChildScrollView(
-                                    child: SelectableText(
-                                      chatState.canvasContent ?? '',
-                                      style: AppTypography.code.copyWith(
-                                        color: appColors.textPrimary,
-                                        fontSize: 13.0,
-                                        height: 1.5,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
                           ),
                           chatPanel: Padding(
