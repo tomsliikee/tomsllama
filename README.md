@@ -58,10 +58,13 @@ The user interface emphasizes typography and reading comfort, using serif typogr
 3. Flutter SDK (version 3.19 or higher) with Linux desktop prerequisites installed:
    ```bash
    # On Fedora:
-   sudo dnf install clang cmake ninja-build gtk3-devel
+   sudo dnf install clang cmake ninja-build gtk3-devel libayatana-appindicator-gtk3-devel
    
    # On Ubuntu / Debian:
-   sudo apt install clang cmake ninja-build pkg-config libgtk-3-dev
+   sudo apt install clang cmake ninja-build pkg-config libgtk-3-dev libayatana-appindicator3-dev
+   
+   # On Arch Linux:
+   sudo pacman -S clang cmake ninja gtk3 libayatana-appindicator
    ```
 
 ## Building and Running
