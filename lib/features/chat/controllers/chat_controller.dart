@@ -8,7 +8,10 @@ import '../../../../core/services/title_service.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/context_manager.dart';
 import '../../../../core/utils/think_parser.dart';
+import '../../../../core/models/attached_file.dart';
+import '../../../../core/models/workspace_info.dart';
 import '../../sidebar/controllers/sidebar_controller.dart';
+import 'workspace_controller.dart';
 
 class ChatState {
   final String? conversationId;
@@ -160,15 +163,51 @@ class ChatNotifier extends StateNotifier<ChatState> {
     state = state.copyWith(isCanvasOpen: false);
   }
 
-  Future<void> sendMessage(String text, String modelName) async {
-    if (text.trim().isEmpty || state.isGenerating) return;
+  Future<void> sendMessage(
+    String text,
+    String modelName, {
+    List<AttachedFile>? attachedFiles,
+    WorkspaceInfo? workspace,
+  }) async {
+    final wsNotifier = _ref.read(workspaceProvider.notifier);
+    final wsState = _ref.read(workspaceProvider);
+    final effectiveWorkspace = workspace ?? wsState.workspace;
+    final effectiveFiles = attachedFiles ?? wsState.attachedFiles;
+
+    if (text.trim().isEmpty && effectiveFiles.isEmpty) return;
+    if (state.isGenerating) return;
+
+    // Build the complete prompt payload
+    String promptPayload = text.trim();
+    if (effectiveFiles.isNotEmpty || effectiveWorkspace != null) {
+      final buffer = StringBuffer();
+      if (effectiveWorkspace != null) {
+        buffer.writeln('### Project Workspace: `${effectiveWorkspace.name}`${effectiveWorkspace.gitBranch != null ? ' (Git Branch: `${effectiveWorkspace.gitBranch}`)' : ''}');
+      }
+      if (effectiveFiles.isNotEmpty) {
+        buffer.writeln('#### Attached Context Files:');
+        for (final file in effectiveFiles) {
+          buffer.writeln(file.toMarkdownBlock());
+          buffer.writeln();
+        }
+      }
+      if (text.trim().isNotEmpty) {
+        buffer.writeln('#### User Request:');
+        buffer.writeln(text.trim());
+      }
+      promptPayload = buffer.toString().trim();
+    }
 
     // 1. Ensure active conversation exists
     String convId = state.conversationId ?? '';
     bool isFirstMessageInConv = false;
+    final titleSeed = text.trim().isNotEmpty
+        ? text.trim()
+        : (effectiveFiles.isNotEmpty ? 'File: ${effectiveFiles.first.name}' : 'New Chat');
+
     if (convId.isEmpty) {
       final newConv = await _ref.read(sidebarProvider.notifier).createNewConversation(
-        title: text.length > 25 ? '${text.substring(0, 25)}...' : text,
+        title: titleSeed.length > 25 ? '${titleSeed.substring(0, 25)}...' : titleSeed,
         persona: state.activePersonaName,
       );
       convId = newConv.id;
@@ -178,7 +217,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
       // Check if this conversation had 0 user messages so far
       if (!state.messages.any((m) => m.role == 'user')) {
         isFirstMessageInConv = true;
-        final previewTitle = text.length > 25 ? '${text.substring(0, 25)}...' : text;
+        final previewTitle = titleSeed.length > 25 ? '${titleSeed.substring(0, 25)}...' : titleSeed;
         await _ref.read(sidebarProvider.notifier).updateTitle(convId, previewTitle);
       }
     }
@@ -189,7 +228,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
       id: '${now.millisecondsSinceEpoch}_user',
       conversationId: convId,
       role: 'user',
-      content: text,
+      content: promptPayload,
       createdAt: now,
     );
     await _db.saveMessage(userMsg);
@@ -232,12 +271,27 @@ class ChatNotifier extends StateNotifier<ChatState> {
       });
     }
 
+    // Calculate dynamic num_ctx if context exceeds standard window
+    int? dynamicNumCtx;
+    final totalTokens = ContextManager.estimateTokens(promptPayload);
+    if (totalTokens > 1500) {
+      dynamicNumCtx = (totalTokens + 3000).clamp(4096, 16384);
+    }
+
     final rawStreamBuffer = StringBuffer();
     final stopwatch = Stopwatch()..start();
     int tokenEstimate = 0;
 
+    // Clear attachments once sent
+    wsNotifier.clearAttachments();
+
     try {
-      final stream = _ollama.streamChat(modelName, promptMessages, temperature: state.temperature);
+      final stream = _ollama.streamChat(
+        modelName,
+        promptMessages,
+        temperature: state.temperature,
+        numCtx: dynamicNumCtx,
+      );
       _activeStream = stream.listen(
         (chunk) {
           if (!mounted) return;

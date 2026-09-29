@@ -26,7 +26,12 @@ class OllamaService {
     return [];
   }
 
-  Stream<String> streamChat(String model, List<Map<String, dynamic>> messages, {double? temperature}) async* {
+  Stream<String> streamChat(
+    String model,
+    List<Map<String, dynamic>> messages, {
+    double? temperature,
+    int? numCtx,
+  }) async* {
     final client = http.Client();
     final request = http.Request('POST', Uri.parse('$baseUrl/api/chat'));
     request.headers['Content-Type'] = 'application/json';
@@ -35,8 +40,15 @@ class OllamaService {
       'messages': messages,
       'stream': true,
     };
+    final options = <String, dynamic>{};
     if (temperature != null) {
-      payload['options'] = {'temperature': temperature};
+      options['temperature'] = temperature;
+    }
+    if (numCtx != null) {
+      options['num_ctx'] = numCtx;
+    }
+    if (options.isNotEmpty) {
+      payload['options'] = options;
     }
     request.body = jsonEncode(payload);
 

@@ -1,16 +1,22 @@
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:desktop_drop/desktop_drop.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
 import '../../../core/models/persona.dart';
 import '../../../core/models/ollama_model.dart';
+import '../../../core/models/workspace_info.dart';
+import '../../../core/models/attached_file.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../core/services/localization_service.dart';
-import '../../../core/utils/file_utils.dart';
+import '../controllers/workspace_controller.dart';
 
-class ComposerBar extends StatefulWidget {
+class ComposerBar extends ConsumerStatefulWidget {
   final bool isGenerating;
   final ValueChanged<String> onSend;
   final VoidCallback onStop;
@@ -43,16 +49,22 @@ class ComposerBar extends StatefulWidget {
   });
 
   @override
-  State<ComposerBar> createState() => _ComposerBarState();
+  ConsumerState<ComposerBar> createState() => _ComposerBarState();
 }
 
-class _ComposerBarState extends State<ComposerBar> {
+class _ComposerBarState extends ConsumerState<ComposerBar> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   final GlobalKey<_SendButtonState> _sendButtonKey = GlobalKey<_SendButtonState>();
   bool _isDragging = false;
   bool _hasText = false;
   bool _isFocused = false;
+
+  // Autocomplete '@' mention state
+  bool _showAtPopup = false;
+  int _atStartIndex = -1;
+  List<String> _atMatches = [];
+  int _atSelectedIndex = 0;
 
   @override
   void initState() {
@@ -67,12 +79,79 @@ class _ComposerBarState extends State<ComposerBar> {
     if (_hasText != hasText && mounted) {
       setState(() => _hasText = hasText);
     }
+    _checkAtMention();
   }
 
   void _onFocusChanged() {
     if (_isFocused != _focusNode.hasFocus && mounted) {
       setState(() => _isFocused = _focusNode.hasFocus);
+      if (!_focusNode.hasFocus && _showAtPopup) {
+        setState(() => _showAtPopup = false);
+      }
     }
+  }
+
+  void _checkAtMention() {
+    final text = _controller.text;
+    final selection = _controller.selection;
+    if (!selection.isValid || selection.start != selection.end) {
+      if (_showAtPopup) setState(() => _showAtPopup = false);
+      return;
+    }
+
+    final cursorPos = selection.start;
+    final textBeforeCursor = text.substring(0, cursorPos);
+    final atIndex = textBeforeCursor.lastIndexOf('@');
+
+    if (atIndex != -1) {
+      final query = textBeforeCursor.substring(atIndex + 1);
+      // Valid mention query: no spaces, no newlines
+      if (!query.contains(' ') && !query.contains('\n')) {
+        final workspace = ref.read(workspaceProvider).workspace;
+        if (workspace != null && workspace.files.isNotEmpty) {
+          final matches = workspace.files.where((f) {
+            return f.toLowerCase().contains(query.toLowerCase());
+          }).take(8).toList();
+
+          if (matches.isNotEmpty) {
+            setState(() {
+              _atStartIndex = atIndex;
+              _atMatches = matches;
+              _showAtPopup = true;
+              _atSelectedIndex = 0;
+            });
+            return;
+          }
+        }
+      }
+    }
+
+    if (_showAtPopup) {
+      setState(() => _showAtPopup = false);
+    }
+  }
+
+  void _selectAtMatch(String relPath) {
+    final ws = ref.read(workspaceProvider).workspace;
+    if (ws == null) return;
+    final fullPath = p.join(ws.path, relPath);
+    ref.read(workspaceProvider.notifier).attachFiles([fullPath]);
+
+    // Clean up '@query' from input text
+    final text = _controller.text;
+    if (_atStartIndex >= 0 && _atStartIndex < text.length) {
+      final textBeforeAt = text.substring(0, _atStartIndex);
+      final cursorPos = _controller.selection.isValid ? _controller.selection.start : text.length;
+      final textAfterCursor = cursorPos <= text.length ? text.substring(cursorPos) : '';
+      _controller.text = '$textBeforeAt$textAfterCursor';
+      _controller.selection = TextSelection.collapsed(offset: _atStartIndex);
+    }
+
+    setState(() {
+      _showAtPopup = false;
+      _atMatches = [];
+    });
+    _focusNode.requestFocus();
   }
 
   @override
@@ -86,10 +165,16 @@ class _ComposerBarState extends State<ComposerBar> {
 
   void _handleSend() {
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
+    final hasAttached = ref.read(workspaceProvider).attachedFiles.isNotEmpty;
+    if (text.isEmpty && !hasAttached) return;
+
     _sendButtonKey.currentState?.triggerCuteAnimation();
     widget.onSend(text);
     _controller.clear();
+    setState(() {
+      _hasText = false;
+      _showAtPopup = false;
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _focusNode.requestFocus();
@@ -98,6 +183,31 @@ class _ComposerBarState extends State<ComposerBar> {
   }
 
   KeyEventResult _onKeyEvent(KeyEvent event) {
+    if (_showAtPopup && _atMatches.isNotEmpty) {
+      if (event is KeyDownEvent) {
+        if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+          setState(() {
+            _atSelectedIndex = (_atSelectedIndex + 1) % _atMatches.length;
+          });
+          return KeyEventResult.handled;
+        }
+        if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+          setState(() {
+            _atSelectedIndex = (_atSelectedIndex - 1 + _atMatches.length) % _atMatches.length;
+          });
+          return KeyEventResult.handled;
+        }
+        if (event.logicalKey == LogicalKeyboardKey.tab || event.logicalKey == LogicalKeyboardKey.enter) {
+          _selectAtMatch(_atMatches[_atSelectedIndex]);
+          return KeyEventResult.handled;
+        }
+        if (event.logicalKey == LogicalKeyboardKey.escape) {
+          setState(() => _showAtPopup = false);
+          return KeyEventResult.handled;
+        }
+      }
+    }
+
     if (event is KeyDownEvent) {
       if (event.logicalKey == LogicalKeyboardKey.enter) {
         final isShiftPressed = HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftLeft) ||
@@ -112,22 +222,42 @@ class _ComposerBarState extends State<ComposerBar> {
   }
 
   Future<void> _handleDrop(DropDoneDetails details) async {
+    final dirPaths = <String>[];
+    final filePaths = <String>[];
+
     for (final file in details.files) {
-      final markdown = await FileUtils.readFileAsMarkdown(file.path);
-      if (!mounted) return;
-      if (markdown != null) {
-        final currentText = _controller.text;
-        final selection = _controller.selection;
-        
-        if (selection.isValid) {
-          final newText = currentText.replaceRange(selection.start, selection.end, markdown);
-          _controller.text = newText;
-          _controller.selection = TextSelection.collapsed(offset: selection.start + markdown.length);
-        } else {
-          _controller.text = currentText + markdown;
-          _controller.selection = TextSelection.collapsed(offset: _controller.text.length);
-        }
+      final path = file.path;
+      final type = FileSystemEntity.typeSync(path);
+      if (type == FileSystemEntityType.directory) {
+        dirPaths.add(path);
+      } else if (type == FileSystemEntityType.file) {
+        filePaths.add(path);
       }
+    }
+
+    if (dirPaths.isNotEmpty) {
+      await ref.read(workspaceProvider.notifier).setWorkspace(dirPaths.first);
+    }
+    if (filePaths.isNotEmpty) {
+      await ref.read(workspaceProvider.notifier).attachFiles(filePaths);
+    }
+  }
+
+  Future<void> _pickWorkspace() async {
+    final result = await FilePicker.platform.getDirectoryPath();
+    if (result != null && mounted) {
+      await ref.read(workspaceProvider.notifier).setWorkspace(result);
+    }
+  }
+
+  Future<void> _pickFiles() async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      type: FileType.any,
+    );
+    if (result != null && mounted) {
+      final paths = result.paths.whereType<String>().toList();
+      await ref.read(workspaceProvider.notifier).attachFiles(paths);
     }
   }
 
@@ -135,6 +265,8 @@ class _ComposerBarState extends State<ComposerBar> {
   Widget build(BuildContext context) {
     final appColors = context.appColors;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final workspaceState = ref.watch(workspaceProvider);
+    final canSend = _hasText || workspaceState.attachedFiles.isNotEmpty;
 
     return Center(
       child: ConstrainedBox(
@@ -184,6 +316,134 @@ class _ComposerBarState extends State<ComposerBar> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Active Workspace & Attached File Pills
+                  if (workspaceState.workspace != null || workspaceState.attachedFiles.isNotEmpty) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: Wrap(
+                        spacing: 6.0,
+                        runSpacing: 6.0,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (workspaceState.workspace != null)
+                            _WorkspacePill(
+                              workspace: workspaceState.workspace!,
+                              onRemove: () => ref.read(workspaceProvider.notifier).clearWorkspace(),
+                            ),
+                          for (final file in workspaceState.attachedFiles)
+                            _AttachedFilePill(
+                              file: file,
+                              onRemove: () => ref.read(workspaceProvider.notifier).removeAttachedFile(file.path),
+                            ),
+                          if (workspaceState.attachedFiles.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 2.0),
+                              child: Text(
+                                '~${(workspaceState.totalAttachedTokens / 1000).toStringAsFixed(1)}k tok',
+                                style: AppTypography.code.copyWith(
+                                  fontSize: 10.0,
+                                  color: appColors.textSecondary.withValues(alpha: 0.6),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  // Autocomplete popup for '@' mention
+                  if (_showAtPopup && _atMatches.isNotEmpty) ...[
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 8.0),
+                      decoration: BoxDecoration(
+                        color: appColors.surface,
+                        borderRadius: BorderRadius.circular(12.0),
+                        border: Border.all(color: appColors.borderSubtle, width: 1.0),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: isDark ? 0.30 : 0.06),
+                            blurRadius: 10.0,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
+                            child: Row(
+                              children: [
+                                Icon(Icons.alternate_email_rounded, size: 12.0, color: appColors.accent),
+                                const SizedBox(width: 5.0),
+                                Text(
+                                  'Workspace: ${workspaceState.workspace?.name ?? "Files"}',
+                                  style: AppTypography.uiControl.copyWith(
+                                    fontSize: 11.0,
+                                    fontWeight: FontWeight.w600,
+                                    color: appColors.textSecondary,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  '↑↓ to navigate • Enter/Tab to select',
+                                  style: AppTypography.code.copyWith(
+                                    fontSize: 9.5,
+                                    color: appColors.textSecondary.withValues(alpha: 0.5),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(height: 1.0, color: appColors.borderSubtle),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 180.0),
+                            child: ListView.builder(
+                              shrinkWrap: true,
+                              padding: const EdgeInsets.symmetric(vertical: 2.0),
+                              itemCount: _atMatches.length,
+                              itemBuilder: (context, idx) {
+                                final match = _atMatches[idx];
+                                final isSelected = idx == _atSelectedIndex;
+                                return InkWell(
+                                  onTap: () => _selectAtMatch(match),
+                                  borderRadius: BorderRadius.circular(6.0),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
+                                    color: isSelected ? appColors.accentSubtle : Colors.transparent,
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.description_outlined,
+                                          size: 13.0,
+                                          color: isSelected ? appColors.accent : appColors.textSecondary,
+                                        ),
+                                        const SizedBox(width: 6.0),
+                                        Expanded(
+                                          child: Text(
+                                            match,
+                                            style: AppTypography.code.copyWith(
+                                              fontSize: 12.0,
+                                              color: isSelected ? appColors.accent : appColors.textPrimary,
+                                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
                   // Text Input
                   TextField(
                     controller: _controller,
@@ -198,7 +458,7 @@ class _ComposerBarState extends State<ComposerBar> {
                     ),
                     decoration: InputDecoration(
                       hintText: _isDragging
-                          ? (I18n.isGerman ? 'Datei hier ablegen...' : 'Drop file here...')
+                          ? (I18n.isGerman ? 'Datei oder Ordner hier ablegen...' : 'Drop file or folder here...')
                           : I18n.composerPlaceholder(widget.modelName ?? "qwen2.5:3b"),
                       hintStyle: AppTypography.uiControl.copyWith(
                         color: appColors.textSecondary.withValues(alpha: 0.6),
@@ -212,8 +472,7 @@ class _ComposerBarState extends State<ComposerBar> {
                   
                   const SizedBox(height: 10.0),
 
-                  // Bottom Bar: Persona Chip & Send Button (1:1 style_preview.html)
-                  // Bottom Bar: Persona, Model & Temperature Chips with Wrap to prevent overflow, and Send Button
+                  // Bottom Bar: Chips with Wrap and Send Button
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.end,
@@ -242,6 +501,10 @@ class _ComposerBarState extends State<ComposerBar> {
                                 temperature: widget.temperature,
                                 onTemperatureChanged: widget.onTemperatureChanged,
                               ),
+                            _AttachChip(
+                              onPickWorkspace: _pickWorkspace,
+                              onPickFiles: _pickFiles,
+                            ),
                           ],
                         ),
                       ),
@@ -250,13 +513,338 @@ class _ComposerBarState extends State<ComposerBar> {
                       _SendButton(
                         key: _sendButtonKey,
                         isGenerating: widget.isGenerating,
-                        hasText: _hasText,
-                        onTap: widget.isGenerating ? widget.onStop : (_hasText ? _handleSend : null),
+                        hasText: canSend,
+                        onTap: widget.isGenerating ? widget.onStop : (canSend ? _handleSend : null),
                       ),
                     ],
                   ),
                 ],
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspacePill extends StatelessWidget {
+  final WorkspaceInfo workspace;
+  final VoidCallback onRemove;
+
+  const _WorkspacePill({
+    required this.workspace,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final appColors = context.appColors;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      decoration: BoxDecoration(
+        color: appColors.hover,
+        borderRadius: BorderRadius.circular(14.0),
+        border: Border.all(
+          color: appColors.accent.withValues(alpha: 0.4),
+          width: 1.0,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.folder_outlined, size: 13.5, color: appColors.accent),
+          const SizedBox(width: 5.0),
+          Text(
+            workspace.name,
+            style: AppTypography.uiControl.copyWith(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: appColors.textPrimary,
+            ),
+          ),
+          if (workspace.gitBranch != null) ...[
+            const SizedBox(width: 6.0),
+            Container(
+              width: 1.0,
+              height: 10.0,
+              color: appColors.borderSubtle,
+            ),
+            const SizedBox(width: 6.0),
+            Icon(Icons.call_split_rounded, size: 12.5, color: appColors.textSecondary),
+            const SizedBox(width: 3.0),
+            Text(
+              workspace.gitBranch!,
+              style: AppTypography.code.copyWith(
+                fontSize: 11.0,
+                fontWeight: FontWeight.w500,
+                color: appColors.accent,
+              ),
+            ),
+          ],
+          const SizedBox(width: 5.0),
+          InkWell(
+            onTap: onRemove,
+            borderRadius: BorderRadius.circular(8.0),
+            child: Padding(
+              padding: const EdgeInsets.all(2.0),
+              child: Icon(Icons.close_rounded, size: 12.0, color: appColors.textSecondary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AttachedFilePill extends StatelessWidget {
+  final AttachedFile file;
+  final VoidCallback onRemove;
+
+  const _AttachedFilePill({
+    required this.file,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final appColors = context.appColors;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      decoration: BoxDecoration(
+        color: appColors.hover,
+        borderRadius: BorderRadius.circular(14.0),
+        border: Border.all(
+          color: appColors.borderSubtle,
+          width: 1.0,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.description_outlined, size: 13.0, color: appColors.accent),
+          const SizedBox(width: 5.0),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 160.0),
+            child: Text(
+              file.name,
+              style: AppTypography.uiControl.copyWith(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w500,
+                color: appColors.textPrimary,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ),
+          const SizedBox(width: 4.0),
+          Text(
+            '${file.estimatedTokens} tok',
+            style: AppTypography.code.copyWith(
+              fontSize: 10.0,
+              color: appColors.textSecondary.withValues(alpha: 0.6),
+            ),
+          ),
+          const SizedBox(width: 4.0),
+          InkWell(
+            onTap: onRemove,
+            borderRadius: BorderRadius.circular(8.0),
+            child: Padding(
+              padding: const EdgeInsets.all(2.0),
+              child: Icon(Icons.close_rounded, size: 12.0, color: appColors.textSecondary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AttachChip extends StatefulWidget {
+  final VoidCallback onPickWorkspace;
+  final VoidCallback onPickFiles;
+
+  const _AttachChip({
+    required this.onPickWorkspace,
+    required this.onPickFiles,
+  });
+
+  @override
+  State<_AttachChip> createState() => _AttachChipState();
+}
+
+class _AttachChipState extends State<_AttachChip> {
+  OverlayEntry? _overlayEntry;
+  final LayerLink _layerLink = LayerLink();
+  bool _isOpen = false;
+
+  void _toggleMenu() {
+    if (_isOpen) {
+      _closeMenu();
+    } else {
+      _openMenu();
+    }
+  }
+
+  void _openMenu() {
+    _overlayEntry = _createOverlayEntry();
+    Overlay.of(context).insert(_overlayEntry!);
+    setState(() => _isOpen = true);
+  }
+
+  void _closeMenu() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+    if (mounted) setState(() => _isOpen = false);
+  }
+
+  @override
+  void dispose() {
+    _overlayEntry?.remove();
+    super.dispose();
+  }
+
+  OverlayEntry _createOverlayEntry() {
+    final appColors = context.appColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return OverlayEntry(
+      builder: (context) => Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: _closeMenu,
+            ),
+          ),
+          Positioned(
+            width: 200,
+            child: CompositedTransformFollower(
+              link: _layerLink,
+              showWhenUnlinked: false,
+              targetAnchor: Alignment.topCenter,
+              followerAnchor: Alignment.bottomCenter,
+              offset: const Offset(0, -6),
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: appColors.surface,
+                    borderRadius: BorderRadius.circular(14.0),
+                    border: Border.all(color: appColors.borderSubtle, width: 1.0),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
+                        blurRadius: 12.0,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      InkWell(
+                        onTap: () {
+                          _closeMenu();
+                          widget.onPickWorkspace();
+                        },
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(14.0)),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 9.0),
+                          child: Row(
+                            children: [
+                              Icon(Icons.folder_outlined, size: 14.0, color: appColors.accent),
+                              const SizedBox(width: 8.0),
+                              Text(
+                                'Open Project Folder...',
+                                style: AppTypography.uiControl.copyWith(
+                                  fontSize: 12.0,
+                                  fontWeight: FontWeight.w500,
+                                  color: appColors.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(height: 1.0, color: appColors.borderSubtle),
+                      InkWell(
+                        onTap: () {
+                          _closeMenu();
+                          widget.onPickFiles();
+                        },
+                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14.0)),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 9.0),
+                          child: Row(
+                            children: [
+                              Icon(Icons.description_outlined, size: 14.0, color: appColors.accent),
+                              const SizedBox(width: 8.0),
+                              Text(
+                                'Attach Files...',
+                                style: AppTypography.uiControl.copyWith(
+                                  fontSize: 12.0,
+                                  fontWeight: FontWeight.w500,
+                                  color: appColors.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appColors = context.appColors;
+
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _toggleMenu,
+          borderRadius: BorderRadius.circular(16.0),
+          child: Container(
+            height: 28.0,
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            decoration: BoxDecoration(
+              color: _isOpen ? appColors.hover : Colors.transparent,
+              borderRadius: BorderRadius.circular(16.0),
+              border: Border.all(
+                color: _isOpen ? appColors.accent : appColors.borderSubtle,
+                width: 1.0,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.attach_file_rounded,
+                  size: 14.0,
+                  color: _isOpen ? appColors.accent : appColors.textSecondary,
+                ),
+                const SizedBox(width: 4.0),
+                Text(
+                  'Attach',
+                  style: AppTypography.uiControl.copyWith(
+                    fontSize: 12.0,
+                    fontWeight: FontWeight.w500,
+                    color: _isOpen ? appColors.accent : appColors.textSecondary,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
