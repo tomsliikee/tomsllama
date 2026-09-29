@@ -138,14 +138,6 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                   onOpenSettings: _openSettings,
                   onOpenQuickSwitcher: _openQuickSwitcher,
                   isZenMode: _isZenMode,
-                  models: modelState.models,
-                  selectedModel: selectedModel,
-                  onModelChanged: (m) {
-                    if (m != null) modelNotifier.selectModel(m);
-                  },
-                  onManageModels: _openModelManager,
-                  temperature: chatState.temperature,
-                  onTemperatureChanged: (temp) => chatNotifier.setTemperature(temp),
                 ),
                 Expanded(
                   child: Row(
@@ -243,6 +235,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                                           messages: chatState.messages,
                                           isGenerating: chatState.isGenerating,
                                           modelName: selectedModel,
+                                          statusMessage: chatState.statusMessage,
                                           onRegenerate: () {
                                             // Regenerate last user turn safely
                                             final lastUser = chatState.messages.where((m) => m.role == 'user').lastOrNull;
@@ -258,6 +251,14 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                                     isGenerating: chatState.isGenerating,
                                     activePersonaName: chatState.activePersonaName,
                                     modelName: selectedModel,
+                                    models: modelState.models,
+                                    selectedModel: selectedModel,
+                                    onModelChanged: (m) {
+                                      if (m != null) modelNotifier.selectModel(m);
+                                    },
+                                    onManageModels: _openModelManager,
+                                    temperature: chatState.temperature,
+                                    onTemperatureChanged: (temp) => chatNotifier.setTemperature(temp),
                                     onPersonaTap: () {},
                                     onSelectPersona: (persona) => chatNotifier.setPersona(persona),
                                     onSend: (text) => chatNotifier.sendMessage(text, selectedModel),

@@ -45,7 +45,10 @@ class ContextManager {
       final thinkTokens = msg.thinkContent != null ? estimateTokens(msg.thinkContent!) : 0;
       final msgTokens = contentTokens + thinkTokens;
 
-      if (currentTokens + msgTokens <= maxTokens) {
+      // The latest user message must NEVER be dropped
+      final isLatestMessage = (i == nonSystemMessages.length - 1);
+
+      if (isLatestMessage || (currentTokens + msgTokens <= maxTokens)) {
         recentHistory.insert(0, msg);
         currentTokens += msgTokens;
       } else {

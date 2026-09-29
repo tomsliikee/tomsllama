@@ -11,6 +11,7 @@ class ChatViewport extends StatefulWidget {
   final List<Message> messages;
   final bool isGenerating;
   final String modelName;
+  final String? statusMessage;
   final VoidCallback? onRegenerate;
 
   const ChatViewport({
@@ -18,6 +19,7 @@ class ChatViewport extends StatefulWidget {
     required this.messages,
     this.isGenerating = false,
     this.modelName = 'qwen2.5:3b',
+    this.statusMessage,
     this.onRegenerate,
   });
 
@@ -81,22 +83,26 @@ class _ChatViewportState extends State<ChatViewport> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const TomsllamaLogo(size: 38.0, animate: true),
-            const SizedBox(height: 16.0),
+            const TomsllamaLogo(
+              size: 46.0,
+              animate: true,
+              enableIdleAnimation: true,
+            ),
+            const SizedBox(height: 20.0),
             Text(
               'tomsllama',
               style: AppTypography.headline.copyWith(
                 color: appColors.textPrimary,
-                fontSize: 22.0,
-                letterSpacing: -0.3,
+                fontSize: 26.4,
+                letterSpacing: -0.4,
               ),
             ),
-            const SizedBox(height: 6.0),
+            const SizedBox(height: 8.0),
             Text(
               I18n.subtitle,
               style: AppTypography.uiControl.copyWith(
                 color: appColors.textSecondary,
-                fontSize: 13.0,
+                fontSize: 15.6,
                 fontWeight: FontWeight.w400,
               ),
             ),
@@ -113,7 +119,7 @@ class _ChatViewportState extends State<ChatViewport> {
         final message = widget.messages[index];
         final isLast = index == widget.messages.length - 1;
         
-        return MessageBubble(
+        final bubble = MessageBubble(
           message: message,
           isThinking: isLast && widget.isGenerating,
           modelName: widget.modelName,
@@ -121,6 +127,49 @@ class _ChatViewportState extends State<ChatViewport> {
           totalBranches: 1,
           onRegenerate: isLast ? widget.onRegenerate : null,
         );
+
+        if (isLast && widget.isGenerating && widget.statusMessage != null) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              bubble,
+              Padding(
+                padding: const EdgeInsets.only(left: 64.0, top: 4.0, bottom: 8.0),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
+                  decoration: BoxDecoration(
+                    color: appColors.hover,
+                    borderRadius: BorderRadius.circular(12.0),
+                    border: Border.all(color: appColors.borderSubtle, width: 1.0),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 10.0,
+                        height: 10.0,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.5,
+                          color: appColors.accent,
+                        ),
+                      ),
+                      const SizedBox(width: 6.0),
+                      Text(
+                        widget.statusMessage!,
+                        style: AppTypography.code.copyWith(
+                          fontSize: 11.0,
+                          color: appColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+
+        return bubble;
       },
     );
   }

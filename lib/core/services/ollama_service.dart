@@ -26,7 +26,14 @@ class OllamaService {
     return [];
   }
 
-  Stream<String> streamChat(String model, List<Map<String, dynamic>> messages, {double? temperature}) async* {
+  Stream<String> streamChat(
+    String model,
+    List<Map<String, dynamic>> messages, {
+    double? temperature,
+    int? numCtx,
+    List<Map<String, dynamic>>? tools,
+    void Function(Map<String, dynamic> toolCall)? onToolCall,
+  }) async* {
     final client = http.Client();
     final request = http.Request('POST', Uri.parse('$baseUrl/api/chat'));
     request.headers['Content-Type'] = 'application/json';
@@ -35,8 +42,18 @@ class OllamaService {
       'messages': messages,
       'stream': true,
     };
+    if (tools != null && tools.isNotEmpty) {
+      payload['tools'] = tools;
+    }
+    final options = <String, dynamic>{};
     if (temperature != null) {
-      payload['options'] = {'temperature': temperature};
+      options['temperature'] = temperature;
+    }
+    if (numCtx != null) {
+      options['num_ctx'] = numCtx;
+    }
+    if (options.isNotEmpty) {
+      payload['options'] = options;
     }
     request.body = jsonEncode(payload);
 
@@ -50,13 +67,85 @@ class OllamaService {
         if (line.trim().isEmpty) continue;
         try {
           final data = jsonDecode(line);
-          if (data['message'] != null && data['message']['content'] != null) {
-            yield data['message']['content'] as String;
+          final msg = data['message'];
+          if (msg != null && msg is Map<String, dynamic>) {
+            // Check for native tool calls or json tool call in content
+            final toolCall = _extractToolCall(msg);
+            if (toolCall != null) {
+              onToolCall?.call(toolCall);
+            }
+
+            if (msg['content'] != null) {
+              final content = msg['content'] as String;
+              if (content.isNotEmpty && toolCall == null) {
+                yield content;
+              }
+            }
           }
         } catch (_) {
           // Ignore incomplete non-json line
         }
       }
+    } finally {
+      client.close();
+    }
+  }
+
+  static Map<String, dynamic>? _extractToolCall(Map<String, dynamic> message) {
+    if (message['tool_calls'] != null && (message['tool_calls'] as List).isNotEmpty) {
+      return (message['tool_calls'] as List).first as Map<String, dynamic>;
+    }
+    final content = message['content'];
+    if (content is String && content.trim().startsWith('{') && content.trim().endsWith('}')) {
+      try {
+        final parsed = jsonDecode(content.trim());
+        if (parsed is Map<String, dynamic> && parsed.containsKey('name')) {
+          return {
+            'function': {
+              'name': parsed['name'],
+              'arguments': parsed['arguments'] ?? {},
+            }
+          };
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> chatTurn(
+    String model,
+    List<Map<String, dynamic>> messages, {
+    double? temperature,
+    int? numCtx,
+    List<Map<String, dynamic>>? tools,
+  }) async {
+    final client = http.Client();
+    try {
+      final payload = <String, dynamic>{
+        'model': model,
+        'messages': messages,
+        'stream': false,
+      };
+      if (tools != null && tools.isNotEmpty) {
+        payload['tools'] = tools;
+      }
+      final options = <String, dynamic>{};
+      if (temperature != null) options['temperature'] = temperature;
+      if (numCtx != null) options['num_ctx'] = numCtx;
+      if (options.isNotEmpty) payload['options'] = options;
+
+      final res = await client.post(
+        Uri.parse('$baseUrl/api/chat'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(payload),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return data['message'] as Map<String, dynamic>?;
+      }
+      return null;
+    } catch (_) {
+      return null;
     } finally {
       client.close();
     }

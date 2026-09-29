@@ -1,0 +1,160 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
+import '../../../core/models/attached_file.dart';
+import '../../../core/models/workspace_info.dart';
+import '../../../core/services/workspace_service.dart';
+
+class WorkspaceState {
+  final WorkspaceInfo? workspace;
+  final List<AttachedFile> attachedFiles;
+  final bool isLoading;
+
+  const WorkspaceState({
+    this.workspace,
+    this.attachedFiles = const [],
+    this.isLoading = false,
+  });
+
+  int get totalAttachedTokens =>
+      attachedFiles.fold(0, (sum, f) => sum + f.estimatedTokens);
+
+  WorkspaceState copyWith({
+    WorkspaceInfo? workspace,
+    bool clearWorkspace = false,
+    List<AttachedFile>? attachedFiles,
+    bool? isLoading,
+  }) {
+    return WorkspaceState(
+      workspace: clearWorkspace ? null : (workspace ?? this.workspace),
+      attachedFiles: attachedFiles ?? this.attachedFiles,
+      isLoading: isLoading ?? this.isLoading,
+    );
+  }
+}
+
+class WorkspaceNotifier extends StateNotifier<WorkspaceState> {
+  WorkspaceNotifier() : super(const WorkspaceState());
+
+  Future<void> setWorkspace(String directoryPath, {bool autoAttachFiles = true}) async {
+    state = state.copyWith(isLoading: true);
+    final ws = await WorkspaceService.loadWorkspace(directoryPath);
+    final List<AttachedFile> newAttached = [...state.attachedFiles];
+
+    if (autoAttachFiles && ws != null) {
+      // Auto-attach primary overview file (e.g. pubspec.yaml, README.md)
+      // and primary entrypoint (e.g. lib/main.dart, main.py) to keep CPU prefill fast
+      // while providing essential context to the model.
+      const configCandidates = {'pubspec.yaml', 'package.json', 'cargo.toml', 'pyproject.toml', 'readme.md'};
+      const entrypointCandidates = {'lib/main.dart', 'main.dart', 'main.py', 'src/index.ts', 'src/main.rs', 'main.go', 'app.py', 'index.js'};
+
+      final existingPaths = newAttached.map((f) => f.path).toSet();
+
+      // 1. Attach overview / config
+      for (final relPath in ws.files) {
+        final base = p.basename(relPath).toLowerCase();
+        if (configCandidates.contains(base)) {
+          final fullPath = p.join(directoryPath, relPath);
+          if (!existingPaths.contains(fullPath)) {
+            final file = await AttachedFile.fromPath(
+              fullPath,
+              workspaceRoot: directoryPath,
+              maxLines: 250,
+            );
+            if (file != null) {
+              newAttached.add(file);
+              existingPaths.add(fullPath);
+              break;
+            }
+          }
+        }
+      }
+
+      // 2. Attach main entrypoint if found
+      for (final relPath in ws.files) {
+        final relNormalized = relPath.replaceAll('\\', '/').toLowerCase();
+        if (entrypointCandidates.contains(relNormalized)) {
+          final fullPath = p.join(directoryPath, relPath);
+          if (!existingPaths.contains(fullPath)) {
+            final file = await AttachedFile.fromPath(
+              fullPath,
+              workspaceRoot: directoryPath,
+              maxLines: 300,
+            );
+            if (file != null) {
+              newAttached.add(file);
+              existingPaths.add(fullPath);
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    state = state.copyWith(
+      workspace: ws,
+      attachedFiles: newAttached,
+      isLoading: false,
+    );
+  }
+
+  void clearWorkspace() {
+    state = state.copyWith(clearWorkspace: true, attachedFiles: const []);
+  }
+
+  Future<void> attachFiles(List<String> paths) async {
+    final List<AttachedFile> newFiles = [...state.attachedFiles];
+    final existingPaths = newFiles.map((f) => f.path).toSet();
+
+    for (final path in paths) {
+      if (existingPaths.contains(path)) continue;
+      final file = await AttachedFile.fromPath(
+        path,
+        workspaceRoot: state.workspace?.path,
+      );
+      if (file != null) {
+        newFiles.add(file);
+        existingPaths.add(path);
+      }
+    }
+
+    state = state.copyWith(attachedFiles: newFiles);
+  }
+
+  Future<void> attachFolderFiles(String directoryPath, {int maxFiles = 6}) async {
+    state = state.copyWith(isLoading: true);
+    final files = await WorkspaceService.loadDirectoryFiles(
+      directoryPath,
+      workspaceRoot: state.workspace?.path,
+      maxFiles: maxFiles,
+    );
+
+    final List<AttachedFile> newFiles = [...state.attachedFiles];
+    final existingPaths = newFiles.map((f) => f.path).toSet();
+
+    for (final file in files) {
+      if (!existingPaths.contains(file.path)) {
+        newFiles.add(file);
+        existingPaths.add(file.path);
+      }
+    }
+
+    state = state.copyWith(
+      attachedFiles: newFiles,
+      isLoading: false,
+    );
+  }
+
+  void removeAttachedFile(String path) {
+    final updated = state.attachedFiles.where((f) => f.path != path).toList();
+    state = state.copyWith(attachedFiles: updated);
+  }
+
+  void clearAttachments() {
+    state = state.copyWith(attachedFiles: const []);
+  }
+}
+
+final workspaceProvider =
+    StateNotifierProvider<WorkspaceNotifier, WorkspaceState>((ref) {
+  return WorkspaceNotifier();
+});
