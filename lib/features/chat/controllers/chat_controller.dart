@@ -346,17 +346,19 @@ class ChatNotifier extends StateNotifier<ChatState> {
     );
 
     final updatedMessages = [...state.messages, userMsg, assistantMsg];
+    final hasPdf = effectiveFiles.any((f) => f.extension == '.pdf');
     state = state.copyWith(
       messages: updatedMessages,
       isGenerating: true,
       errorMessage: null,
+      statusMessage: hasPdf ? (I18n.isGerman ? 'Lese PDF-Dokument ein...' : 'Analyzing PDF document...') : null,
     );
 
     // 4. Calculate dynamic token budget and num_ctx for Ollama
     final totalTokens = ContextManager.estimateTokens(promptPayload);
-    int dynamicNumCtx = 4096;
-    if (totalTokens > 1500) {
-      dynamicNumCtx = (totalTokens + 1500).clamp(4096, 6144);
+    int dynamicNumCtx = 2048;
+    if (totalTokens > 800) {
+      dynamicNumCtx = (totalTokens + 1024).clamp(2048, 4096);
     }
 
     // Prepare message payload with sliding window bounded by dynamicNumCtx
@@ -435,6 +437,9 @@ class ChatNotifier extends StateNotifier<ChatState> {
         _activeStream = stream.listen(
           (chunk) {
             if (!mounted) return;
+            if (state.statusMessage != null) {
+              state = state.copyWith(statusMessage: null);
+            }
             rawStreamBuffer.write(chunk);
             tokenEstimate++;
 

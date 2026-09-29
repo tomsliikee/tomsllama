@@ -21,8 +21,8 @@ class PdfService {
   /// Extracts text from a PDF file with page caps and character caps for local CPU performance.
   static Future<PdfExtractionResult?> extractText(
     String filePath, {
-    int maxPages = 5,
-    int maxCharacters = 6000,
+    int maxPages = 2,
+    int maxCharacters = 1800,
   }) async {
     final file = File(filePath);
     if (!await file.exists()) return null;
@@ -75,8 +75,12 @@ class PdfService {
         isTruncated = true;
       }
 
-      final extractedText = buffer.toString().trim();
-      final hasTextLayer = extractedText.length > 50;
+      String extractedText = buffer.toString().trim();
+      if (extractedText.length > maxCharacters) {
+        extractedText = extractedText.substring(0, maxCharacters).trimRight();
+        isTruncated = true;
+      }
+      final hasTextLayer = extractedText.length > 30;
 
       String finalText = extractedText;
       if (!hasTextLayer) {

@@ -53,7 +53,7 @@ class AttachedFile {
 
     // Handle PDF extraction via PdfService
     if (ext == '.pdf') {
-      final pdfResult = await PdfService.extractText(filePath, maxPages: 25);
+      final pdfResult = await PdfService.extractText(filePath);
       if (pdfResult == null) return null;
       return AttachedFile(
         path: filePath,
