@@ -31,7 +31,13 @@ class I18n {
   static String get thinkingOngoing => isGerman ? 'Denkprozess läuft...' : 'Thinking in progress...';
   static String get ctrlN => 'Ctrl N';
   static String get searchPlaceholder => isGerman ? 'Chats durchsuchen...' : 'Search conversations...';
-  static String get temperature => isGerman ? 'TEMPERATUR' : 'TEMPERATURE';
+  static String get modeFast => isGerman ? 'Schnell' : 'Fast';
+  static String get modeFastDesc => isGerman ? 'Schnelle, direkte Antworten (T=0.3)' : 'Quick, direct answers (T=0.3)';
+  static String get modeOptimal => isGerman ? 'Optimal' : 'Optimal';
+  static String get modeOptimalDesc => isGerman ? 'Ausgewogene Allround-Qualität (T=0.7)' : 'Balanced all-round quality (T=0.7)';
+  static String get modeThinking => isGerman ? 'Thinking' : 'Thinking';
+  static String get modeThinkingDesc => isGerman ? 'Tiefes Nachdenken & strukturierte Analyse' : 'Deep step-by-step reasoning & analysis';
+  static String get modeTitle => isGerman ? 'ANTWORT-MODUS' : 'RESPONSE MODE';
   static String get roleAndPrompt => isGerman ? 'ROLLE & HAUPTPROMPT' : 'ROLE & SYSTEM PROMPT';
   static String get settingsTitle => isGerman ? 'Einstellungen' : 'Settings';
   static String get close => isGerman ? 'Schließen' : 'Close';
@@ -39,6 +45,90 @@ class I18n {
   static String get dropFilesToAttach => isGerman ? 'Dateien hier ablegen' : 'Drop files to attach';
   static String get willAttachToConversation =>
       isGerman ? 'Wird an diese Unterhaltung angehängt' : 'Will attach to this conversation';
+  static String get toggleSidebar =>
+      isGerman ? 'Seitenleiste umschalten (Strg+B)' : 'Toggle Sidebar (Ctrl+B)';
+  static String get workspaces => 'Workspaces';
+  static String get chats => 'Chats';
+  static String get newWorkspace => isGerman ? '+ Neuer Workspace' : '+ New Workspace';
+  static String get newWorkspaceTitle => isGerman ? 'Neuer Workspace' : 'New Workspace';
+  static String get noWorkspaces => isGerman ? 'Keine Workspaces vorhanden' : 'No workspaces yet';
+  static String get deleteWorkspaceConfirm => isGerman ? 'Workspace löschen?' : 'Delete workspace?';
+  static String get workspacePromptTitle => isGerman ? 'WORKSPACE PROMPT (DAUERHAFT)' : 'WORKSPACE PROMPT (PERSISTENT)';
+  static String get workspaceContextTitle => isGerman ? 'WORKSPACE KNOWLEDGE / KONTEXT' : 'WORKSPACE KNOWLEDGE / CONTEXT';
+  static String get askInWorkspace =>
+      isGerman ? 'Frage stellen oder neuen Chat im Workspace starten...' : 'Ask a question or start a chat in this workspace...';
+  static String get workspaceChatsTitle => isGerman ? 'CHATS IN DIESEM WORKSPACE' : 'CHATS IN THIS WORKSPACE';
+  static String get contextActive => isGerman ? 'Workspace Context: Aktiv' : 'Workspace Context: Active';
+  static String get contextPaused => isGerman ? 'Workspace Context: Pausiert' : 'Workspace Context: Paused';
+  static String get workspaceNameLabel => isGerman ? 'Name des Workspaces' : 'Workspace Name';
+  static String get workspaceNameHint => isGerman ? 'z. B. Projekt Erlebnisplaner' : 'e.g. Project Mobile App';
+  static String get create => isGerman ? 'Erstellen' : 'Create';
+  static String get cancel => isGerman ? 'Abbrechen' : 'Cancel';
+  static String get backToHub => isGerman ? 'Workspace-Hub' : 'Workspace Hub';
+
+  static String get delete => isGerman ? 'Löschen' : 'Delete';
+  static String get save => isGerman ? 'Speichern' : 'Save';
+  static String get addFile => isGerman ? 'Datei hinzufügen' : 'Add File';
+  static String get attach => isGerman ? 'Anhängen' : 'Attach';
+  static String get openProjectWorkspace =>
+      isGerman ? 'Projekt-Workspace öffnen...' : 'Open Project Workspace...';
+  static String get attachFolderFiles =>
+      isGerman ? 'Ordner-Dateien anhängen...' : 'Attach Folder Files...';
+  static String get attachFiles =>
+      isGerman ? 'Dateien anhängen...' : 'Attach Files...';
+  static String get atMentionNavigationHint =>
+      isGerman ? '↑↓ zum Navigieren • Enter/Tab zum Auswählen' : '↑↓ to navigate • Enter/Tab to select';
+  static String get workspaceFilesPrefix =>
+      isGerman ? 'Workspace-Dateien' : 'Workspace Files';
+  static String get noModelsInstalled =>
+      isGerman ? 'Keine Modelle installiert' : 'No models installed';
+  static String deleteWorkspaceConfirmMessage(String name) => isGerman
+      ? 'Möchtest du den Workspace "$name" und alle zugehörigen Chats und Dateien wirklich löschen?'
+      : 'Do you really want to delete the workspace "$name" and all associated chats and files?';
+  static String workspaceHubSubtitle(int chatsCount, int filesCount, int tokensCount) => isGerman
+      ? 'Workspace Hub • $chatsCount Chats • $filesCount Kontext-Dateien (~$tokensCount Tokens)'
+      : 'Workspace Hub • $chatsCount chats • $filesCount context files (~$tokensCount tokens)';
+  static String get workspacePromptHint => isGerman
+      ? 'Gib hier dauerhafte Instruktionen, Coding-Regeln oder Rollenanweisungen für diesen Workspace ein (z. B. "Du bist Principal Engineer, antworte präzise auf Deutsch")...'
+      : 'Enter persistent instructions, coding rules, or role guidance for this workspace (e.g. "You are a principal engineer, reply concisely in English")...';
+  static String get workspaceDropFilesHint => isGerman
+      ? 'Dateien hier ablegen. Sie werden in jedem Chat dieses Workspaces automatisch geladen.'
+      : 'Drop files here. They will be loaded automatically into every chat in this workspace.';
+  static String get workspaceNoFilesHint => isGerman
+      ? 'Noch keine Dateien hinterlegt. Ziehe Dokumente oder Code hierher.'
+      : 'No files added yet. Drop documents or code files here.';
+  static String get workspaceNoChatsHint => isGerman
+      ? 'Noch keine Chats in diesem Workspace vorhanden.\nStelle oben eine Frage, um die erste Unterhaltung zu starten.'
+      : 'No chats in this workspace yet.\nAsk a question above to start the first conversation.';
+  static String workspaceConversationsCount(int count) => isGerman
+      ? '$count Konversationen'
+      : '$count Conversations';
+
+  static String totalAttachedTokens(int tokens) {
+    final tokenStr = tokens >= 1000 ? '~${(tokens / 1000).toStringAsFixed(1)}k' : '~$tokens';
+    return isGerman ? 'Gesamt: $tokenStr tok' : 'Total: $tokenStr tok';
+  }
+
+  static String cpuLeadTime(int tokens) {
+    final estSec = (tokens / 40.0).round();
+    final timeStr = estSec >= 60 ? '${(estSec / 60.0).toStringAsFixed(1)} Min' : '${estSec}s';
+    return isGerman ? '• CPU-Vorlauf: ca. $timeStr' : '• CPU lead time: ~$timeStr';
+  }
+
+  static String get readingPdf =>
+      isGerman ? 'Lese PDF-Dokument ein...' : 'Analyzing PDF document...';
+  static String cpuEvaluatingPrompt(int tokens) => isGerman
+      ? 'CPU evaluiert Kontext (~$tokens Tokens)...'
+      : 'CPU evaluating prompt context (~$tokens tokens)...';
+  static String attachedFilePrefix(String filename) =>
+      isGerman ? 'Datei: $filename' : 'File: $filename';
+
+  static String cpuEvaluatingContext(String tokenStr, String remainingStr) => isGerman
+      ? 'CPU evaluiert Kontext ($tokenStr Tokens • noch ~$remainingStr)...'
+      : 'CPU evaluating context ($tokenStr tokens • ~$remainingStr left)...';
+  static String cpuFinalizingContext(String tokenStr, int seconds) => isGerman
+      ? 'CPU finalisiert Kontext ($tokenStr Tokens, ${seconds}s)...'
+      : 'CPU finalizing context ($tokenStr tokens, ${seconds}s)...';
 
   static String get subtitle => isGerman
       ? 'Lokales, sicheres Interface für Ollama'
@@ -62,8 +152,8 @@ class I18n {
 
   static String composerPlaceholder(String model) {
     return isGerman
-        ? 'Nachricht an $model schreiben... (Enter zum Senden, Shift+Enter für Zeilenumbruch)'
-        : 'Message $model... (Enter to send, Shift+Enter for new line)';
+        ? 'Nachricht an $model...'
+        : 'Message $model...';
   }
 
   // Settings & Theme

@@ -12,34 +12,42 @@ import 'package:path/path.dart' as p;
 import '../../../../core/utils/think_parser.dart';
 import '../../../../core/models/attached_file.dart';
 import '../../../../core/models/workspace_info.dart';
-import '../../../../core/services/repo_map_service.dart';
-import '../../../../core/services/workspace_search_service.dart';
 import '../../sidebar/controllers/sidebar_controller.dart';
-import 'workspace_controller.dart';
+import '../../chat/controllers/workspace_controller.dart';
+import '../../../../core/models/workspace.dart';
+import '../../../../core/models/workspace_context_file.dart';
+
+enum ChatExecutionMode {
+  schnell,
+  optimal,
+  thinking,
+}
 
 class ChatState {
   final String? conversationId;
   final List<Message> messages;
   final bool isGenerating;
   final String activePersonaName;
-  final double temperature;
+  final ChatExecutionMode mode;
   final bool isCanvasOpen;
   final String? canvasContent;
   final String? canvasLanguage;
   final String? errorMessage;
   final String? statusMessage;
+  final int? statusTokens;
 
   const ChatState({
     this.conversationId,
     this.messages = const [],
     this.isGenerating = false,
     this.activePersonaName = 'Standard',
-    this.temperature = 0.7,
+    this.mode = ChatExecutionMode.optimal,
     this.isCanvasOpen = false,
     this.canvasContent,
     this.canvasLanguage,
     this.errorMessage,
     this.statusMessage,
+    this.statusTokens,
   });
 
   ChatState copyWith({
@@ -47,26 +55,29 @@ class ChatState {
     List<Message>? messages,
     bool? isGenerating,
     String? activePersonaName,
-    double? temperature,
+    ChatExecutionMode? mode,
     bool? isCanvasOpen,
     String? canvasContent,
     String? canvasLanguage,
     String? errorMessage,
     String? statusMessage,
+    int? statusTokens,
     bool clearCanvas = false,
     bool clearStatusMessage = false,
+    bool clearStatusTokens = false,
   }) {
     return ChatState(
       conversationId: conversationId ?? this.conversationId,
       messages: messages ?? this.messages,
       isGenerating: isGenerating ?? this.isGenerating,
       activePersonaName: activePersonaName ?? this.activePersonaName,
-      temperature: temperature ?? this.temperature,
+      mode: mode ?? this.mode,
       isCanvasOpen: isCanvasOpen ?? this.isCanvasOpen,
       canvasContent: clearCanvas ? null : (canvasContent ?? this.canvasContent),
       canvasLanguage: clearCanvas ? null : (canvasLanguage ?? this.canvasLanguage),
       errorMessage: errorMessage,
       statusMessage: clearStatusMessage ? null : (statusMessage ?? this.statusMessage),
+      statusTokens: clearStatusTokens ? null : (statusTokens ?? this.statusTokens),
     );
   }
 }
@@ -141,6 +152,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     );
 
     _ref.read(workspaceProvider.notifier).setActiveConversation(newConv.id);
+    _ref.read(workspaceProvider.notifier).clearWorkspace();
 
     // 4. Set state to the new conversation
     state = state.copyWith(
@@ -151,6 +163,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
       errorMessage: null,
       clearCanvas: true,
       isCanvasOpen: false,
+      clearStatusMessage: true,
+      clearStatusTokens: true,
     );
   }
 
@@ -161,8 +175,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
     }
   }
 
-  void setTemperature(double temp) {
-    state = state.copyWith(temperature: temp);
+  void setMode(ChatExecutionMode mode) {
+    state = state.copyWith(mode: mode);
   }
 
   void openInCanvas(String code, String language) {
@@ -185,16 +199,65 @@ class ChatNotifier extends StateNotifier<ChatState> {
   }) async {
     final wsNotifier = _ref.read(workspaceProvider.notifier);
     final wsState = _ref.read(workspaceProvider);
-    final effectiveWorkspace = workspace ?? wsState.workspace;
-    final effectiveFiles = List<AttachedFile>.from(attachedFiles ?? wsState.attachedFiles);
+    final explicitAttached = attachedFiles ?? wsState.attachedFiles;
 
-    // Dynamic File Ingestion & RepoMap from Workspace:
-    String? repoMap;
-    if (effectiveWorkspace != null) {
+    if (text.trim().isEmpty && explicitAttached.isEmpty) return;
+    if (state.isGenerating) return;
+
+    // 1. Ensure active conversation exists
+    String convId = state.conversationId ?? '';
+    bool isFirstMessageInConv = false;
+    final titleSeed = text.trim().isNotEmpty
+        ? text.trim()
+        : (explicitAttached.isNotEmpty
+            ? I18n.attachedFilePrefix(explicitAttached.first.name)
+            : I18n.newChatTitle);
+
+    if (convId.isEmpty) {
+      final newConv = await _ref.read(sidebarProvider.notifier).createNewConversation(
+        title: titleSeed.length > 25 ? '${titleSeed.substring(0, 25)}...' : titleSeed,
+        persona: state.activePersonaName,
+      );
+      convId = newConv.id;
+      isFirstMessageInConv = true;
+      wsNotifier.setActiveConversation(convId);
+      state = state.copyWith(conversationId: convId);
+    } else {
+      // Check if this conversation had 0 user messages so far
+      if (!state.messages.any((m) => m.role == 'user')) {
+        isFirstMessageInConv = true;
+        final previewTitle = titleSeed.length > 25 ? '${titleSeed.substring(0, 25)}...' : titleSeed;
+        await _ref.read(sidebarProvider.notifier).updateTitle(convId, previewTitle);
+      }
+    }
+
+    // 2. Check if conversation belongs to a Claude-style Workspace with active context
+    final allConvs = await _db.getConversations();
+    final currentConv = allConvs.where((c) => c.id == convId).firstOrNull;
+    final workspaceId = currentConv?.workspaceId;
+    final isWorkspaceContextEnabled = currentConv?.isWorkspaceContextEnabled ?? true;
+
+    Workspace? claudeWorkspace;
+    List<WorkspaceContextFile> claudeWorkspaceFiles = const [];
+
+    if (workspaceId != null && isWorkspaceContextEnabled) {
+      claudeWorkspace = await _db.getWorkspace(workspaceId);
+      if (claudeWorkspace != null) {
+        claudeWorkspaceFiles = await _db.getWorkspaceFiles(workspaceId);
+      }
+    }
+
+    // 3. Resolve attached files & legacy workspace
+    // Legacy disk workspace is ONLY used if NOT in a Claude Workspace
+    final effectiveWorkspace = claudeWorkspace == null ? (workspace ?? wsState.workspace) : null;
+    final effectiveFiles = List<AttachedFile>.from(explicitAttached);
+
+    // Dynamic File Ingestion: ONLY if user explicitly opened a disk workspace AND mentions files
+    if (effectiveWorkspace != null && effectiveWorkspace.files.isNotEmpty) {
       final textLower = text.toLowerCase();
       final alreadyAttachedPaths = effectiveFiles.map((f) => f.path).toSet();
 
-      // A. Explicit mentions in user query
+      // Only attach if user explicitly mentions the file name in their query
       for (final relPath in effectiveWorkspace.files) {
         final filename = p.basename(relPath).toLowerCase();
         final relPathLower = relPath.toLowerCase();
@@ -208,6 +271,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
             final autoFile = await AttachedFile.fromPath(
               fullPath,
               workspaceRoot: effectiveWorkspace.path,
+              maxLines: 250,
             );
             if (autoFile != null) {
               effectiveFiles.add(autoFile);
@@ -216,75 +280,50 @@ class ChatNotifier extends StateNotifier<ChatState> {
           }
         }
       }
-
-      // B. Smart Heuristic Retrieval (Keyword & Symbol Matcher)
-      final relevantMatches = await WorkspaceSearchService.searchRelevantFiles(
-        text,
-        effectiveWorkspace.path,
-        effectiveWorkspace.files,
-        excludedPaths: alreadyAttachedPaths,
-        maxResults: 2,
-      );
-      for (final match in relevantMatches) {
-        if (!alreadyAttachedPaths.contains(match.path)) {
-          effectiveFiles.add(match);
-          alreadyAttachedPaths.add(match.path);
-        }
-      }
-
-      // C. If effectiveFiles is STILL empty, auto-load at most 1 primary overview file
-      if (effectiveFiles.isEmpty) {
-        const overviewCandidates = {'readme.md', 'pubspec.yaml', 'package.json', 'cargo.toml', 'pyproject.toml'};
-        for (final relPath in effectiveWorkspace.files) {
-          final base = p.basename(relPath).toLowerCase();
-          if (overviewCandidates.contains(base)) {
-            final fullPath = p.join(effectiveWorkspace.path, relPath);
-            final overviewFile = await AttachedFile.fromPath(
-              fullPath,
-              workspaceRoot: effectiveWorkspace.path,
-              maxLines: 250,
-            );
-            if (overviewFile != null) {
-              effectiveFiles.add(overviewFile);
-              break;
-            }
-          }
-        }
-      }
-
-      // D. Generate Compact Repo Map (AST / Symbol Outline)
-      if (effectiveWorkspace.files.isNotEmpty) {
-        repoMap = await RepoMapService.generateRepoMap(
-          effectiveWorkspace.path,
-          effectiveWorkspace.files,
-          maxSymbols: 60,
-        );
-      }
     }
 
-    if (text.trim().isEmpty && effectiveFiles.isEmpty) return;
-    if (state.isGenerating) return;
-
-    // Build the complete prompt payload
-    String promptPayload = text.trim();
-    if (effectiveFiles.isNotEmpty || effectiveWorkspace != null) {
-      final buffer = StringBuffer();
-      if (effectiveWorkspace != null) {
-        buffer.writeln('### Project Workspace: `${effectiveWorkspace.name}`${effectiveWorkspace.gitBranch != null ? ' (Git Branch: `${effectiveWorkspace.gitBranch}`)' : ''}');
-        if (effectiveWorkspace.files.isNotEmpty) {
-          buffer.writeln('#### Project File Structure:\n```\n${effectiveWorkspace.formattedFileTree}\n```');
-        }
-        if (repoMap != null && repoMap.isNotEmpty) {
-          buffer.writeln('#### Workspace Code Outline (Key Symbols):\n$repoMap');
-        }
-        buffer.writeln('#### Workspace Tools:\nYou have access to the `read_file(file_path)` function. When you need to read or verify code from any file in the workspace, call `read_file` with the relative file path.');
+    // Build static system prompt (Persona + Claude Workspace Instructions + Knowledge Base Files + Project Repo Structure)
+    // This prefix is identical across turns, allowing Ollama's KV-cache to hit on turn 2+ (reducing prompt eval from 45s to 1s).
+    final matchedPersona = Persona.defaultPersonas.firstWhere(
+      (p) => p.name.toLowerCase() == state.activePersonaName.toLowerCase(),
+      orElse: () => Persona.defaultPersonas.first,
+    );
+    final systemPromptBuffer = StringBuffer();
+    if (matchedPersona.systemPrompt.trim().isNotEmpty) {
+      systemPromptBuffer.writeln(matchedPersona.systemPrompt.trim());
+    }
+    if (claudeWorkspace != null) {
+      if (claudeWorkspace.prompt.trim().isNotEmpty) {
+        if (systemPromptBuffer.isNotEmpty) systemPromptBuffer.writeln('\n');
+        systemPromptBuffer.writeln('### Workspace Instructions & Rules (${claudeWorkspace.name}):\n${claudeWorkspace.prompt.trim()}');
       }
-      if (effectiveFiles.isNotEmpty) {
-        buffer.writeln('#### Attached Context Files (Full Content):');
-        for (final file in effectiveFiles) {
-          buffer.writeln(file.toMarkdownBlock());
-          buffer.writeln();
+      if (claudeWorkspaceFiles.isNotEmpty) {
+        if (systemPromptBuffer.isNotEmpty) systemPromptBuffer.writeln('\n');
+        systemPromptBuffer.writeln('### Workspace Knowledge Base (${claudeWorkspace.name}):');
+        for (final file in claudeWorkspaceFiles) {
+          systemPromptBuffer.writeln(file.toMarkdownBlock());
+          systemPromptBuffer.writeln();
         }
+      }
+    }
+    if (effectiveWorkspace != null) {
+      if (systemPromptBuffer.isNotEmpty) systemPromptBuffer.writeln('\n');
+      systemPromptBuffer.writeln('### Project Workspace: `${effectiveWorkspace.name}`${effectiveWorkspace.gitBranch != null ? ' (Git Branch: `${effectiveWorkspace.gitBranch}`)' : ''}');
+      if (effectiveWorkspace.files.isNotEmpty) {
+        final previewFiles = effectiveWorkspace.files.take(20).join(', ');
+        systemPromptBuffer.writeln('#### Project Files Preview: $previewFiles');
+      }
+      systemPromptBuffer.writeln('#### Workspace Tools:\nYou have access to the `read_file(file_path)` function. When you need to read or verify code from any file in the workspace, call `read_file` with the relative file path.');
+    }
+
+    // Build the user turn prompt payload (standalone attached files + query)
+    String promptPayload = text.trim();
+    if (effectiveFiles.isNotEmpty) {
+      final buffer = StringBuffer();
+      buffer.writeln('#### Attached Context Files:');
+      for (final file in effectiveFiles) {
+        buffer.writeln(file.toMarkdownBlock());
+        buffer.writeln();
       }
       if (text.trim().isNotEmpty) {
         buffer.writeln('#### User Request:');
@@ -293,34 +332,9 @@ class ChatNotifier extends StateNotifier<ChatState> {
       promptPayload = buffer.toString().trim();
     }
 
-    // 1. Ensure active conversation exists
-    String convId = state.conversationId ?? '';
-    bool isFirstMessageInConv = false;
-    final titleSeed = text.trim().isNotEmpty
-        ? text.trim()
-        : (effectiveFiles.isNotEmpty ? 'File: ${effectiveFiles.first.name}' : 'New Chat');
-
-    if (convId.isEmpty) {
-      final newConv = await _ref.read(sidebarProvider.notifier).createNewConversation(
-        title: titleSeed.length > 25 ? '${titleSeed.substring(0, 25)}...' : titleSeed,
-        persona: state.activePersonaName,
-      );
-      convId = newConv.id;
-      isFirstMessageInConv = true;
-      state = state.copyWith(conversationId: convId);
-    } else {
-      // Check if this conversation had 0 user messages so far
-      if (!state.messages.any((m) => m.role == 'user')) {
-        isFirstMessageInConv = true;
-        final previewTitle = titleSeed.length > 25 ? '${titleSeed.substring(0, 25)}...' : titleSeed;
-        await _ref.read(sidebarProvider.notifier).updateTitle(convId, previewTitle);
-      }
-    }
-
     // 2. Add user message with clean display content (only explicitly attached pills encoded)
     final now = DateTime.now();
     String displayContent = text.trim();
-    final explicitAttached = attachedFiles ?? wsState.attachedFiles;
     if (explicitAttached.isNotEmpty) {
       final fileNames = explicitAttached.map((f) => f.name).join(', ');
       displayContent = '[attached:$fileNames]${displayContent.isNotEmpty ? '\n$displayContent' : ''}';
@@ -346,28 +360,62 @@ class ChatNotifier extends StateNotifier<ChatState> {
     );
 
     final updatedMessages = [...state.messages, userMsg, assistantMsg];
-    final hasPdf = effectiveFiles.any((f) => f.extension == '.pdf');
+    final hasPdf = effectiveFiles.any((f) => f.extension == '.pdf') ||
+        claudeWorkspaceFiles.any((f) => f.extension == '.pdf');
+
+    // 4. Discrete token budget and num_ctx tiers to prevent Ollama runner reload on CPU
+    final systemTokens = ContextManager.estimateTokens(systemPromptBuffer.toString());
+    final userTokens = ContextManager.estimateTokens(promptPayload);
+    final totalTokens = systemTokens + userTokens;
+
+    String? statusMsg;
+    if (hasPdf) {
+      statusMsg = I18n.readingPdf;
+    } else if (totalTokens > 600) {
+      statusMsg = I18n.cpuEvaluatingPrompt(totalTokens);
+    }
+
     state = state.copyWith(
       messages: updatedMessages,
       isGenerating: true,
       errorMessage: null,
-      statusMessage: hasPdf ? (I18n.isGerman ? 'Lese PDF-Dokument ein...' : 'Analyzing PDF document...') : null,
+      statusMessage: statusMsg,
+      statusTokens: totalTokens > 600 ? totalTokens : null,
     );
 
-    // 4. Calculate dynamic token budget and num_ctx for Ollama
-    final totalTokens = ContextManager.estimateTokens(promptPayload);
-    int dynamicNumCtx = 2048;
-    if (totalTokens > 800) {
-      dynamicNumCtx = (totalTokens + 1024).clamp(2048, 4096);
+    final double effectiveTemperature;
+    switch (state.mode) {
+      case ChatExecutionMode.schnell:
+        effectiveTemperature = 0.3;
+        break;
+      case ChatExecutionMode.optimal:
+        effectiveTemperature = 0.7;
+        break;
+      case ChatExecutionMode.thinking:
+        effectiveTemperature = 0.6;
+        break;
     }
 
-    // Prepare message payload with sliding window bounded by dynamicNumCtx
+    final int? ollamaNumCtx;
+    final int slidingWindowBudget;
+    if (totalTokens > 3600) {
+      ollamaNumCtx = 8192;
+      slidingWindowBudget = 8192 - 600;
+    } else if (totalTokens > 1800) {
+      ollamaNumCtx = 4096;
+      slidingWindowBudget = 4096 - 500;
+    } else {
+      ollamaNumCtx = null;
+      slidingWindowBudget = 2048 - 400;
+    }
+
+    // Prepare message payload with sliding window bounded by slidingWindowBudget
     final rawHistory = updatedMessages
         .where((m) => m.role == 'user' || (m.role == 'assistant' && m.id != assistantMsgId))
         .toList();
     final windowed = ContextManager.applySlidingWindow(
       messages: rawHistory,
-      maxTokens: dynamicNumCtx - 500,
+      maxTokens: slidingWindowBudget,
     );
     final List<Map<String, dynamic>> promptMessages = windowed.map<Map<String, dynamic>>((m) {
       if (m.id == userMsg.id) {
@@ -376,15 +424,11 @@ class ChatNotifier extends StateNotifier<ChatState> {
       return <String, dynamic>{'role': m.role, 'content': m.content};
     }).toList();
 
-    // Add system persona if defined
-    final matchedPersona = Persona.defaultPersonas.firstWhere(
-      (p) => p.name.toLowerCase() == state.activePersonaName.toLowerCase(),
-      orElse: () => Persona.defaultPersonas.first,
-    );
-    if (matchedPersona.systemPrompt.trim().isNotEmpty) {
+    // Insert system prompt at index 0
+    if (systemPromptBuffer.isNotEmpty) {
       promptMessages.insert(0, {
         'role': 'system',
-        'content': matchedPersona.systemPrompt,
+        'content': systemPromptBuffer.toString().trim(),
       });
     }
 
@@ -426,8 +470,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
         final stream = _ollama.streamChat(
           modelName,
           promptMessages,
-          temperature: state.temperature,
-          numCtx: dynamicNumCtx,
+          temperature: effectiveTemperature,
+          numCtx: ollamaNumCtx,
           tools: withTools && tools.isNotEmpty ? tools : null,
           onToolCall: (toolCall) {
             pendingToolCall = toolCall;
@@ -437,8 +481,11 @@ class ChatNotifier extends StateNotifier<ChatState> {
         _activeStream = stream.listen(
           (chunk) {
             if (!mounted) return;
-            if (state.statusMessage != null) {
-              state = state.copyWith(statusMessage: null);
+            if (state.statusMessage != null || state.statusTokens != null) {
+              state = state.copyWith(
+                clearStatusMessage: true,
+                clearStatusTokens: true,
+              );
             }
             rawStreamBuffer.write(chunk);
             tokenEstimate++;
@@ -473,6 +520,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
               messages: msgs,
               isGenerating: false,
               clearStatusMessage: true,
+              clearStatusTokens: true,
               errorMessage: 'Stream error: $err',
             );
           },
@@ -524,7 +572,12 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
             if (rawStreamBuffer.isEmpty) {
               final msgs = state.messages.where((m) => m.id != assistantMsgId).toList();
-              state = state.copyWith(messages: msgs, isGenerating: false, clearStatusMessage: true);
+              state = state.copyWith(
+                messages: msgs,
+                isGenerating: false,
+                clearStatusMessage: true,
+                clearStatusTokens: true,
+              );
               return;
             }
 
@@ -544,7 +597,11 @@ class ChatNotifier extends StateNotifier<ChatState> {
             await _db.saveMessage(finalizedMsg);
             if (!mounted) return;
 
-            state = state.copyWith(isGenerating: false, clearStatusMessage: true);
+            state = state.copyWith(
+              isGenerating: false,
+              clearStatusMessage: true,
+              clearStatusTokens: true,
+            );
 
             // Auto-summarize title in background if it was the first user message
             if (isFirstMessageInConv) {
@@ -567,6 +624,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
           state = state.copyWith(
             isGenerating: false,
             clearStatusMessage: true,
+            clearStatusTokens: true,
             errorMessage: 'Ollama error: $err',
           );
         }
@@ -578,7 +636,11 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   void stopGeneration() {
     _activeStream?.cancel();
-    state = state.copyWith(isGenerating: false);
+    state = state.copyWith(
+      isGenerating: false,
+      clearStatusMessage: true,
+      clearStatusTokens: true,
+    );
   }
 
   @override

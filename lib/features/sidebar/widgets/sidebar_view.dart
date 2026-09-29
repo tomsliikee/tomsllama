@@ -3,8 +3,11 @@ import '../../../core/models/conversation.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../core/services/localization_service.dart';
+import '../../../core/models/workspace.dart';
+import '../../workspace/controllers/workspace_hub_controller.dart';
 import '../../shell/widgets/tomsllama_logo.dart';
 import 'chat_list_item.dart';
+import 'workspace_list_item.dart';
 
 class SidebarView extends StatefulWidget {
   final List<Conversation> conversations;
@@ -19,6 +22,17 @@ class SidebarView extends StatefulWidget {
   final ValueChanged<String>? onSearchChanged;
   final VoidCallback? onSearchClear;
 
+  // Workspace integration
+  final SidebarMode mode;
+  final ValueChanged<SidebarMode>? onModeChanged;
+  final List<Workspace> workspaces;
+  final String? activeWorkspaceId;
+  final ValueChanged<String>? onSelectWorkspace;
+  final VoidCallback? onNewWorkspace;
+  final ValueChanged<String>? onDeleteWorkspace;
+  final ValueChanged<String>? onTogglePinWorkspace;
+  final void Function(int oldIndex, int newIndex)? onReorderWorkspaces;
+
   const SidebarView({
     super.key,
     required this.conversations,
@@ -32,6 +46,15 @@ class SidebarView extends StatefulWidget {
     this.searchController,
     this.onSearchChanged,
     this.onSearchClear,
+    this.mode = SidebarMode.chats,
+    this.onModeChanged,
+    this.workspaces = const [],
+    this.activeWorkspaceId,
+    this.onSelectWorkspace,
+    this.onNewWorkspace,
+    this.onDeleteWorkspace,
+    this.onTogglePinWorkspace,
+    this.onReorderWorkspaces,
   });
 
   @override
@@ -51,22 +74,32 @@ class _SidebarViewState extends State<SidebarView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Top Floating Pills: Large Logo Pill + New Chat Pill
+          // Top Floating Pills: Large Logo Pill + New Action Pill
           Row(
             children: [
               // Large Logo Pill
               const _LogoFloatingPill(),
               const SizedBox(width: 8.0),
-              // Separated New Chat Floating Pill
+              // Separated New Action Floating Pill (+ Neuer Chat / + Neuer Workspace)
               Expanded(
-                child: _NewChatButton(onTap: widget.onNewChat),
+                child: _NewActionButton(
+                  mode: widget.mode,
+                  onTap: widget.mode == SidebarMode.chats
+                      ? widget.onNewChat
+                      : () => widget.onNewWorkspace?.call(),
+                ),
               ),
             ],
           ),
 
-          const SizedBox(height: 10.0),
+          const SizedBox(height: 8.0),
 
-          // Chat History Floating Pill Panel
+          // Sliding Segmented Control (Chats vs Workspaces)
+          _buildModeSlider(appColors),
+
+          const SizedBox(height: 8.0),
+
+          // Content Floating Pill Panel (Chats OR Workspaces)
           Expanded(
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
@@ -78,11 +111,11 @@ class _SidebarViewState extends State<SidebarView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // VERLAUF / HISTORY Section Title
+                  // Section Title
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
                     child: Text(
-                      I18n.history,
+                      widget.mode == SidebarMode.chats ? I18n.history : I18n.workspaces.toUpperCase(),
                       style: AppTypography.uiControl.copyWith(
                         color: appColors.textSecondary,
                         fontSize: 11.0,
@@ -94,74 +127,11 @@ class _SidebarViewState extends State<SidebarView> {
 
                   const SizedBox(height: 6.0),
 
-                  // Chat History List with Reorderable Drag-and-Drop and Tactile Jiggle Animation
+                  // Content List (Chats or Workspaces)
                   Expanded(
-                    child: widget.conversations.isEmpty
-                        ? Padding(
-                            padding: const EdgeInsets.all(12.0),
-                            child: Text(
-                              I18n.noChats,
-                              style: AppTypography.uiControl.copyWith(
-                                color: appColors.textSecondary,
-                                fontSize: 12.0,
-                              ),
-                            ),
-                          )
-                        : ReorderableListView.builder(
-                            buildDefaultDragHandles: false,
-                            itemCount: widget.conversations.length,
-                            onReorderStart: (index) {
-                              setState(() => _isDragging = true);
-                            },
-                            onReorderEnd: (index) {
-                              setState(() => _isDragging = false);
-                            },
-                            onReorderItem: (oldIndex, newIndex) {
-                              widget.onReorder?.call(oldIndex, newIndex);
-                            },
-                            proxyDecorator: (child, index, animation) {
-                              return Material(
-                                color: Colors.transparent,
-                                child: WobbleItem(
-                                  isWobbling: true,
-                                  index: index,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(10.0),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withValues(alpha: 0.18),
-                                          blurRadius: 14.0,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                      ],
-                                    ),
-                                    child: child,
-                                  ),
-                                ),
-                              );
-                            },
-                            itemBuilder: (context, index) {
-                              final c = widget.conversations[index];
-                              return ChatListItem(
-                                key: ValueKey(c.id),
-                                conversation: c,
-                                index: index,
-                                isWobbling: _isDragging,
-                                isSelected: c.id == widget.activeConversationId,
-                                onTap: () => widget.onSelectChat(c.id),
-                                onTogglePin: widget.onTogglePinChat != null
-                                    ? () => widget.onTogglePinChat!(c.id)
-                                    : null,
-                                onDelete: widget.onDeleteChat != null
-                                    ? () => widget.onDeleteChat!(c.id)
-                                    : null,
-                                onExport: widget.onExportChat != null
-                                    ? () => widget.onExportChat!(c.id)
-                                    : null,
-                              );
-                            },
-                          ),
+                    child: widget.mode == SidebarMode.chats
+                        ? _buildChatsList(appColors)
+                        : _buildWorkspacesList(appColors),
                   ),
                 ],
               ),
@@ -169,6 +139,240 @@ class _SidebarViewState extends State<SidebarView> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildModeSlider(AppThemeExtension appColors) {
+    const double tabHeight = 32.0;
+    final bool isChats = widget.mode == SidebarMode.chats;
+
+    return Container(
+      height: tabHeight,
+      padding: const EdgeInsets.all(2.5),
+      decoration: BoxDecoration(
+        color: appColors.surface,
+        borderRadius: BorderRadius.circular(16.0),
+        border: Border.all(color: appColors.borderSubtle, width: 1.0),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final double halfWidth = (constraints.maxWidth) / 2;
+          return Stack(
+            children: [
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                left: isChats ? 0 : halfWidth,
+                top: 0,
+                bottom: 0,
+                width: halfWidth,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: appColors.surface,
+                    borderRadius: BorderRadius.circular(13.0),
+                    border: Border.all(color: appColors.borderSubtle, width: 1.0),
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => widget.onModeChanged?.call(SidebarMode.chats),
+                      borderRadius: BorderRadius.circular(13.0),
+                      child: Center(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.chat_bubble_outline,
+                              size: 13.0,
+                              color: isChats ? appColors.textPrimary : appColors.textSecondary,
+                            ),
+                            const SizedBox(width: 4.0),
+                            Flexible(
+                              child: Text(
+                                I18n.chats,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.uiControl.copyWith(
+                                  color: isChats ? appColors.textPrimary : appColors.textSecondary,
+                                  fontSize: 11.5,
+                                  fontWeight: isChats ? FontWeight.w600 : FontWeight.w400,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => widget.onModeChanged?.call(SidebarMode.workspaces),
+                      borderRadius: BorderRadius.circular(13.0),
+                      child: Center(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.folder_outlined,
+                              size: 13.0,
+                              color: !isChats ? appColors.textPrimary : appColors.textSecondary,
+                            ),
+                            const SizedBox(width: 4.0),
+                            Flexible(
+                              child: Text(
+                                I18n.workspaces,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.uiControl.copyWith(
+                                  color: !isChats ? appColors.textPrimary : appColors.textSecondary,
+                                  fontSize: 11.5,
+                                  fontWeight: !isChats ? FontWeight.w600 : FontWeight.w400,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildChatsList(AppThemeExtension appColors) {
+    if (widget.conversations.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Text(
+          I18n.noChats,
+          style: AppTypography.uiControl.copyWith(
+            color: appColors.textSecondary,
+            fontSize: 12.0,
+          ),
+        ),
+      );
+    }
+
+    return ReorderableListView.builder(
+      buildDefaultDragHandles: false,
+      itemCount: widget.conversations.length,
+      onReorderStart: (index) => setState(() => _isDragging = true),
+      onReorderEnd: (index) => setState(() => _isDragging = false),
+      onReorderItem: (oldIndex, newIndex) => widget.onReorder?.call(oldIndex, newIndex),
+      proxyDecorator: (child, index, animation) {
+        return Material(
+          color: Colors.transparent,
+          child: WobbleItem(
+            isWobbling: true,
+            index: index,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10.0),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.18),
+                    blurRadius: 14.0,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: child,
+            ),
+          ),
+        );
+      },
+      itemBuilder: (context, index) {
+        final c = widget.conversations[index];
+        return ChatListItem(
+          key: ValueKey(c.id),
+          conversation: c,
+          index: index,
+          isWobbling: _isDragging,
+          isSelected: c.id == widget.activeConversationId,
+          onTap: () => widget.onSelectChat(c.id),
+          onTogglePin: widget.onTogglePinChat != null
+              ? () => widget.onTogglePinChat!(c.id)
+              : null,
+          onDelete: widget.onDeleteChat != null
+              ? () => widget.onDeleteChat!(c.id)
+              : null,
+          onExport: widget.onExportChat != null
+              ? () => widget.onExportChat!(c.id)
+              : null,
+        );
+      },
+    );
+  }
+
+  Widget _buildWorkspacesList(AppThemeExtension appColors) {
+    if (widget.workspaces.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Text(
+          I18n.noWorkspaces,
+          style: AppTypography.uiControl.copyWith(
+            color: appColors.textSecondary,
+            fontSize: 12.0,
+          ),
+        ),
+      );
+    }
+
+    return ReorderableListView.builder(
+      buildDefaultDragHandles: false,
+      itemCount: widget.workspaces.length,
+      onReorderStart: (index) => setState(() => _isDragging = true),
+      onReorderEnd: (index) => setState(() => _isDragging = false),
+      onReorderItem: (oldIndex, newIndex) => widget.onReorderWorkspaces?.call(oldIndex, newIndex),
+      proxyDecorator: (child, index, animation) {
+        return Material(
+          color: Colors.transparent,
+          child: WobbleItem(
+            isWobbling: true,
+            index: index,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10.0),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.18),
+                    blurRadius: 14.0,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: child,
+            ),
+          ),
+        );
+      },
+      itemBuilder: (context, index) {
+        final w = widget.workspaces[index];
+        return WorkspaceListItem(
+          key: ValueKey(w.id),
+          workspace: w,
+          index: index,
+          isWobbling: _isDragging,
+          isSelected: w.id == widget.activeWorkspaceId,
+          onTap: () => widget.onSelectWorkspace?.call(w.id),
+          onTogglePin: widget.onTogglePinWorkspace != null
+              ? () => widget.onTogglePinWorkspace!(w.id)
+              : null,
+          onDelete: widget.onDeleteWorkspace != null
+              ? () => widget.onDeleteWorkspace!(w.id)
+              : null,
+        );
+      },
     );
   }
 }
@@ -192,22 +396,27 @@ class _LogoFloatingPill extends StatelessWidget {
   }
 }
 
-class _NewChatButton extends StatefulWidget {
+class _NewActionButton extends StatefulWidget {
+  final SidebarMode mode;
   final VoidCallback onTap;
 
-  const _NewChatButton({required this.onTap});
+  const _NewActionButton({
+    required this.mode,
+    required this.onTap,
+  });
 
   @override
-  State<_NewChatButton> createState() => _NewChatButtonState();
+  State<_NewActionButton> createState() => _NewActionButtonState();
 }
 
-class _NewChatButtonState extends State<_NewChatButton> {
+class _NewActionButtonState extends State<_NewActionButton> {
   bool _isHovered = false;
   bool _isPressed = false;
 
   @override
   Widget build(BuildContext context) {
     final appColors = context.appColors;
+    final isChats = widget.mode == SidebarMode.chats;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -238,7 +447,7 @@ class _NewChatButtonState extends State<_NewChatButton> {
               children: [
                 Flexible(
                   child: Text(
-                    I18n.newChat,
+                    isChats ? I18n.newChat : I18n.newWorkspace,
                     overflow: TextOverflow.ellipsis,
                     style: AppTypography.uiControl.copyWith(
                       color: _isHovered ? appColors.accent : appColors.textPrimary,
@@ -247,14 +456,16 @@ class _NewChatButtonState extends State<_NewChatButton> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 6.0),
-                Text(
-                  I18n.ctrlN,
-                  style: AppTypography.code.copyWith(
-                    color: appColors.textSecondary,
-                    fontSize: 10.5,
+                if (isChats) ...[
+                  const SizedBox(width: 6.0),
+                  Text(
+                    I18n.ctrlN,
+                    style: AppTypography.code.copyWith(
+                      color: appColors.textSecondary,
+                      fontSize: 10.5,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),

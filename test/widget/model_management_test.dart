@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tomsllama/core/theme/claude_theme.dart';
 import 'package:tomsllama/core/models/ollama_model.dart';
+import 'package:tomsllama/core/services/localization_service.dart';
 import 'package:tomsllama/features/models/widgets/model_selector_dropdown.dart';
 
 void main() {
@@ -30,6 +31,6 @@ void main() {
     await tester.tap(find.byType(DropdownButton<String>));
     await tester.pumpAndSettle();
 
-    expect(find.text('Manage Models...'), findsOneWidget);
+    expect(find.text(I18n.manageModels), findsOneWidget);
   });
 }

@@ -21,6 +21,11 @@ import 'csd_header_bar.dart';
 import '../../models/widgets/quick_switcher_modal.dart';
 import '../../models/widgets/model_manager_dialog.dart';
 import '../../settings/widgets/settings_dialog.dart';
+import '../../../core/models/workspace.dart';
+import '../../../core/services/localization_service.dart';
+import '../../workspace/controllers/workspace_hub_controller.dart';
+import '../../workspace/widgets/workspace_hub_view.dart';
+import '../../workspace/widgets/new_workspace_dialog.dart';
 
 class DesktopShell extends ConsumerStatefulWidget {
   const DesktopShell({super.key});
@@ -33,6 +38,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
   bool _isSidebarOpen = true;
   bool _isZenMode = false;
   bool _isDraggingOverChat = false;
+  bool _isViewingWorkspaceHub = false;
   late final TextEditingController _searchController;
 
   @override
@@ -43,6 +49,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final sidebarNotifier = ref.read(sidebarProvider.notifier);
       await sidebarNotifier.loadConversations();
+      await ref.read(workspaceListProvider.notifier).loadWorkspaces();
       final conversations = ref.read(sidebarProvider).conversations;
       
       // If there are existing conversations, check if the newest one is already empty
@@ -82,6 +89,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
       builder: (_) => QuickSwitcherModal(
         conversations: conversations,
         onSelect: (id) {
+          setState(() => _isViewingWorkspaceHub = false);
           ref.read(sidebarProvider.notifier).setActiveConversation(id);
           ref.read(chatProvider.notifier).loadConversation(id);
         },
@@ -98,7 +106,23 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
   }
 
   void _newChat() async {
+    setState(() => _isViewingWorkspaceHub = false);
     await ref.read(chatProvider.notifier).startNewChat();
+  }
+
+  Future<void> _openNewWorkspaceDialog() async {
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (_) => const NewWorkspaceDialog(),
+    );
+    if (result != null && result['name'] != null && result['name']!.isNotEmpty) {
+      final ws = await ref.read(workspaceListProvider.notifier).createNewWorkspace(
+        name: result['name']!,
+        prompt: result['prompt'] ?? '',
+      );
+      await ref.read(activeWorkspaceProvider.notifier).loadWorkspace(ws.id);
+      setState(() => _isViewingWorkspaceHub = true);
+    }
   }
 
   Future<void> _handleChatDrop(DropDoneDetails details) async {
@@ -127,6 +151,108 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
     }
   }
 
+  Widget _buildWorkspaceHeaderBar({
+    required BuildContext context,
+    required AppThemeExtension appColors,
+    required Workspace workspace,
+    required bool isContextEnabled,
+    required VoidCallback onToggleContext,
+    required VoidCallback onBackToHub,
+  }) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16.0, 10.0, 16.0, 0.0),
+      padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 7.0),
+      decoration: BoxDecoration(
+        color: appColors.sidebar,
+        borderRadius: BorderRadius.circular(16.0),
+        border: Border.all(color: appColors.borderSubtle, width: 1.0),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.workspaces_outlined, size: 16.0, color: appColors.textSecondary),
+          const SizedBox(width: 8.0),
+          Expanded(
+            child: Text(
+              workspace.name,
+              style: AppTypography.headline.copyWith(
+                fontFamily: AppTypography.serifFamily,
+                fontStyle: FontStyle.italic,
+                color: appColors.textPrimary,
+                fontWeight: FontWeight.w400,
+                fontSize: 15.0,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 10.0),
+          // Toggle Button Pill
+          InkWell(
+            onTap: onToggleContext,
+            borderRadius: BorderRadius.circular(16.0),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
+              decoration: BoxDecoration(
+                color: appColors.background,
+                borderRadius: BorderRadius.circular(16.0),
+                border: Border.all(color: appColors.borderSubtle, width: 1.0),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 7.0,
+                    height: 7.0,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isContextEnabled ? appColors.accent : appColors.textSecondary.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  const SizedBox(width: 6.0),
+                  Text(
+                    isContextEnabled ? I18n.contextActive : I18n.contextPaused,
+                    style: AppTypography.uiControl.copyWith(
+                      color: isContextEnabled ? appColors.textPrimary : appColors.textSecondary,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8.0),
+          // Back to Hub Button Pill
+          InkWell(
+            onTap: onBackToHub,
+            borderRadius: BorderRadius.circular(16.0),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
+              decoration: BoxDecoration(
+                color: appColors.background,
+                borderRadius: BorderRadius.circular(16.0),
+                border: Border.all(color: appColors.borderSubtle, width: 1.0),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.arrow_back, size: 13.0, color: appColors.textSecondary),
+                  const SizedBox(width: 4.0),
+                  Text(
+                    I18n.backToHub,
+                    style: AppTypography.uiControl.copyWith(
+                      color: appColors.textSecondary,
+                      fontSize: 11.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final appColors = context.appColors;
@@ -134,6 +260,9 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
     final sidebarState = ref.watch(sidebarProvider);
     final modelState = ref.watch(modelProvider);
     final chatState = ref.watch(chatProvider);
+    final sidebarMode = ref.watch(sidebarModeProvider);
+    final workspaceListState = ref.watch(workspaceListProvider);
+    final activeWsState = ref.watch(activeWorkspaceProvider);
 
     final chatNotifier = ref.read(chatProvider.notifier);
     final sidebarNotifier = ref.read(sidebarProvider.notifier);
@@ -141,6 +270,14 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
 
     final selectedModel = modelState.selectedModel ??
         (modelState.models.isNotEmpty ? modelState.models.first.name : 'qwen2.5:3b');
+
+    final currentConv = sidebarState.conversations
+        .where((c) => c.id == (chatState.conversationId ?? sidebarState.activeConversationId))
+        .firstOrNull;
+    final isWorkspaceChat = currentConv?.workspaceId != null;
+    final currentConvWs = isWorkspaceChat
+        ? workspaceListState.workspaces.where((w) => w.id == currentConv!.workspaceId).firstOrNull
+        : null;
 
     return Shortcuts(
       shortcuts: const <ShortcutActivator, Intent>{
@@ -169,6 +306,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                   onOpenSettings: _openSettings,
                   onOpenQuickSwitcher: _openQuickSwitcher,
                   isZenMode: _isZenMode,
+                  isSidebarOpen: _isSidebarOpen,
                 ),
                 Expanded(
                   child: Row(
@@ -186,12 +324,14 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                           },
                           onNewChat: _newChat,
                           onSelectChat: (id) {
+                            setState(() => _isViewingWorkspaceHub = false);
                             sidebarNotifier.setActiveConversation(id);
                             chatNotifier.loadConversation(id);
                           },
                           onDeleteChat: (id) async {
                             await sidebarNotifier.deleteConversation(id);
                             ref.read(workspaceProvider.notifier).removeConversation(id);
+                            ref.read(activeWorkspaceProvider.notifier).refresh();
                             if (chatState.conversationId == id) {
                               final remaining = ref.read(sidebarProvider).conversations;
                               if (remaining.isNotEmpty) {
@@ -206,6 +346,45 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                           onReorder: (oldIndex, newIndex) =>
                               sidebarNotifier.reorderConversations(oldIndex, newIndex),
                           onExportChat: (_) {},
+                          // Claude Workspace Integration
+                          mode: sidebarMode,
+                          onModeChanged: (newMode) {
+                            ref.read(sidebarModeProvider.notifier).state = newMode;
+                            if (newMode == SidebarMode.workspaces) {
+                              final activeWsId = ref.read(workspaceListProvider).activeWorkspaceId;
+                              if (activeWsId != null) {
+                                ref.read(activeWorkspaceProvider.notifier).loadWorkspace(activeWsId);
+                                setState(() => _isViewingWorkspaceHub = true);
+                              } else {
+                                final allWs = ref.read(workspaceListProvider).workspaces;
+                                if (allWs.isNotEmpty) {
+                                  ref.read(workspaceListProvider.notifier).setActiveWorkspace(allWs.first.id);
+                                  ref.read(activeWorkspaceProvider.notifier).loadWorkspace(allWs.first.id);
+                                  setState(() => _isViewingWorkspaceHub = true);
+                                }
+                              }
+                            } else {
+                              setState(() => _isViewingWorkspaceHub = false);
+                            }
+                          },
+                          workspaces: workspaceListState.filteredWorkspaces,
+                          activeWorkspaceId: workspaceListState.activeWorkspaceId,
+                          onSelectWorkspace: (id) async {
+                            ref.read(workspaceListProvider.notifier).setActiveWorkspace(id);
+                            await ref.read(activeWorkspaceProvider.notifier).loadWorkspace(id);
+                            setState(() => _isViewingWorkspaceHub = true);
+                          },
+                          onNewWorkspace: _openNewWorkspaceDialog,
+                          onDeleteWorkspace: (id) async {
+                            await ref.read(workspaceListProvider.notifier).deleteWorkspace(id);
+                            if (ref.read(activeWorkspaceProvider).workspace?.id == id) {
+                              ref.read(activeWorkspaceProvider.notifier).clear();
+                              setState(() => _isViewingWorkspaceHub = false);
+                            }
+                          },
+                          onTogglePinWorkspace: (id) => ref.read(workspaceListProvider.notifier).togglePin(id),
+                          onReorderWorkspaces: (oldIdx, newIdx) =>
+                              ref.read(workspaceListProvider.notifier).reorderWorkspaces(oldIdx, newIdx),
                         ),
                       
                       // Main Chat & Split-View Canvas Area
@@ -235,91 +414,157 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                           ),
                           chatPanel: Padding(
                             padding: EdgeInsets.fromLTRB(4.0, 10.0, chatState.isCanvasOpen ? 5.0 : 10.0, 12.0),
-                            child: DropTarget(
-                              onDragEntered: (_) => setState(() => _isDraggingOverChat = true),
-                              onDragExited: (_) => setState(() => _isDraggingOverChat = false),
-                              onDragDone: (details) {
-                                setState(() => _isDraggingOverChat = false);
-                                _handleChatDrop(details);
-                              },
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: appColors.surface,
-                                  borderRadius: BorderRadius.circular(18.0),
-                                  border: Border.all(
-                                    color: _isDraggingOverChat ? appColors.accent : appColors.borderSubtle,
-                                    width: 1.0,
-                                  ),
-                                ),
-                                clipBehavior: Clip.antiAlias,
-                                child: Stack(
-                                  children: [
-                                    Column(
-                                      children: [
-                                        Expanded(
-                                          child: AnimatedSwitcher(
-                                            duration: const Duration(milliseconds: 240),
-                                            switchInCurve: Curves.easeOutCubic,
-                                            switchOutCurve: Curves.easeInCubic,
-                                            transitionBuilder: (child, animation) {
-                                              return SlideTransition(
-                                                position: Tween<Offset>(
-                                                  begin: const Offset(0.04, 0.0),
-                                                  end: Offset.zero,
-                                                ).animate(animation),
-                                                child: FadeTransition(
-                                                  opacity: animation,
-                                                  child: child,
-                                                ),
-                                              );
-                                            },
-                                            child: KeyedSubtree(
-                                              key: ValueKey(chatState.conversationId ?? 'empty_chat'),
-                                              child: ChatViewport(
-                                                messages: chatState.messages,
-                                                isGenerating: chatState.isGenerating,
-                                                modelName: selectedModel,
-                                                statusMessage: chatState.statusMessage,
-                                                onRegenerate: () {
-                                                  // Regenerate last user turn safely
-                                                  final lastUser = chatState.messages.where((m) => m.role == 'user').lastOrNull;
-                                                  if (lastUser != null) {
-                                                    chatNotifier.sendMessage(lastUser.content, selectedModel);
-                                                  }
-                                                },
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        ComposerBar(
-                                          isGenerating: chatState.isGenerating,
-                                          activePersonaName: chatState.activePersonaName,
-                                          modelName: selectedModel,
-                                          models: modelState.models,
-                                          selectedModel: selectedModel,
-                                          onModelChanged: (m) {
-                                            if (m != null) modelNotifier.selectModel(m);
-                                          },
-                                          onManageModels: _openModelManager,
-                                          temperature: chatState.temperature,
-                                          onTemperatureChanged: (temp) => chatNotifier.setTemperature(temp),
-                                          onPersonaTap: () {},
-                                          onSelectPersona: (persona) => chatNotifier.setPersona(persona),
-                                          onSend: (text) => chatNotifier.sendMessage(text, selectedModel),
-                                          onStop: () => chatNotifier.stopGeneration(),
-                                        ),
-                                      ],
+                            child: _isViewingWorkspaceHub && activeWsState.workspace != null
+                                ? Container(
+                                    decoration: BoxDecoration(
+                                      color: appColors.surface,
+                                      borderRadius: BorderRadius.circular(18.0),
+                                      border: Border.all(
+                                        color: appColors.borderSubtle,
+                                        width: 1.0,
+                                      ),
                                     ),
-                                    if (_isDraggingOverChat)
-                                      const Positioned.fill(
-                                        child: IgnorePointer(
-                                          child: FileDropOverlay(),
+                                    clipBehavior: Clip.antiAlias,
+                                    child: WorkspaceHubView(
+                                      workspace: activeWsState.workspace!,
+                                      files: activeWsState.files,
+                                      chats: activeWsState.chats,
+                                      onStartChat: (prompt, model, persona) async {
+                                        final ws = ref.read(activeWorkspaceProvider).workspace;
+                                        if (ws == null) return;
+                                        final title = prompt.length > 25 ? '${prompt.substring(0, 25)}...' : prompt;
+                                        final newConv = await ref.read(sidebarProvider.notifier).createNewConversation(
+                                          title: title,
+                                          persona: persona,
+                                          workspaceId: ws.id,
+                                          isWorkspaceContextEnabled: true,
+                                        );
+                                        setState(() => _isViewingWorkspaceHub = false);
+                                        sidebarNotifier.setActiveConversation(newConv.id);
+                                        await ref.read(chatProvider.notifier).loadConversation(newConv.id);
+                                        ref.read(chatProvider.notifier).setPersona(persona);
+                                        if (model.isNotEmpty) {
+                                          ref.read(modelProvider.notifier).selectModel(model);
+                                        }
+                                        ref.read(chatProvider.notifier).sendMessage(prompt, model.isNotEmpty ? model : selectedModel);
+                                        ref.read(activeWorkspaceProvider.notifier).refresh();
+                                      },
+                                      onOpenChat: (convId) {
+                                        setState(() => _isViewingWorkspaceHub = false);
+                                        sidebarNotifier.setActiveConversation(convId);
+                                        chatNotifier.loadConversation(convId);
+                                      },
+                                      onDeleteChat: (convId) async {
+                                        await sidebarNotifier.deleteConversation(convId);
+                                        ref.read(activeWorkspaceProvider.notifier).refresh();
+                                      },
+                                    ),
+                                  )
+                                : DropTarget(
+                                    onDragEntered: (_) => setState(() => _isDraggingOverChat = true),
+                                    onDragExited: (_) => setState(() => _isDraggingOverChat = false),
+                                    onDragDone: (details) {
+                                      setState(() => _isDraggingOverChat = false);
+                                      _handleChatDrop(details);
+                                    },
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: appColors.surface,
+                                        borderRadius: BorderRadius.circular(18.0),
+                                        border: Border.all(
+                                          color: _isDraggingOverChat ? appColors.accent : appColors.borderSubtle,
+                                          width: 1.0,
                                         ),
                                       ),
-                                  ],
-                                ),
-                              ),
-                            ),
+                                      clipBehavior: Clip.antiAlias,
+                                      child: Stack(
+                                        children: [
+                                          Column(
+                                            children: [
+                                              // Workspace Context Pill Banner if this chat belongs to a workspace
+                                              if (isWorkspaceChat && currentConvWs != null)
+                                                _buildWorkspaceHeaderBar(
+                                                  context: context,
+                                                  appColors: appColors,
+                                                  workspace: currentConvWs,
+                                                  isContextEnabled: currentConv!.isWorkspaceContextEnabled,
+                                                  onToggleContext: () {
+                                                    sidebarNotifier.toggleWorkspaceContext(
+                                                      currentConv.id,
+                                                      !currentConv.isWorkspaceContextEnabled,
+                                                    );
+                                                  },
+                                                  onBackToHub: () async {
+                                                    ref.read(workspaceListProvider.notifier).setActiveWorkspace(currentConvWs.id);
+                                                    await ref.read(activeWorkspaceProvider.notifier).loadWorkspace(currentConvWs.id);
+                                                    setState(() => _isViewingWorkspaceHub = true);
+                                                  },
+                                                ),
+                                              Expanded(
+                                                child: AnimatedSwitcher(
+                                                  duration: const Duration(milliseconds: 240),
+                                                  switchInCurve: Curves.easeOutCubic,
+                                                  switchOutCurve: Curves.easeInCubic,
+                                                  transitionBuilder: (child, animation) {
+                                                    return SlideTransition(
+                                                      position: Tween<Offset>(
+                                                        begin: const Offset(0.04, 0.0),
+                                                        end: Offset.zero,
+                                                      ).animate(animation),
+                                                      child: FadeTransition(
+                                                        opacity: animation,
+                                                        child: child,
+                                                      ),
+                                                    );
+                                                  },
+                                                  child: KeyedSubtree(
+                                                    key: ValueKey(chatState.conversationId ?? 'empty_chat'),
+                                                    child: ChatViewport(
+                                                      messages: chatState.messages,
+                                                      isGenerating: chatState.isGenerating,
+                                                      modelName: selectedModel,
+                                                      statusMessage: chatState.statusMessage,
+                                                      statusTokens: chatState.statusTokens,
+                                                      onRegenerate: () {
+                                                        // Regenerate last user turn safely
+                                                        final lastUser = chatState.messages.where((m) => m.role == 'user').lastOrNull;
+                                                        if (lastUser != null) {
+                                                          chatNotifier.sendMessage(lastUser.content, selectedModel);
+                                                        }
+                                                      },
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              ComposerBar(
+                                                isGenerating: chatState.isGenerating,
+                                                activePersonaName: chatState.activePersonaName,
+                                                modelName: selectedModel,
+                                                models: modelState.models,
+                                                selectedModel: selectedModel,
+                                                onModelChanged: (m) {
+                                                  if (m != null) modelNotifier.selectModel(m);
+                                                },
+                                                onManageModels: _openModelManager,
+                                                mode: chatState.mode,
+                                                onModeChanged: (m) => chatNotifier.setMode(m),
+                                                onPersonaTap: () {},
+                                                onSelectPersona: (persona) => chatNotifier.setPersona(persona),
+                                                onSend: (text) => chatNotifier.sendMessage(text, selectedModel),
+                                                onStop: () => chatNotifier.stopGeneration(),
+                                              ),
+                                            ],
+                                          ),
+                                          if (_isDraggingOverChat)
+                                            const Positioned.fill(
+                                              child: IgnorePointer(
+                                                child: FileDropOverlay(),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
                           ),
                         ),
                       ),

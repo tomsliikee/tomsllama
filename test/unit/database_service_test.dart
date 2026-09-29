@@ -24,7 +24,9 @@ void main() {
               total_tokens INTEGER DEFAULT 0,
               is_pinned INTEGER DEFAULT 0,
               sort_order INTEGER DEFAULT 0,
-              persona TEXT DEFAULT 'Standard'
+              persona TEXT DEFAULT 'Standard',
+              workspace_id TEXT,
+              is_workspace_context_enabled INTEGER DEFAULT 1
             )
           ''');
 

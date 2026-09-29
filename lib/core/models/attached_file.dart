@@ -28,7 +28,8 @@ class AttachedFile {
     String filePath, {
     String? workspaceRoot,
     int maxSizeBytes = 500 * 1024,
-    int maxLines = 500,
+    int maxLines = 1500,
+    int maxChars = 60000,
   }) async {
     final file = File(filePath);
     if (!await file.exists()) return null;
@@ -69,6 +70,7 @@ class AttachedFile {
     try {
       final lines = <String>[];
       int totalLineCount = 0;
+      int totalChars = 0;
       bool isTruncated = false;
 
       final stream = file
@@ -78,11 +80,12 @@ class AttachedFile {
 
       await for (final line in stream) {
         totalLineCount++;
-        if (lines.length < maxLines) {
+        if (lines.length < maxLines && totalChars + line.length <= maxChars) {
           lines.add(line);
+          totalChars += line.length;
         } else {
           isTruncated = true;
-          if (totalLineCount >= maxLines + 200) {
+          if (totalLineCount >= maxLines + 50) {
             break;
           }
         }
@@ -91,7 +94,7 @@ class AttachedFile {
       String content = lines.join('\n');
       if (isTruncated) {
         content +=
-            '\n\n// ... [Truncated: Showing first $maxLines lines of ${p.basename(filePath)} (~$totalLineCount+ total lines) for CPU performance] ...';
+            '\n\n// ... [Gekürzt: Zeige erste ${lines.length} Zeilen von ${p.basename(filePath)} (~$totalLineCount Zeilen gesamt) für optimale CPU-Antwortzeit] ...';
       }
 
       return AttachedFile(
@@ -108,12 +111,18 @@ class AttachedFile {
     }
   }
 
-  /// Formatted markdown block for LLM prompt injection.
-  String toMarkdownBlock() {
+  /// Formatted markdown block for LLM prompt injection with CPU-safe bounds.
+  String toMarkdownBlock({int maxLines = 1500}) {
     if (extension == '.pdf') {
       return '[Attached PDF Document: $relativePath]\n```text\n$content\n```';
     }
     final lang = extension.startsWith('.') ? extension.substring(1) : extension;
-    return '`$relativePath`\n```$lang\n$content\n```';
+    final lines = content.split('\n');
+    String effectiveContent = content;
+    if (lines.length > maxLines) {
+      final truncatedBody = lines.take(maxLines).join('\n');
+      effectiveContent = '$truncatedBody\n\n// ... [Gekürzt: Zeige erste $maxLines Zeilen von $name (${lines.length} Zeilen gesamt) für optimale CPU-Antwortzeit]';
+    }
+    return '`$relativePath`\n```$lang\n$effectiveContent\n```';
   }
 }

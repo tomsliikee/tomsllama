@@ -10,6 +10,8 @@ import 'markdown_view.dart';
 class MessageBubble extends StatelessWidget {
   final Message message;
   final bool isThinking;
+  final String? statusMessage;
+  final int? statusTokens;
   final int branchIndex;
   final int totalBranches;
   final String modelName;
@@ -22,6 +24,8 @@ class MessageBubble extends StatelessWidget {
     super.key,
     required this.message,
     this.isThinking = false,
+    this.statusMessage,
+    this.statusTokens,
     this.branchIndex = 0,
     this.totalBranches = 1,
     this.modelName = 'qwen2.5:3b',
@@ -210,9 +214,12 @@ class MessageBubble extends StatelessWidget {
             isThinking: isThinking,
           ),
         
-        // Claude-style playful thinking indicator when waiting for answer
-        if (isThinking && message.content.isEmpty)
-          const ClaudeThinkingIndicator(),
+        // Claude-style unified thinking & status indicator when waiting for answer
+        if (isThinking && message.content.isEmpty && (message.thinkContent == null || message.thinkContent!.isEmpty))
+          ClaudeThinkingIndicator(
+            statusMessage: statusMessage,
+            totalTokens: statusTokens,
+          ),
 
         // Main Answer Markdown
         if (message.content.isNotEmpty)

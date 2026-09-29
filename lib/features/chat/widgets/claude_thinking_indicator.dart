@@ -6,7 +6,14 @@ import '../../../core/services/localization_service.dart';
 import '../../shell/widgets/tomsllama_logo.dart';
 
 class ClaudeThinkingIndicator extends StatefulWidget {
-  const ClaudeThinkingIndicator({super.key});
+  final String? statusMessage;
+  final int? totalTokens;
+
+  const ClaudeThinkingIndicator({
+    super.key,
+    this.statusMessage,
+    this.totalTokens,
+  });
 
   @override
   State<ClaudeThinkingIndicator> createState() => _ClaudeThinkingIndicatorState();
@@ -14,16 +21,20 @@ class ClaudeThinkingIndicator extends StatefulWidget {
 
 class _ClaudeThinkingIndicatorState extends State<ClaudeThinkingIndicator> {
   int _currentIndex = 0;
+  int _elapsedSeconds = 0;
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(milliseconds: 2600), (timer) {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (mounted) {
         setState(() {
-          final phrases = I18n.thinkingPhrases;
-          _currentIndex = (_currentIndex + 1) % phrases.length;
+          _elapsedSeconds++;
+          if (_elapsedSeconds % 3 == 0) {
+            final phrases = I18n.thinkingPhrases;
+            _currentIndex = (_currentIndex + 1) % phrases.length;
+          }
         });
       }
     });
@@ -39,26 +50,53 @@ class _ClaudeThinkingIndicatorState extends State<ClaudeThinkingIndicator> {
   Widget build(BuildContext context) {
     final appColors = context.appColors;
     final phrases = I18n.thinkingPhrases;
-    final currentPhrase = phrases[_currentIndex % phrases.length];
+    String activeText;
+    if (widget.statusMessage?.trim().isNotEmpty == true) {
+      final base = widget.statusMessage!.trim();
+      final tokens = widget.totalTokens;
+      if (tokens != null && tokens > 500) {
+        final expectedSeconds = (tokens / 38).round();
+        final remainingSeconds = (expectedSeconds - _elapsedSeconds).clamp(0, 9999);
+        final remainingStr = remainingSeconds >= 60
+            ? '${remainingSeconds ~/ 60}:${(remainingSeconds % 60).toString().padLeft(2, '0')} Min'
+            : '${remainingSeconds}s';
+        final tokenStr = tokens >= 1000
+            ? '~${(tokens / 1000).toStringAsFixed(1)}k'
+            : '~$tokens';
+
+        if (remainingSeconds > 0) {
+          activeText = I18n.cpuEvaluatingContext(tokenStr, remainingStr);
+        } else {
+          activeText = I18n.cpuFinalizingContext(tokenStr, _elapsedSeconds);
+        }
+      } else if (base.endsWith('...')) {
+        final prefix = base.substring(0, base.length - 3);
+        activeText = '$prefix, ${_elapsedSeconds}s)...';
+      } else {
+        activeText = '$base (${_elapsedSeconds}s)';
+      }
+    } else {
+      activeText = phrases[_currentIndex % phrases.length];
+    }
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
-      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
+      margin: const EdgeInsets.symmetric(vertical: 6.0),
+      padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
       decoration: BoxDecoration(
-        color: appColors.accentSubtle,
+        color: appColors.background,
         borderRadius: BorderRadius.circular(16.0),
         border: Border.all(
-          color: appColors.accent.withValues(alpha: 0.2),
+          color: appColors.borderSubtle,
           width: 1.0,
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const TomsllamaLogo(size: 14.0, animate: true),
-          const SizedBox(width: 8.0),
+          const TomsllamaLogo(size: 13.0, animate: true),
+          const SizedBox(width: 7.0),
           AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
+            duration: const Duration(milliseconds: 250),
             transitionBuilder: (child, animation) {
               return SlideTransition(
                 position: Tween<Offset>(
@@ -69,10 +107,10 @@ class _ClaudeThinkingIndicatorState extends State<ClaudeThinkingIndicator> {
               );
             },
             child: Text(
-              currentPhrase,
-              key: ValueKey<String>(currentPhrase),
+              activeText,
+              key: ValueKey<String>(activeText),
               style: AppTypography.code.copyWith(
-                color: appColors.accent,
+                color: appColors.textSecondary,
                 fontSize: 11.5,
                 fontWeight: FontWeight.w500,
               ),

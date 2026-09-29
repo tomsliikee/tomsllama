@@ -6,6 +6,8 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../models/conversation.dart';
 import '../models/message.dart';
 import '../models/persona.dart';
+import '../models/workspace.dart';
+import '../models/workspace_context_file.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -58,6 +60,36 @@ class DatabaseService {
           try {
             await db.execute("ALTER TABLE conversations ADD COLUMN persona TEXT DEFAULT 'Standard';");
           } catch (_) {}
+          try {
+            await db.execute('ALTER TABLE conversations ADD COLUMN workspace_id TEXT;');
+          } catch (_) {}
+          try {
+            await db.execute('ALTER TABLE conversations ADD COLUMN is_workspace_context_enabled INTEGER DEFAULT 1;');
+          } catch (_) {}
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS workspaces (
+              id TEXT PRIMARY KEY,
+              name TEXT NOT NULL,
+              prompt TEXT DEFAULT '',
+              is_pinned INTEGER DEFAULT 0,
+              sort_order INTEGER DEFAULT 0,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            );
+          ''');
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS workspace_context_files (
+              id TEXT PRIMARY KEY,
+              workspace_id TEXT NOT NULL,
+              file_path TEXT NOT NULL,
+              file_name TEXT NOT NULL,
+              file_size INTEGER NOT NULL,
+              content TEXT,
+              estimated_tokens INTEGER DEFAULT 0,
+              created_at TEXT NOT NULL,
+              FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE
+            );
+          ''');
         },
       ),
     );
@@ -67,6 +99,32 @@ class DatabaseService {
 
   Future<void> _onCreate(Database db, int version) async {
     await db.execute('''
+      CREATE TABLE workspaces (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        prompt TEXT DEFAULT '',
+        is_pinned INTEGER DEFAULT 0,
+        sort_order INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE workspace_context_files (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        file_path TEXT NOT NULL,
+        file_name TEXT NOT NULL,
+        file_size INTEGER NOT NULL,
+        content TEXT,
+        estimated_tokens INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE
+      )
+    ''');
+
+    await db.execute('''
       CREATE TABLE conversations (
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
@@ -75,7 +133,10 @@ class DatabaseService {
         total_tokens INTEGER DEFAULT 0,
         is_pinned INTEGER DEFAULT 0,
         sort_order INTEGER DEFAULT 0,
-        persona TEXT DEFAULT 'Standard'
+        persona TEXT DEFAULT 'Standard',
+        workspace_id TEXT,
+        is_workspace_context_enabled INTEGER DEFAULT 1,
+        FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE
       )
     ''');
 
@@ -244,6 +305,182 @@ class DatabaseService {
       'personas',
       persona.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  // --- Workspaces ---
+
+  Future<List<Workspace>> getWorkspaces() async {
+    final db = await database;
+    final maps = await db.query(
+      'workspaces',
+      orderBy: 'is_pinned DESC, sort_order ASC, updated_at DESC',
+    );
+    return maps.map((m) => Workspace.fromMap(m)).toList();
+  }
+
+  Future<Workspace?> getWorkspace(String id) async {
+    final db = await database;
+    final maps = await db.query(
+      'workspaces',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (maps.isEmpty) return null;
+    return Workspace.fromMap(maps.first);
+  }
+
+  Future<void> saveWorkspace(Workspace ws) async {
+    final db = await database;
+    await db.insert(
+      'workspaces',
+      ws.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> updateWorkspacePrompt(String id, String prompt) async {
+    final db = await database;
+    await db.update(
+      'workspaces',
+      {'prompt': prompt, 'updated_at': DateTime.now().toIso8601String()},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> updateWorkspaceName(String id, String name) async {
+    final db = await database;
+    await db.update(
+      'workspaces',
+      {'name': name, 'updated_at': DateTime.now().toIso8601String()},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> togglePinWorkspace(String id) async {
+    final db = await database;
+    final ws = await getWorkspace(id);
+    if (ws == null) return;
+    await db.update(
+      'workspaces',
+      {
+        'is_pinned': ws.isPinned ? 0 : 1,
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> reorderWorkspaces(int oldIndex, int newIndex) async {
+    final db = await database;
+    final workspaces = await getWorkspaces();
+    if (oldIndex < 0 || oldIndex >= workspaces.length || newIndex < 0 || newIndex >= workspaces.length) {
+      return;
+    }
+    final item = workspaces.removeAt(oldIndex);
+    workspaces.insert(newIndex, item);
+    final batch = db.batch();
+    for (int i = 0; i < workspaces.length; i++) {
+      batch.update(
+        'workspaces',
+        {'sort_order': i},
+        where: 'id = ?',
+        whereArgs: [workspaces[i].id],
+      );
+    }
+    await batch.commit(noResult: true);
+  }
+
+  Future<void> deleteWorkspace(String id) async {
+    final db = await database;
+    await db.delete(
+      'workspace_context_files',
+      where: 'workspace_id = ?',
+      whereArgs: [id],
+    );
+    await db.delete(
+      'conversations',
+      where: 'workspace_id = ?',
+      whereArgs: [id],
+    );
+    await db.delete(
+      'workspaces',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // --- Workspace Context Files ---
+
+  Future<List<WorkspaceContextFile>> getWorkspaceFiles(String workspaceId) async {
+    final db = await database;
+    final maps = await db.query(
+      'workspace_context_files',
+      where: 'workspace_id = ?',
+      whereArgs: [workspaceId],
+      orderBy: 'created_at ASC',
+    );
+    return maps.map((m) => WorkspaceContextFile.fromMap(m)).toList();
+  }
+
+  Future<void> addWorkspaceFile(WorkspaceContextFile file) async {
+    final db = await database;
+    await db.insert(
+      'workspace_context_files',
+      file.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    await db.update(
+      'workspaces',
+      {'updated_at': DateTime.now().toIso8601String()},
+      where: 'id = ?',
+      whereArgs: [file.workspaceId],
+    );
+  }
+
+  Future<void> deleteWorkspaceFile(String fileId) async {
+    final db = await database;
+    await db.delete(
+      'workspace_context_files',
+      where: 'id = ?',
+      whereArgs: [fileId],
+    );
+  }
+
+  // --- Workspace Conversations ---
+
+  Future<List<Conversation>> getConversationsForWorkspace(String workspaceId) async {
+    final db = await database;
+    final maps = await db.query(
+      'conversations',
+      where: 'workspace_id = ?',
+      whereArgs: [workspaceId],
+      orderBy: 'is_pinned DESC, updated_at DESC',
+    );
+    return maps.map((m) => Conversation.fromMap(m)).toList();
+  }
+
+  Future<List<Conversation>> getStandaloneConversations() async {
+    final db = await database;
+    final maps = await db.query(
+      'conversations',
+      where: 'workspace_id IS NULL',
+      orderBy: 'is_pinned DESC, sort_order ASC, updated_at DESC',
+    );
+    return maps.map((m) => Conversation.fromMap(m)).toList();
+  }
+
+  Future<void> toggleWorkspaceContextForConversation(String conversationId, bool enabled) async {
+    final db = await database;
+    await db.update(
+      'conversations',
+      {'is_workspace_context_enabled': enabled ? 1 : 0},
+      where: 'id = ?',
+      whereArgs: [conversationId],
     );
   }
 }

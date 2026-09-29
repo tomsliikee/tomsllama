@@ -79,6 +79,8 @@ class SidebarNotifier extends StateNotifier<SidebarState> {
   Future<Conversation> createNewConversation({
     String title = 'Neuer Chat',
     String persona = 'Standard',
+    String? workspaceId,
+    bool isWorkspaceContextEnabled = true,
   }) async {
     final now = DateTime.now();
     final newConv = Conversation(
@@ -87,6 +89,8 @@ class SidebarNotifier extends StateNotifier<SidebarState> {
       createdAt: now,
       updatedAt: now,
       persona: persona,
+      workspaceId: workspaceId,
+      isWorkspaceContextEnabled: isWorkspaceContextEnabled,
     );
     await _db.saveConversation(newConv);
     final updatedList = [newConv, ...state.conversations];
@@ -95,6 +99,17 @@ class SidebarNotifier extends StateNotifier<SidebarState> {
       activeConversationId: newConv.id,
     );
     return newConv;
+  }
+
+  Future<void> toggleWorkspaceContext(String id, bool enabled) async {
+    await _db.toggleWorkspaceContextForConversation(id, enabled);
+    final updatedList = state.conversations.map((c) {
+      if (c.id == id) {
+        return c.copyWith(isWorkspaceContextEnabled: enabled);
+      }
+      return c;
+    }).toList();
+    state = state.copyWith(conversations: updatedList);
   }
 
   Future<void> updateTitle(String id, String title) async {
