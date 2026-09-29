@@ -380,20 +380,28 @@ class ChatNotifier extends StateNotifier<ChatState> {
       statusMessage: hasPdf ? (I18n.isGerman ? 'Lese PDF-Dokument ein...' : 'Analyzing PDF document...') : null,
     );
 
-    // 4. Calculate dynamic token budget and num_ctx for Ollama
+    // 4. Discrete token budget and num_ctx tiers to prevent Ollama runner reload on CPU
     final totalTokens = ContextManager.estimateTokens(promptPayload);
-    int dynamicNumCtx = 2048;
-    if (totalTokens > 800) {
-      dynamicNumCtx = (totalTokens + 1024).clamp(2048, 8192);
+    final int? ollamaNumCtx;
+    final int slidingWindowBudget;
+    if (totalTokens > 3600) {
+      ollamaNumCtx = 8192;
+      slidingWindowBudget = 8192 - 600;
+    } else if (totalTokens > 1800) {
+      ollamaNumCtx = 4096;
+      slidingWindowBudget = 4096 - 500;
+    } else {
+      ollamaNumCtx = null;
+      slidingWindowBudget = 2048 - 400;
     }
 
-    // Prepare message payload with sliding window bounded by dynamicNumCtx
+    // Prepare message payload with sliding window bounded by slidingWindowBudget
     final rawHistory = updatedMessages
         .where((m) => m.role == 'user' || (m.role == 'assistant' && m.id != assistantMsgId))
         .toList();
     final windowed = ContextManager.applySlidingWindow(
       messages: rawHistory,
-      maxTokens: dynamicNumCtx - 500,
+      maxTokens: slidingWindowBudget,
     );
     final List<Map<String, dynamic>> promptMessages = windowed.map<Map<String, dynamic>>((m) {
       if (m.id == userMsg.id) {
@@ -461,7 +469,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
           modelName,
           promptMessages,
           temperature: state.temperature,
-          numCtx: dynamicNumCtx,
+          numCtx: ollamaNumCtx,
           tools: withTools && tools.isNotEmpty ? tools : null,
           onToolCall: (toolCall) {
             pendingToolCall = toolCall;

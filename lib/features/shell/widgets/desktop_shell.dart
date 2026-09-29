@@ -169,15 +169,17 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
       ),
       child: Row(
         children: [
-          Icon(Icons.workspaces_outlined, size: 16.0, color: appColors.accent),
+          Icon(Icons.workspaces_outlined, size: 16.0, color: appColors.textSecondary),
           const SizedBox(width: 8.0),
           Expanded(
             child: Text(
               workspace.name,
-              style: AppTypography.uiControl.copyWith(
+              style: AppTypography.headline.copyWith(
+                fontFamily: AppTypography.serifFamily,
+                fontStyle: FontStyle.italic,
                 color: appColors.textPrimary,
-                fontWeight: FontWeight.w600,
-                fontSize: 13.0,
+                fontWeight: FontWeight.w400,
+                fontSize: 15.0,
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -186,18 +188,13 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
           // Toggle Button Pill
           InkWell(
             onTap: onToggleContext,
-            borderRadius: BorderRadius.circular(12.0),
+            borderRadius: BorderRadius.circular(16.0),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
+              padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
               decoration: BoxDecoration(
-                color: isContextEnabled
-                    ? appColors.accent.withValues(alpha: 0.12)
-                    : appColors.background,
-                borderRadius: BorderRadius.circular(12.0),
-                border: Border.all(
-                  color: isContextEnabled ? appColors.accent.withValues(alpha: 0.4) : appColors.borderSubtle,
-                  width: 1.0,
-                ),
+                color: appColors.background,
+                borderRadius: BorderRadius.circular(16.0),
+                border: Border.all(color: appColors.borderSubtle, width: 1.0),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -214,7 +211,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                   Text(
                     isContextEnabled ? I18n.contextActive : I18n.contextPaused,
                     style: AppTypography.uiControl.copyWith(
-                      color: isContextEnabled ? appColors.accent : appColors.textSecondary,
+                      color: isContextEnabled ? appColors.textPrimary : appColors.textSecondary,
                       fontSize: 11.5,
                       fontWeight: FontWeight.w500,
                     ),
@@ -227,12 +224,12 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
           // Back to Hub Button Pill
           InkWell(
             onTap: onBackToHub,
-            borderRadius: BorderRadius.circular(12.0),
+            borderRadius: BorderRadius.circular(16.0),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
+              padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
               decoration: BoxDecoration(
                 color: appColors.background,
-                borderRadius: BorderRadius.circular(12.0),
+                borderRadius: BorderRadius.circular(16.0),
                 border: Border.all(color: appColors.borderSubtle, width: 1.0),
               ),
               child: Row(
@@ -443,12 +440,13 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                                           isWorkspaceContextEnabled: true,
                                         );
                                         setState(() => _isViewingWorkspaceHub = false);
+                                        sidebarNotifier.setActiveConversation(newConv.id);
                                         await ref.read(chatProvider.notifier).loadConversation(newConv.id);
                                         ref.read(chatProvider.notifier).setPersona(persona);
                                         if (model.isNotEmpty) {
                                           ref.read(modelProvider.notifier).selectModel(model);
                                         }
-                                        await ref.read(chatProvider.notifier).sendMessage(prompt, model.isNotEmpty ? model : selectedModel);
+                                        ref.read(chatProvider.notifier).sendMessage(prompt, model.isNotEmpty ? model : selectedModel);
                                         ref.read(activeWorkspaceProvider.notifier).refresh();
                                       },
                                       onOpenChat: (convId) {

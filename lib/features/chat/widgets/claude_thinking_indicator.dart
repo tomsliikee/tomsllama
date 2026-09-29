@@ -45,10 +45,10 @@ class _ClaudeThinkingIndicatorState extends State<ClaudeThinkingIndicator> {
       margin: const EdgeInsets.symmetric(vertical: 8.0),
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
       decoration: BoxDecoration(
-        color: appColors.accentSubtle,
+        color: appColors.surface,
         borderRadius: BorderRadius.circular(16.0),
         border: Border.all(
-          color: appColors.accent.withValues(alpha: 0.2),
+          color: appColors.borderSubtle,
           width: 1.0,
         ),
       ),
@@ -72,7 +72,7 @@ class _ClaudeThinkingIndicatorState extends State<ClaudeThinkingIndicator> {
               currentPhrase,
               key: ValueKey<String>(currentPhrase),
               style: AppTypography.code.copyWith(
-                color: appColors.accent,
+                color: appColors.textSecondary,
                 fontSize: 11.5,
                 fontWeight: FontWeight.w500,
               ),

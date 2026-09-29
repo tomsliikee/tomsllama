@@ -49,12 +49,19 @@ class WorkspaceContextFile {
     );
   }
 
-  /// Formatted markdown block for LLM prompt context injection.
-  String toMarkdownBlock() {
+  /// Formatted markdown block for LLM prompt context injection with CPU-optimized length capping.
+  String toMarkdownBlock({int maxLines = 120}) {
+    final lines = content.split('\n');
+    String effectiveContent = content;
+    if (lines.length > maxLines) {
+      final truncatedBody = lines.take(maxLines).join('\n');
+      effectiveContent = '$truncatedBody\n\n// ... [Truncated: Showing first $maxLines lines of $fileName (${lines.length} total lines) for optimal local response speed]';
+    }
+
     if (extension == '.pdf') {
-      return '[Workspace Knowledge PDF: $fileName]\n```text\n$content\n```';
+      return '[Workspace Knowledge PDF: $fileName]\n```text\n$effectiveContent\n```';
     }
     final lang = extension.startsWith('.') ? extension.substring(1) : extension;
-    return '`$fileName`\n```$lang\n$content\n```';
+    return '`$fileName`\n```$lang\n$effectiveContent\n```';
   }
 }

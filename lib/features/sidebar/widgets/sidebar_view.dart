@@ -168,9 +168,9 @@ class _SidebarViewState extends State<SidebarView> {
                 width: halfWidth,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: appColors.accentSubtle,
+                    color: appColors.surface,
                     borderRadius: BorderRadius.circular(13.0),
-                    border: Border.all(color: appColors.accent.withValues(alpha: 0.25), width: 1.0),
+                    border: Border.all(color: appColors.borderSubtle, width: 1.0),
                   ),
                 ),
               ),
@@ -188,7 +188,7 @@ class _SidebarViewState extends State<SidebarView> {
                             Icon(
                               Icons.chat_bubble_outline,
                               size: 13.0,
-                              color: isChats ? appColors.accent : appColors.textSecondary,
+                              color: isChats ? appColors.textPrimary : appColors.textSecondary,
                             ),
                             const SizedBox(width: 4.0),
                             Flexible(
@@ -197,7 +197,7 @@ class _SidebarViewState extends State<SidebarView> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: AppTypography.uiControl.copyWith(
-                                  color: isChats ? appColors.accent : appColors.textSecondary,
+                                  color: isChats ? appColors.textPrimary : appColors.textSecondary,
                                   fontSize: 11.5,
                                   fontWeight: isChats ? FontWeight.w600 : FontWeight.w400,
                                 ),
@@ -220,7 +220,7 @@ class _SidebarViewState extends State<SidebarView> {
                             Icon(
                               Icons.folder_outlined,
                               size: 13.0,
-                              color: !isChats ? appColors.accent : appColors.textSecondary,
+                              color: !isChats ? appColors.textPrimary : appColors.textSecondary,
                             ),
                             const SizedBox(width: 4.0),
                             Flexible(
@@ -229,7 +229,7 @@ class _SidebarViewState extends State<SidebarView> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: AppTypography.uiControl.copyWith(
-                                  color: !isChats ? appColors.accent : appColors.textSecondary,
+                                  color: !isChats ? appColors.textPrimary : appColors.textSecondary,
                                   fontSize: 11.5,
                                   fontWeight: !isChats ? FontWeight.w600 : FontWeight.w400,
                                 ),

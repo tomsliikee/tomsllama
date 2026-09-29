@@ -49,13 +49,11 @@ class _WorkspaceListItemState extends State<WorkspaceListItem> {
           padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 7.0),
           decoration: BoxDecoration(
             color: widget.isSelected
-                ? appColors.accentSubtle
+                ? appColors.surface
                 : (_isHovered ? appColors.hover : Colors.transparent),
             borderRadius: BorderRadius.circular(10.0),
             border: Border.all(
-              color: widget.isSelected
-                  ? appColors.accent.withValues(alpha: 0.3)
-                  : (_isHovered ? appColors.borderSubtle : Colors.transparent),
+              color: widget.isSelected ? appColors.borderSubtle : Colors.transparent,
               width: 1.0,
             ),
           ),
@@ -65,7 +63,7 @@ class _WorkspaceListItemState extends State<WorkspaceListItem> {
                 Icons.folder_outlined,
                 size: 14.0,
                 color: widget.isSelected
-                    ? appColors.accent
+                    ? appColors.textPrimary
                     : (_isHovered ? appColors.textPrimary : appColors.textSecondary),
               ),
               const SizedBox(width: 8.0),
@@ -78,17 +76,17 @@ class _WorkspaceListItemState extends State<WorkspaceListItem> {
                     color: widget.isSelected
                         ? appColors.textPrimary
                         : (_isHovered ? appColors.textPrimary : appColors.textSecondary),
-                    fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w400,
+                    fontWeight: widget.isSelected ? FontWeight.w500 : FontWeight.w400,
                     fontSize: 13.0,
                   ),
                 ),
               ),
-              if (widget.workspace.isPinned)
+              if (widget.workspace.isPinned && !_isHovered)
                 Padding(
                   padding: const EdgeInsets.only(left: 4.0),
                   child: Icon(
-                    Icons.push_pin,
-                    size: 12.0,
+                    Icons.push_pin_rounded,
+                    size: 13.0,
                     color: appColors.accent,
                   ),
                 ),
@@ -96,7 +94,7 @@ class _WorkspaceListItemState extends State<WorkspaceListItem> {
                 const SizedBox(width: 4.0),
                 if (widget.onTogglePin != null)
                   _buildActionBtn(
-                    icon: widget.workspace.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                    icon: widget.workspace.isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
                     tooltip: widget.workspace.isPinned ? 'Pin lösen' : 'Pinnen',
                     onTap: widget.onTogglePin!,
                     appColors: appColors,
@@ -104,7 +102,7 @@ class _WorkspaceListItemState extends State<WorkspaceListItem> {
                   ),
                 if (widget.onDelete != null)
                   _buildActionBtn(
-                    icon: Icons.delete_outline,
+                    icon: Icons.close_rounded,
                     tooltip: I18n.deleteChatConfirm,
                     onTap: () => _confirmDelete(context),
                     appColors: appColors,

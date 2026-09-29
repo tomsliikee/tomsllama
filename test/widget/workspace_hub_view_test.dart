@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tomsllama/core/models/conversation.dart';
 import 'package:tomsllama/core/models/workspace.dart';
 import 'package:tomsllama/core/models/workspace_context_file.dart';
-import 'package:tomsllama/core/services/localization_service.dart';
 import 'package:tomsllama/core/theme/claude_theme.dart';
 import 'package:tomsllama/features/workspace/widgets/cute_llama_file_mascot.dart';
 import 'package:tomsllama/features/workspace/widgets/workspace_hub_view.dart';
