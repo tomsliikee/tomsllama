@@ -19,16 +19,20 @@ class ClaudeThinkingIndicator extends StatefulWidget {
 
 class _ClaudeThinkingIndicatorState extends State<ClaudeThinkingIndicator> {
   int _currentIndex = 0;
+  int _elapsedSeconds = 0;
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(milliseconds: 2600), (timer) {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (mounted) {
         setState(() {
-          final phrases = I18n.thinkingPhrases;
-          _currentIndex = (_currentIndex + 1) % phrases.length;
+          _elapsedSeconds++;
+          if (_elapsedSeconds % 3 == 0) {
+            final phrases = I18n.thinkingPhrases;
+            _currentIndex = (_currentIndex + 1) % phrases.length;
+          }
         });
       }
     });
@@ -44,9 +48,18 @@ class _ClaudeThinkingIndicatorState extends State<ClaudeThinkingIndicator> {
   Widget build(BuildContext context) {
     final appColors = context.appColors;
     final phrases = I18n.thinkingPhrases;
-    final activeText = widget.statusMessage?.trim().isNotEmpty == true
-        ? widget.statusMessage!.trim()
-        : phrases[_currentIndex % phrases.length];
+    String activeText;
+    if (widget.statusMessage?.trim().isNotEmpty == true) {
+      final base = widget.statusMessage!.trim();
+      if (base.endsWith('...')) {
+        final prefix = base.substring(0, base.length - 3);
+        activeText = '$prefix, ${_elapsedSeconds}s)...';
+      } else {
+        activeText = '$base (${_elapsedSeconds}s)';
+      }
+    } else {
+      activeText = phrases[_currentIndex % phrases.length];
+    }
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 6.0),
