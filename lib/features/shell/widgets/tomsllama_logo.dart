@@ -217,7 +217,7 @@ class _TomsllamaLogoState extends State<TomsllamaLogo> with SingleTickerProvider
     );
 
     // Runs every 10 seconds unconditionally (even when window is unfocused)
-    _idleTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+    _idleTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (!mounted) return;
       setState(() {
         _idleAnimIndex = (_idleAnimIndex + 1) % 2;
