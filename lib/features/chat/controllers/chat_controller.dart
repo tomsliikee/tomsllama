@@ -17,29 +17,37 @@ import '../../chat/controllers/workspace_controller.dart';
 import '../../../../core/models/workspace.dart';
 import '../../../../core/models/workspace_context_file.dart';
 
+enum ChatExecutionMode {
+  schnell,
+  optimal,
+  thinking,
+}
+
 class ChatState {
   final String? conversationId;
   final List<Message> messages;
   final bool isGenerating;
   final String activePersonaName;
-  final double temperature;
+  final ChatExecutionMode mode;
   final bool isCanvasOpen;
   final String? canvasContent;
   final String? canvasLanguage;
   final String? errorMessage;
   final String? statusMessage;
+  final int? statusTokens;
 
   const ChatState({
     this.conversationId,
     this.messages = const [],
     this.isGenerating = false,
     this.activePersonaName = 'Standard',
-    this.temperature = 0.7,
+    this.mode = ChatExecutionMode.optimal,
     this.isCanvasOpen = false,
     this.canvasContent,
     this.canvasLanguage,
     this.errorMessage,
     this.statusMessage,
+    this.statusTokens,
   });
 
   ChatState copyWith({
@@ -47,26 +55,29 @@ class ChatState {
     List<Message>? messages,
     bool? isGenerating,
     String? activePersonaName,
-    double? temperature,
+    ChatExecutionMode? mode,
     bool? isCanvasOpen,
     String? canvasContent,
     String? canvasLanguage,
     String? errorMessage,
     String? statusMessage,
+    int? statusTokens,
     bool clearCanvas = false,
     bool clearStatusMessage = false,
+    bool clearStatusTokens = false,
   }) {
     return ChatState(
       conversationId: conversationId ?? this.conversationId,
       messages: messages ?? this.messages,
       isGenerating: isGenerating ?? this.isGenerating,
       activePersonaName: activePersonaName ?? this.activePersonaName,
-      temperature: temperature ?? this.temperature,
+      mode: mode ?? this.mode,
       isCanvasOpen: isCanvasOpen ?? this.isCanvasOpen,
       canvasContent: clearCanvas ? null : (canvasContent ?? this.canvasContent),
       canvasLanguage: clearCanvas ? null : (canvasLanguage ?? this.canvasLanguage),
       errorMessage: errorMessage,
       statusMessage: clearStatusMessage ? null : (statusMessage ?? this.statusMessage),
+      statusTokens: clearStatusTokens ? null : (statusTokens ?? this.statusTokens),
     );
   }
 }
@@ -153,6 +164,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
       clearCanvas: true,
       isCanvasOpen: false,
       clearStatusMessage: true,
+      clearStatusTokens: true,
     );
   }
 
@@ -163,8 +175,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
     }
   }
 
-  void setTemperature(double temp) {
-    state = state.copyWith(temperature: temp);
+  void setMode(ChatExecutionMode mode) {
+    state = state.copyWith(mode: mode);
   }
 
   void openInCanvas(String code, String language) {
@@ -369,7 +381,21 @@ class ChatNotifier extends StateNotifier<ChatState> {
       isGenerating: true,
       errorMessage: null,
       statusMessage: statusMsg,
+      statusTokens: totalTokens > 600 ? totalTokens : null,
     );
+
+    final double effectiveTemperature;
+    switch (state.mode) {
+      case ChatExecutionMode.schnell:
+        effectiveTemperature = 0.3;
+        break;
+      case ChatExecutionMode.optimal:
+        effectiveTemperature = 0.7;
+        break;
+      case ChatExecutionMode.thinking:
+        effectiveTemperature = 0.6;
+        break;
+    }
 
     final int? ollamaNumCtx;
     final int slidingWindowBudget;
@@ -445,7 +471,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
         final stream = _ollama.streamChat(
           modelName,
           promptMessages,
-          temperature: state.temperature,
+          temperature: effectiveTemperature,
           numCtx: ollamaNumCtx,
           tools: withTools && tools.isNotEmpty ? tools : null,
           onToolCall: (toolCall) {
@@ -456,8 +482,11 @@ class ChatNotifier extends StateNotifier<ChatState> {
         _activeStream = stream.listen(
           (chunk) {
             if (!mounted) return;
-            if (state.statusMessage != null) {
-              state = state.copyWith(clearStatusMessage: true);
+            if (state.statusMessage != null || state.statusTokens != null) {
+              state = state.copyWith(
+                clearStatusMessage: true,
+                clearStatusTokens: true,
+              );
             }
             rawStreamBuffer.write(chunk);
             tokenEstimate++;
@@ -492,6 +521,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
               messages: msgs,
               isGenerating: false,
               clearStatusMessage: true,
+              clearStatusTokens: true,
               errorMessage: 'Stream error: $err',
             );
           },
@@ -543,7 +573,12 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
             if (rawStreamBuffer.isEmpty) {
               final msgs = state.messages.where((m) => m.id != assistantMsgId).toList();
-              state = state.copyWith(messages: msgs, isGenerating: false, clearStatusMessage: true);
+              state = state.copyWith(
+                messages: msgs,
+                isGenerating: false,
+                clearStatusMessage: true,
+                clearStatusTokens: true,
+              );
               return;
             }
 
@@ -563,7 +598,11 @@ class ChatNotifier extends StateNotifier<ChatState> {
             await _db.saveMessage(finalizedMsg);
             if (!mounted) return;
 
-            state = state.copyWith(isGenerating: false, clearStatusMessage: true);
+            state = state.copyWith(
+              isGenerating: false,
+              clearStatusMessage: true,
+              clearStatusTokens: true,
+            );
 
             // Auto-summarize title in background if it was the first user message
             if (isFirstMessageInConv) {
@@ -586,6 +625,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
           state = state.copyWith(
             isGenerating: false,
             clearStatusMessage: true,
+            clearStatusTokens: true,
             errorMessage: 'Ollama error: $err',
           );
         }
@@ -597,7 +637,11 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   void stopGeneration() {
     _activeStream?.cancel();
-    state = state.copyWith(isGenerating: false, clearStatusMessage: true);
+    state = state.copyWith(
+      isGenerating: false,
+      clearStatusMessage: true,
+      clearStatusTokens: true,
+    );
   }
 
   @override

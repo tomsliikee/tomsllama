@@ -524,6 +524,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                                                       isGenerating: chatState.isGenerating,
                                                       modelName: selectedModel,
                                                       statusMessage: chatState.statusMessage,
+                                                      statusTokens: chatState.statusTokens,
                                                       onRegenerate: () {
                                                         // Regenerate last user turn safely
                                                         final lastUser = chatState.messages.where((m) => m.role == 'user').lastOrNull;
@@ -545,8 +546,8 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                                                   if (m != null) modelNotifier.selectModel(m);
                                                 },
                                                 onManageModels: _openModelManager,
-                                                temperature: chatState.temperature,
-                                                onTemperatureChanged: (temp) => chatNotifier.setTemperature(temp),
+                                                mode: chatState.mode,
+                                                onModeChanged: (m) => chatNotifier.setMode(m),
                                                 onPersonaTap: () {},
                                                 onSelectPersona: (persona) => chatNotifier.setPersona(persona),
                                                 onSend: (text) => chatNotifier.sendMessage(text, selectedModel),

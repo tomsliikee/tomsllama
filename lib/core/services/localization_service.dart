@@ -31,7 +31,13 @@ class I18n {
   static String get thinkingOngoing => isGerman ? 'Denkprozess läuft...' : 'Thinking in progress...';
   static String get ctrlN => 'Ctrl N';
   static String get searchPlaceholder => isGerman ? 'Chats durchsuchen...' : 'Search conversations...';
-  static String get temperature => isGerman ? 'TEMPERATUR' : 'TEMPERATURE';
+  static String get modeFast => isGerman ? 'Schnell' : 'Fast';
+  static String get modeFastDesc => isGerman ? 'Schnelle, direkte Antworten (T=0.3)' : 'Quick, direct answers (T=0.3)';
+  static String get modeOptimal => isGerman ? 'Optimal' : 'Optimal';
+  static String get modeOptimalDesc => isGerman ? 'Ausgewogene Allround-Qualität (T=0.7)' : 'Balanced all-round quality (T=0.7)';
+  static String get modeThinking => isGerman ? 'Thinking' : 'Thinking';
+  static String get modeThinkingDesc => isGerman ? 'Tiefes Nachdenken & strukturierte Analyse' : 'Deep step-by-step reasoning & analysis';
+  static String get modeTitle => isGerman ? 'ANTWORT-MODUS' : 'RESPONSE MODE';
   static String get roleAndPrompt => isGerman ? 'ROLLE & HAUPTPROMPT' : 'ROLE & SYSTEM PROMPT';
   static String get settingsTitle => isGerman ? 'Einstellungen' : 'Settings';
   static String get close => isGerman ? 'Schließen' : 'Close';

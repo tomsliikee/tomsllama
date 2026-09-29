@@ -7,6 +7,7 @@ import 'package:tomsllama/core/services/localization_service.dart';
 import 'package:tomsllama/core/models/workspace_info.dart';
 import 'package:tomsllama/core/models/attached_file.dart';
 import 'package:tomsllama/features/chat/controllers/workspace_controller.dart';
+import 'package:tomsllama/features/chat/controllers/chat_controller.dart';
 import 'package:tomsllama/features/chat/widgets/composer_bar.dart';
 
 void main() {
@@ -94,9 +95,9 @@ void main() {
     expect(selectedPersona, I18n.isGerman ? 'Tiefenanalytiker' : 'Deep Analyst');
   });
 
-  testWidgets('ComposerBar renders Model, Temperature and Attach chips', (WidgetTester tester) async {
+  testWidgets('ComposerBar renders Model, Mode and Attach chips', (WidgetTester tester) async {
     String? selectedModel;
-    double? selectedTemp;
+    ChatExecutionMode? selectedMode;
 
     await tester.binding.setSurfaceSize(const Size(400, 600));
 
@@ -109,9 +110,9 @@ void main() {
               isGenerating: false,
               activePersonaName: 'Standard',
               selectedModel: 'llama3:latest',
-              temperature: 0.7,
+              mode: ChatExecutionMode.optimal,
               onModelChanged: (m) => selectedModel = m,
-              onTemperatureChanged: (t) => selectedTemp = t,
+              onModeChanged: (m) => selectedMode = m,
               onSend: (_) {},
               onStop: () {},
               onPersonaTap: () {},
@@ -123,23 +124,22 @@ void main() {
 
     // Verify chips render properly
     expect(find.text('llama3:latest'), findsOneWidget);
-    expect(find.text('0.7'), findsOneWidget);
+    expect(find.text(I18n.modeOptimal), findsOneWidget);
     expect(find.text('Attach'), findsOneWidget);
     expect(find.byIcon(Icons.attach_file_rounded), findsOneWidget);
 
-    // Open temperature popover
-    await tester.tap(find.text('0.7'));
+    // Open mode menu
+    await tester.tap(find.text(I18n.modeOptimal));
     await tester.pumpAndSettle();
 
-    // Verify presets are displayed
-    expect(find.text(I18n.tempCode), findsOneWidget);
-    expect(find.text(I18n.tempNormal), findsOneWidget);
-    expect(find.text(I18n.tempCreative), findsOneWidget);
+    // Verify modes are displayed
+    expect(find.text(I18n.modeFast), findsOneWidget);
+    expect(find.text(I18n.modeThinking), findsOneWidget);
 
-    // Tap Code preset
-    await tester.tap(find.text(I18n.tempCode));
+    // Tap Schnell mode
+    await tester.tap(find.text(I18n.modeFast));
     await tester.pumpAndSettle();
-    expect(selectedTemp, 0.2);
+    expect(selectedMode, ChatExecutionMode.schnell);
 
     expect(selectedModel, isNull);
 

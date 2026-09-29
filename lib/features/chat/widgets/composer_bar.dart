@@ -27,8 +27,8 @@ class ComposerBar extends ConsumerStatefulWidget {
   final String? selectedModel;
   final ValueChanged<String?>? onModelChanged;
   final VoidCallback? onManageModels;
-  final double temperature;
-  final ValueChanged<double>? onTemperatureChanged;
+  final ChatExecutionMode mode;
+  final ValueChanged<ChatExecutionMode>? onModeChanged;
 
   const ComposerBar({
     super.key,
@@ -43,8 +43,8 @@ class ComposerBar extends ConsumerStatefulWidget {
     this.selectedModel,
     this.onModelChanged,
     this.onManageModels,
-    this.temperature = 0.7,
-    this.onTemperatureChanged,
+    this.mode = ChatExecutionMode.optimal,
+    this.onModeChanged,
   });
 
   @override
@@ -408,12 +408,28 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
                           if (workspaceState.attachedFiles.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(left: 2.0),
-                              child: Text(
-                                '~${(workspaceState.totalAttachedTokens / 1000).toStringAsFixed(1)}k tok',
-                                style: AppTypography.code.copyWith(
-                                  fontSize: 10.0,
-                                  color: appColors.textSecondary.withValues(alpha: 0.6),
-                                ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '~${(workspaceState.totalAttachedTokens / 1000).toStringAsFixed(1)}k tok',
+                                    style: AppTypography.code.copyWith(
+                                      fontSize: 10.0,
+                                      color: appColors.textSecondary.withValues(alpha: 0.6),
+                                    ),
+                                  ),
+                                  if (workspaceState.totalAttachedTokens > 1000) ...[
+                                    const SizedBox(width: 5.0),
+                                    Text(
+                                      '• CPU-Vorlauf: ca. ${((workspaceState.totalAttachedTokens / 40.0) / 60.0).toStringAsFixed(1)} Min',
+                                      style: AppTypography.code.copyWith(
+                                        fontSize: 10.0,
+                                        color: Colors.amber.shade700,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
                         ],
@@ -564,10 +580,10 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
                                 onModelChanged: widget.onModelChanged,
                                 onManageModels: widget.onManageModels,
                               ),
-                            if (widget.onTemperatureChanged != null)
-                              _TemperatureChip(
-                                temperature: widget.temperature,
-                                onTemperatureChanged: widget.onTemperatureChanged,
+                            if (widget.onModeChanged != null)
+                              _ModeChip(
+                                mode: widget.mode,
+                                onModeChanged: widget.onModeChanged,
                               ),
                             _AttachChip(
                               onPickWorkspace: _pickWorkspace,
@@ -678,14 +694,19 @@ class _AttachedFilePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appColors = context.appColors;
+    final isLarge = file.estimatedTokens > 1000;
+    final estSec = (file.estimatedTokens / 40.0).round();
+    final estTimeStr = estSec >= 60
+        ? '${(estSec / 60.0).toStringAsFixed(1)} Min'
+        : '${estSec}s';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
       decoration: BoxDecoration(
-        color: appColors.hover,
+        color: isLarge ? Colors.amber.withValues(alpha: 0.08) : appColors.hover,
         borderRadius: BorderRadius.circular(14.0),
         border: Border.all(
-          color: appColors.borderSubtle,
+          color: isLarge ? Colors.amber.withValues(alpha: 0.35) : appColors.borderSubtle,
           width: 1.0,
         ),
       ),
@@ -695,7 +716,9 @@ class _AttachedFilePill extends StatelessWidget {
           Icon(
             file.extension == '.pdf' ? Icons.picture_as_pdf_outlined : Icons.description_outlined,
             size: 13.0,
-            color: file.extension == '.pdf' ? Colors.redAccent.shade200 : appColors.accent,
+            color: file.extension == '.pdf'
+                ? Colors.redAccent.shade200
+                : (isLarge ? Colors.amber.shade700 : appColors.accent),
           ),
           const SizedBox(width: 5.0),
           ConstrainedBox(
@@ -713,10 +736,15 @@ class _AttachedFilePill extends StatelessWidget {
           ),
           const SizedBox(width: 4.0),
           Text(
-            '${file.estimatedTokens} tok',
+            isLarge
+                ? '~${(file.estimatedTokens / 1000).toStringAsFixed(1)}k tok • ca. $estTimeStr'
+                : '${file.estimatedTokens} tok',
             style: AppTypography.code.copyWith(
               fontSize: 10.0,
-              color: appColors.textSecondary.withValues(alpha: 0.6),
+              color: isLarge
+                  ? Colors.amber.shade800
+                  : appColors.textSecondary.withValues(alpha: 0.6),
+              fontWeight: isLarge ? FontWeight.w600 : FontWeight.w400,
             ),
           ),
           const SizedBox(width: 4.0),
@@ -1154,36 +1182,59 @@ class _ModelChipState extends State<_ModelChip> {
   }
 }
 
-class _TemperatureChip extends StatefulWidget {
-  final double temperature;
-  final ValueChanged<double>? onTemperatureChanged;
+class _ModeChip extends StatefulWidget {
+  final ChatExecutionMode mode;
+  final ValueChanged<ChatExecutionMode>? onModeChanged;
 
-  const _TemperatureChip({
-    required this.temperature,
-    this.onTemperatureChanged,
+  const _ModeChip({
+    required this.mode,
+    this.onModeChanged,
   });
 
   @override
-  State<_TemperatureChip> createState() => _TemperatureChipState();
+  State<_ModeChip> createState() => _ModeChipState();
 }
 
-class _TemperatureChipState extends State<_TemperatureChip> {
+class _ModeChipState extends State<_ModeChip> {
   final GlobalKey _chipKey = GlobalKey();
   bool _isHovered = false;
 
-  void _showTemperaturePopover(BuildContext context, AppThemeExtension appColors) async {
+  void _showModeMenu(BuildContext context, AppThemeExtension appColors) async {
     final renderBox = _chipKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
     final overlay = Overlay.maybeOf(context)?.context.findRenderObject() as RenderBox?;
     if (overlay == null) return;
 
     final targetOffset = renderBox.localToGlobal(Offset.zero, ancestor: overlay);
-    double currentTemp = widget.temperature;
+
+    final modes = [
+      (
+        mode: ChatExecutionMode.schnell,
+        title: I18n.modeFast,
+        desc: I18n.modeFastDesc,
+        icon: Icons.bolt_rounded,
+        iconColor: Colors.amber.shade600,
+      ),
+      (
+        mode: ChatExecutionMode.optimal,
+        title: I18n.modeOptimal,
+        desc: I18n.modeOptimalDesc,
+        icon: Icons.auto_awesome_rounded,
+        iconColor: appColors.accent,
+      ),
+      (
+        mode: ChatExecutionMode.thinking,
+        title: I18n.modeThinking,
+        desc: I18n.modeThinkingDesc,
+        icon: Icons.psychology_rounded,
+        iconColor: const Color(0xFF9C27B0),
+      ),
+    ];
 
     await showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
-      barrierLabel: 'DismissTempPopover',
+      barrierLabel: 'DismissModeMenu',
       barrierColor: Colors.transparent,
       transitionDuration: const Duration(milliseconds: 200),
       transitionBuilder: (context, anim1, anim2, child) {
@@ -1196,168 +1247,102 @@ class _TemperatureChipState extends State<_TemperatureChip> {
         );
       },
       pageBuilder: (dialogContext, _, __) {
-        return StatefulBuilder(
-          builder: (context, setPopoverState) {
-            return Stack(
-              children: [
-                Positioned(
-                  left: targetOffset.dx,
-                  bottom: overlay.size.height - targetOffset.dy + 8.0,
-                  child: Material(
-                    color: Colors.transparent,
-                    child: Container(
-                      width: 275.0,
-                      padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
-                      decoration: BoxDecoration(
-                        color: appColors.surface,
-                        borderRadius: BorderRadius.circular(16.0),
-                        border: Border.all(color: appColors.borderSubtle),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.10),
-                            blurRadius: 18.0,
-                            offset: const Offset(0, -6),
-                          ),
-                        ],
+        return Stack(
+          children: [
+            Positioned(
+              left: targetOffset.dx,
+              bottom: overlay.size.height - targetOffset.dy + 8.0,
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  width: 250.0,
+                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 6.0),
+                  decoration: BoxDecoration(
+                    color: appColors.surface,
+                    borderRadius: BorderRadius.circular(16.0),
+                    border: Border.all(color: appColors.borderSubtle),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.12),
+                        blurRadius: 18.0,
+                        offset: const Offset(0, -6),
                       ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                I18n.temperature,
-                                style: AppTypography.uiControl.copyWith(
-                                  color: appColors.textSecondary,
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 2.0),
-                                decoration: BoxDecoration(
-                                  color: appColors.accentSubtle,
-                                  borderRadius: BorderRadius.circular(6.0),
-                                ),
-                                child: Text(
-                                  currentTemp.toStringAsFixed(2),
-                                  style: AppTypography.code.copyWith(
-                                    color: appColors.accent,
-                                    fontSize: 11.0,
-                                    fontWeight: FontWeight.w600,
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8.0, top: 4.0, bottom: 6.0),
+                        child: Text(
+                          I18n.modeTitle,
+                          style: AppTypography.uiControl.copyWith(
+                            color: appColors.textSecondary,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                      ...modes.map((item) {
+                        final isCurrent = item.mode == widget.mode;
+                        return InkWell(
+                          onTap: () {
+                            Navigator.of(dialogContext).pop();
+                            widget.onModeChanged?.call(item.mode);
+                          },
+                          borderRadius: BorderRadius.circular(10.0),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 7.0),
+                            decoration: BoxDecoration(
+                              color: isCurrent ? appColors.accentSubtle : Colors.transparent,
+                              borderRadius: BorderRadius.circular(10.0),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(item.icon, size: 16.0, color: item.iconColor),
+                                const SizedBox(width: 8.0),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        item.title,
+                                        style: AppTypography.uiControl.copyWith(
+                                          color: isCurrent ? appColors.accent : appColors.textPrimary,
+                                          fontSize: 12.0,
+                                          fontWeight: isCurrent ? FontWeight.w600 : FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 1.0),
+                                      Text(
+                                        item.desc,
+                                        style: AppTypography.uiControl.copyWith(
+                                          color: appColors.textSecondary,
+                                          fontSize: 10.0,
+                                          fontWeight: FontWeight.w400,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10.0),
-                          SliderTheme(
-                            data: SliderTheme.of(context).copyWith(
-                              activeTrackColor: appColors.accent,
-                              inactiveTrackColor: appColors.borderSubtle,
-                              thumbColor: appColors.accent,
-                              overlayColor: appColors.accent.withValues(alpha: 0.15),
-                              trackHeight: 3.0,
-                              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
-                            ),
-                            child: Slider(
-                              value: currentTemp,
-                              min: 0.0,
-                              max: 1.0,
-                              divisions: 20,
-                              onChanged: (val) {
-                                setPopoverState(() => currentTemp = val);
-                                widget.onTemperatureChanged?.call(val);
-                              },
+                                if (isCurrent)
+                                  Icon(Icons.check_rounded, size: 14.0, color: appColors.accent),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 6.0),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildTempPreset(
-                                  label: I18n.tempCode,
-                                  isSelected: (currentTemp - 0.2).abs() < 0.01,
-                                  onTap: () {
-                                    setPopoverState(() => currentTemp = 0.2);
-                                    widget.onTemperatureChanged?.call(0.2);
-                                  },
-                                  appColors: appColors,
-                                ),
-                              ),
-                              const SizedBox(width: 5.0),
-                              Expanded(
-                                child: _buildTempPreset(
-                                  label: I18n.tempNormal,
-                                  isSelected: (currentTemp - 0.7).abs() < 0.01,
-                                  onTap: () {
-                                    setPopoverState(() => currentTemp = 0.7);
-                                    widget.onTemperatureChanged?.call(0.7);
-                                  },
-                                  appColors: appColors,
-                                ),
-                              ),
-                              const SizedBox(width: 5.0),
-                              Expanded(
-                                child: _buildTempPreset(
-                                  label: I18n.tempCreative,
-                                  isSelected: (currentTemp - 1.0).abs() < 0.01,
-                                  onTap: () {
-                                    setPopoverState(() => currentTemp = 1.0);
-                                    widget.onTemperatureChanged?.call(1.0);
-                                  },
-                                  appColors: appColors,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
+                        );
+                      }),
+                    ],
                   ),
                 ),
-              ],
-            );
-          },
+              ),
+            ),
+          ],
         );
       },
-    );
-  }
-
-  Widget _buildTempPreset({
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-    required AppThemeExtension appColors,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10.0),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 3.5),
-        decoration: BoxDecoration(
-          color: isSelected ? appColors.accentSubtle : Colors.transparent,
-          borderRadius: BorderRadius.circular(10.0),
-          border: Border.all(
-            color: isSelected ? appColors.accent.withValues(alpha: 0.3) : appColors.borderSubtle,
-          ),
-        ),
-        child: Center(
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTypography.uiControl.copyWith(
-              color: isSelected ? appColors.accent : appColors.textSecondary,
-              fontSize: 10.0,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-            ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -1365,13 +1350,35 @@ class _TemperatureChipState extends State<_TemperatureChip> {
   Widget build(BuildContext context) {
     final appColors = context.appColors;
 
+    final IconData icon;
+    final String label;
+    final Color? iconColor;
+
+    switch (widget.mode) {
+      case ChatExecutionMode.schnell:
+        icon = Icons.bolt_rounded;
+        label = I18n.modeFast;
+        iconColor = Colors.amber.shade600;
+        break;
+      case ChatExecutionMode.optimal:
+        icon = Icons.auto_awesome_rounded;
+        label = I18n.modeOptimal;
+        iconColor = appColors.accent;
+        break;
+      case ChatExecutionMode.thinking:
+        icon = Icons.psychology_rounded;
+        label = I18n.modeThinking;
+        iconColor = const Color(0xFF9C27B0);
+        break;
+    }
+
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         key: _chipKey,
-        onTap: () => _showTemperaturePopover(context, appColors),
+        onTap: () => _showModeMenu(context, appColors),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(horizontal: 9.0, vertical: 4.5),
@@ -1386,20 +1393,20 @@ class _TemperatureChipState extends State<_TemperatureChip> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                Icons.tune,
-                size: 12.5,
-                color: _isHovered ? appColors.accent : appColors.textSecondary,
+                icon,
+                size: 13.0,
+                color: _isHovered ? appColors.accent : iconColor,
               ),
               const SizedBox(width: 4.5),
               Text(
-                widget.temperature.toStringAsFixed(1),
-                style: AppTypography.code.copyWith(
-                  color: _isHovered ? appColors.accent : appColors.textSecondary,
-                  fontSize: 11.0,
+                label,
+                style: AppTypography.uiControl.copyWith(
+                  color: _isHovered ? appColors.accent : appColors.textPrimary,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(width: 3.0),
+              const SizedBox(width: 3.5),
               Icon(
                 Icons.keyboard_arrow_up,
                 size: 13.0,

@@ -28,8 +28,8 @@ class AttachedFile {
     String filePath, {
     String? workspaceRoot,
     int maxSizeBytes = 500 * 1024,
-    int maxLines = 100,
-    int maxChars = 4500,
+    int maxLines = 1500,
+    int maxChars = 60000,
   }) async {
     final file = File(filePath);
     if (!await file.exists()) return null;
@@ -112,7 +112,7 @@ class AttachedFile {
   }
 
   /// Formatted markdown block for LLM prompt injection with CPU-safe bounds.
-  String toMarkdownBlock({int maxLines = 100}) {
+  String toMarkdownBlock({int maxLines = 1500}) {
     if (extension == '.pdf') {
       return '[Attached PDF Document: $relativePath]\n```text\n$content\n```';
     }

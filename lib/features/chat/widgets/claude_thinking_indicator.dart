@@ -7,10 +7,12 @@ import '../../shell/widgets/tomsllama_logo.dart';
 
 class ClaudeThinkingIndicator extends StatefulWidget {
   final String? statusMessage;
+  final int? totalTokens;
 
   const ClaudeThinkingIndicator({
     super.key,
     this.statusMessage,
+    this.totalTokens,
   });
 
   @override
@@ -51,7 +53,27 @@ class _ClaudeThinkingIndicatorState extends State<ClaudeThinkingIndicator> {
     String activeText;
     if (widget.statusMessage?.trim().isNotEmpty == true) {
       final base = widget.statusMessage!.trim();
-      if (base.endsWith('...')) {
+      final tokens = widget.totalTokens;
+      if (tokens != null && tokens > 500) {
+        final expectedSeconds = (tokens / 38).round();
+        final remainingSeconds = (expectedSeconds - _elapsedSeconds).clamp(0, 9999);
+        final remainingStr = remainingSeconds >= 60
+            ? '${remainingSeconds ~/ 60}:${(remainingSeconds % 60).toString().padLeft(2, '0')} Min'
+            : '${remainingSeconds}s';
+        final tokenStr = tokens >= 1000
+            ? '~${(tokens / 1000).toStringAsFixed(1)}k'
+            : '~$tokens';
+
+        if (remainingSeconds > 0) {
+          activeText = I18n.isGerman
+              ? 'CPU evaluiert Kontext ($tokenStr Tokens • noch ~$remainingStr)...'
+              : 'CPU evaluating context ($tokenStr tokens • ~$remainingStr left)...';
+        } else {
+          activeText = I18n.isGerman
+              ? 'CPU finalisiert Kontext ($tokenStr Tokens, ${_elapsedSeconds}s)...'
+              : 'CPU finalizing context ($tokenStr tokens, ${_elapsedSeconds}s)...';
+        }
+      } else if (base.endsWith('...')) {
         final prefix = base.substring(0, base.length - 3);
         activeText = '$prefix, ${_elapsedSeconds}s)...';
       } else {
