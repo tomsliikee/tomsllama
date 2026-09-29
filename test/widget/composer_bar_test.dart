@@ -43,7 +43,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify Send button appears (hasText logic)
-    expect(find.text(I18n.send), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_upward_rounded), findsOneWidget);
 
     // Simulate Enter key
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);

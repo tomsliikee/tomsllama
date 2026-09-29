@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/chat/controllers/chat_controller.dart';
+import 'localization_service.dart';
 import 'settings_service.dart';
 
 class HardwareEstimate {
@@ -11,6 +12,7 @@ class HardwareEstimate {
   final String speedDisplay;
   final String durationDisplay;
   final ChatExecutionMode mode;
+  final bool isTested;
 
   const HardwareEstimate({
     required this.tokens,
@@ -19,7 +21,36 @@ class HardwareEstimate {
     required this.speedDisplay,
     required this.durationDisplay,
     required this.mode,
+    this.isTested = true,
   });
+}
+
+class ModelHardwareProfile {
+  final double promptEvalSpeed;
+  final double genSpeed;
+  final int sampleCount;
+  final bool isCalibrated;
+
+  const ModelHardwareProfile({
+    required this.promptEvalSpeed,
+    required this.genSpeed,
+    required this.sampleCount,
+    required this.isCalibrated,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'prompt_eval_speed': promptEvalSpeed,
+    'gen_speed': genSpeed,
+    'sample_count': sampleCount,
+    'is_calibrated': isCalibrated,
+  };
+
+  factory ModelHardwareProfile.fromJson(Map<String, dynamic> json) => ModelHardwareProfile(
+    promptEvalSpeed: (json['prompt_eval_speed'] as num?)?.toDouble() ?? 20.0,
+    genSpeed: (json['gen_speed'] as num?)?.toDouble() ?? 10.0,
+    sampleCount: (json['sample_count'] as num?)?.toInt() ?? 0,
+    isCalibrated: (json['is_calibrated'] as bool?) ?? false,
+  );
 }
 
 class HardwareCalibrationService extends ChangeNotifier {
@@ -34,21 +65,40 @@ class HardwareCalibrationService extends ChangeNotifier {
   int _sampleCount = 0;
   bool _isCalibrated = false;
   String _deviceType = 'unknown';
+  final Map<String, ModelHardwareProfile> _modelProfiles = {};
 
   double get calibratedPromptEvalSpeed => _calibratedPromptEvalSpeed;
   double get calibratedGenSpeed => _calibratedGenSpeed;
   int get sampleCount => _sampleCount;
   bool get isCalibrated => _isCalibrated;
   String get deviceType => _deviceType;
+  Map<String, ModelHardwareProfile> get modelProfiles => Map.unmodifiable(_modelProfiles);
+
+  bool isModelTested(String? modelName) {
+    if (modelName == null || modelName.isEmpty) return _isCalibrated;
+    return _modelProfiles[modelName]?.isCalibrated ?? false;
+  }
 
   Future<void> init() async {
     final profile = await SettingsService().loadHardwareProfile();
-    if (profile != null && profile['prompt_eval_speed'] != null) {
-      _calibratedPromptEvalSpeed = (profile['prompt_eval_speed'] as num).toDouble();
-      _calibratedGenSpeed = (profile['gen_speed'] as num?)?.toDouble() ?? 10.0;
-      _sampleCount = (profile['sample_count'] as num?)?.toInt() ?? 1;
-      _deviceType = (profile['device_type'] as String?) ?? 'persisted';
-      _isCalibrated = _sampleCount > 0;
+    if (profile != null) {
+      if (profile['prompt_eval_speed'] != null) {
+        _calibratedPromptEvalSpeed = (profile['prompt_eval_speed'] as num).toDouble();
+        _calibratedGenSpeed = (profile['gen_speed'] as num?)?.toDouble() ?? 10.0;
+        _sampleCount = (profile['sample_count'] as num?)?.toInt() ?? 1;
+        _deviceType = (profile['device_type'] as String?) ?? 'persisted';
+        _isCalibrated = _sampleCount > 0;
+      }
+      if (profile['model_profiles'] is Map) {
+        final modelsMap = profile['model_profiles'] as Map;
+        for (final entry in modelsMap.entries) {
+          if (entry.value is Map) {
+            _modelProfiles[entry.key.toString()] = ModelHardwareProfile.fromJson(
+              Map<String, dynamic>.from(entry.value as Map),
+            );
+          }
+        }
+      }
       notifyListeners();
     } else {
       _detectInitialBaseline();
@@ -104,10 +154,13 @@ class HardwareCalibrationService extends ChangeNotifier {
     String? modelName,
   }) async {
     bool changed = false;
+    double? measuredPrompt;
+    double? measuredGen;
 
     if (promptEvalDurationNs > 0 && promptEvalCount > 5) {
-      final measuredPrompt = promptEvalCount / (promptEvalDurationNs / 1e9);
-      if (measuredPrompt >= 1.0 && measuredPrompt <= 10000.0) {
+      final p = promptEvalCount / (promptEvalDurationNs / 1e9);
+      if (p >= 1.0 && p <= 10000.0) {
+        measuredPrompt = p;
         if (!_isCalibrated) {
           _calibratedPromptEvalSpeed = measuredPrompt;
         } else {
@@ -119,8 +172,9 @@ class HardwareCalibrationService extends ChangeNotifier {
     }
 
     if (evalDurationNs > 0 && evalCount > 5) {
-      final measuredGen = evalCount / (evalDurationNs / 1e9);
-      if (measuredGen >= 0.5 && measuredGen <= 2000.0) {
+      final g = evalCount / (evalDurationNs / 1e9);
+      if (g >= 0.5 && g <= 2000.0) {
+        measuredGen = g;
         if (!_isCalibrated) {
           _calibratedGenSpeed = measuredGen;
         } else {
@@ -128,6 +182,29 @@ class HardwareCalibrationService extends ChangeNotifier {
         }
         changed = true;
       }
+    }
+
+    if (modelName != null && modelName.isNotEmpty) {
+      final existing = _modelProfiles[modelName];
+      double modelPrompt = measuredPrompt ?? existing?.promptEvalSpeed ?? _calibratedPromptEvalSpeed;
+      double modelGen = measuredGen ?? existing?.genSpeed ?? _calibratedGenSpeed;
+
+      if (existing != null && existing.isCalibrated) {
+        if (measuredPrompt != null) {
+          modelPrompt = (0.35 * measuredPrompt) + (0.65 * existing.promptEvalSpeed);
+        }
+        if (measuredGen != null) {
+          modelGen = (0.35 * measuredGen) + (0.65 * existing.genSpeed);
+        }
+      }
+
+      _modelProfiles[modelName] = ModelHardwareProfile(
+        promptEvalSpeed: modelPrompt,
+        genSpeed: modelGen,
+        sampleCount: (existing?.sampleCount ?? 0) + 1,
+        isCalibrated: true,
+      );
+      changed = true;
     }
 
     if (changed) {
@@ -139,6 +216,7 @@ class HardwareCalibrationService extends ChangeNotifier {
         genSpeed: _calibratedGenSpeed,
         sampleCount: _sampleCount,
         detectedDeviceType: _deviceType,
+        modelProfiles: _modelProfiles.map((k, v) => MapEntry(k, v.toJson())),
       );
     }
   }
@@ -146,15 +224,41 @@ class HardwareCalibrationService extends ChangeNotifier {
   HardwareEstimate estimatePrompt({
     required int tokens,
     ChatExecutionMode mode = ChatExecutionMode.optimal,
+    String? modelName,
   }) {
+    // If a specific model is targeted and hasn't been calibrated yet, return uncalibrated notice
+    if (modelName != null && modelName.isNotEmpty) {
+      final profile = _modelProfiles[modelName];
+      if (profile == null || !profile.isCalibrated) {
+        return HardwareEstimate(
+          tokens: tokens,
+          promptEvalSpeed: 0.0,
+          estimatedSeconds: 0,
+          speedDisplay: I18n.noSpeedTestedYet,
+          durationDisplay: '-',
+          mode: mode,
+          isTested: false,
+        );
+      }
+    }
+
+    final activePromptSpeed = (modelName != null && _modelProfiles[modelName]?.isCalibrated == true)
+        ? _modelProfiles[modelName]!.promptEvalSpeed
+        : _calibratedPromptEvalSpeed;
+
+    final activeGenSpeed = (modelName != null && _modelProfiles[modelName]?.isCalibrated == true)
+        ? _modelProfiles[modelName]!.genSpeed
+        : _calibratedGenSpeed;
+
     if (tokens <= 0) {
       return HardwareEstimate(
         tokens: 0,
-        promptEvalSpeed: _calibratedPromptEvalSpeed,
+        promptEvalSpeed: activePromptSpeed,
         estimatedSeconds: 0,
-        speedDisplay: '~${_calibratedPromptEvalSpeed.round().clamp(1, 9999)} tok/s',
+        speedDisplay: '~${activePromptSpeed.round().clamp(1, 9999)} tok/s',
         durationDisplay: '<1s',
         mode: mode,
+        isTested: true,
       );
     }
 
@@ -177,26 +281,27 @@ class HardwareCalibrationService extends ChangeNotifier {
       case ChatExecutionMode.thinking:
         // Deep reasoning generates chain-of-thought tokens before visible streaming
         final reasoningTokens = tokens > 2000 ? 150 : 90;
-        modeOverheadSec = (reasoningTokens / _calibratedGenSpeed.clamp(1.0, 100.0)).round().clamp(4, 40);
+        modeOverheadSec = (reasoningTokens / activeGenSpeed.clamp(1.0, 100.0)).round().clamp(4, 40);
         break;
     }
 
-    final effectiveSpeed = (_calibratedPromptEvalSpeed / bufferMultiplier).clamp(0.5, 50000.0);
+    final effectiveSpeed = (activePromptSpeed / bufferMultiplier).clamp(0.5, 50000.0);
     final evalSec = (tokens / effectiveSpeed).ceil();
     final totalSec = evalSec + modeOverheadSec;
 
-    final speedDisplay = '~${_calibratedPromptEvalSpeed.round().clamp(1, 9999)} tok/s';
+    final speedDisplay = '~${activePromptSpeed.round().clamp(1, 9999)} tok/s';
     final durationDisplay = totalSec >= 60
         ? 'ca. ${(totalSec / 60.0).toStringAsFixed(1)} Min'
         : 'ca. ${totalSec}s';
 
     return HardwareEstimate(
       tokens: tokens,
-      promptEvalSpeed: _calibratedPromptEvalSpeed,
+      promptEvalSpeed: activePromptSpeed,
       estimatedSeconds: totalSec,
       speedDisplay: speedDisplay,
       durationDisplay: durationDisplay,
       mode: mode,
+      isTested: true,
     );
   }
 }

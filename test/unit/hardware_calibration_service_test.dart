@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tomsllama/core/services/hardware_calibration_service.dart';
+import 'package:tomsllama/core/services/localization_service.dart';
 import 'package:tomsllama/features/chat/controllers/chat_controller.dart';
 
 void main() {
@@ -63,6 +64,32 @@ void main() {
       expect(service.sampleCount, equals(initialSampleCount + 1));
       expect(service.calibratedPromptEvalSpeed, isNot(equals(0.0)));
       expect(initialPromptSpeed, greaterThan(0.0));
+    });
+
+    test('per-model speed profile starts uncalibrated and calibrates upon recording', () async {
+      const modelName = 'deepseek-r1:14b';
+      expect(service.isModelTested(modelName), isFalse);
+
+      final uncalibratedEst = service.estimatePrompt(tokens: 1000, modelName: modelName);
+      expect(uncalibratedEst.isTested, isFalse);
+      expect(uncalibratedEst.speedDisplay, equals(I18n.noSpeedTestedYet));
+      expect(uncalibratedEst.durationDisplay, equals('-'));
+
+      // Now record metrics for this model
+      await service.recordMetrics(
+        promptEvalCount: 50,
+        promptEvalDurationNs: 2000000000, // 25 tok/s
+        evalCount: 30,
+        evalDurationNs: 1000000000, // 30 tok/s
+        modelName: modelName,
+      );
+
+      expect(service.isModelTested(modelName), isTrue);
+      final calibratedEst = service.estimatePrompt(tokens: 1000, modelName: modelName);
+      expect(calibratedEst.isTested, isTrue);
+      expect(calibratedEst.speedDisplay, startsWith('~'));
+      expect(calibratedEst.speedDisplay, contains('tok/s'));
+      expect(calibratedEst.durationDisplay, startsWith('ca. '));
     });
   });
 }

@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
@@ -15,6 +14,7 @@ import '../../../core/services/hardware_calibration_service.dart';
 import '../controllers/chat_controller.dart';
 import '../controllers/workspace_controller.dart';
 import 'persona_chip.dart';
+import 'cute_send_button.dart';
 
 class ComposerBar extends ConsumerStatefulWidget {
   final bool isGenerating;
@@ -55,7 +55,7 @@ class ComposerBar extends ConsumerStatefulWidget {
 class _ComposerBarState extends ConsumerState<ComposerBar> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
-  final GlobalKey<_SendButtonState> _sendButtonKey = GlobalKey<_SendButtonState>();
+  final GlobalKey<CuteSendButtonState> _sendButtonKey = GlobalKey<CuteSendButtonState>();
   bool _hasText = false;
   bool _isFocused = false;
 
@@ -392,17 +392,20 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
                     Builder(
                       builder: (context) {
                         final hwCalibration = ref.watch(hardwareCalibrationProvider);
+                        final activeModel = widget.selectedModel ?? widget.modelName;
                         final isSingleFile = workspaceState.attachedFiles.length == 1;
                         final singleFileEstimate = isSingleFile
                             ? hwCalibration.estimatePrompt(
                                 tokens: workspaceState.attachedFiles.first.estimatedTokens,
                                 mode: widget.mode,
+                                modelName: activeModel,
                               )
                             : null;
                         final totalEstimate = workspaceState.attachedFiles.length > 1
                             ? hwCalibration.estimatePrompt(
                                 tokens: workspaceState.totalAttachedTokens,
                                 mode: widget.mode,
+                                modelName: activeModel,
                               )
                             : null;
 
@@ -568,39 +571,41 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
                     children: [
                       // Chips wrapped to prevent pixel overflow on resize or canvas split
                       Expanded(
-                        child: Wrap(
-                          spacing: 6.0,
-                          runSpacing: 6.0,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            PersonaChip(
-                              personaName: widget.activePersonaName,
-                              onTap: widget.onPersonaTap,
-                              onSelectPersona: widget.onSelectPersona,
-                            ),
-                            if (widget.models.isNotEmpty || widget.selectedModel != null)
-                              _ModelChip(
-                                models: widget.models,
-                                selectedModel: widget.selectedModel,
-                                onModelChanged: widget.onModelChanged,
-                                onManageModels: widget.onManageModels,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 12.0),
+                          child: Wrap(
+                            spacing: 6.0,
+                            runSpacing: 6.0,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              PersonaChip(
+                                personaName: widget.activePersonaName,
+                                onTap: widget.onPersonaTap,
+                                onSelectPersona: widget.onSelectPersona,
                               ),
-                            if (widget.onModeChanged != null)
-                              _ModeChip(
-                                mode: widget.mode,
-                                onModeChanged: widget.onModeChanged,
+                              if (widget.models.isNotEmpty || widget.selectedModel != null)
+                                _ModelChip(
+                                  models: widget.models,
+                                  selectedModel: widget.selectedModel,
+                                  onModelChanged: widget.onModelChanged,
+                                  onManageModels: widget.onManageModels,
+                                ),
+                              if (widget.onModeChanged != null)
+                                _ModeChip(
+                                  mode: widget.mode,
+                                  onModeChanged: widget.onModeChanged,
+                                ),
+                              _AttachChip(
+                                onPickWorkspace: _pickWorkspace,
+                                onAttachFolder: _pickFolderFiles,
+                                onPickFiles: _pickFiles,
                               ),
-                            _AttachChip(
-                              onPickWorkspace: _pickWorkspace,
-                              onAttachFolder: _pickFolderFiles,
-                              onPickFiles: _pickFiles,
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 8.0),
-                      // Send Button with Cute Llama Animation
-                      _SendButton(
+                      // Circular Send Button with organic Cloud morph & Cute Llama
+                      CuteSendButton(
                         key: _sendButtonKey,
                         isGenerating: widget.isGenerating,
                         hasText: canSend,
@@ -750,7 +755,9 @@ class _AttachedFilePill extends StatelessWidget {
           if (estimate != null) ...[
             const SizedBox(width: 4.0),
             Text(
-              '• ${estimate!.speedDisplay} • ${estimate!.durationDisplay}',
+              !estimate!.isTested
+                  ? '• ${estimate!.speedDisplay}'
+                  : '• ${estimate!.speedDisplay} • ${estimate!.durationDisplay}',
               style: AppTypography.code.copyWith(
                 fontSize: 10.0,
                 color: appColors.textSecondary,
@@ -809,7 +816,9 @@ class _AttachedFilesSummaryPill extends StatelessWidget {
           ),
           const SizedBox(width: 5.0),
           Text(
-            '${I18n.totalLabel}: $tokenStr • ${estimate.speedDisplay} • ${estimate.durationDisplay}',
+            !estimate.isTested
+                ? '${I18n.totalLabel}: $tokenStr • ${estimate.speedDisplay}'
+                : '${I18n.totalLabel}: $tokenStr • ${estimate.speedDisplay} • ${estimate.durationDisplay}',
             style: AppTypography.code.copyWith(
               fontSize: 10.0,
               color: appColors.textSecondary,
@@ -1480,393 +1489,3 @@ class _ModeChipState extends State<_ModeChip> {
   }
 }
 
-class _SendButton extends StatefulWidget {
-  final bool isGenerating;
-  final bool hasText;
-  final VoidCallback? onTap;
-
-  const _SendButton({
-    super.key,
-    required this.isGenerating,
-    required this.hasText,
-    required this.onTap,
-  });
-
-  @override
-  State<_SendButton> createState() => _SendButtonState();
-}
-
-class _SendButtonState extends State<_SendButton> with SingleTickerProviderStateMixin {
-  late final AnimationController _animController;
-  int _animIndex = 0;
-  bool _isPressed = false;
-  bool _isHovered = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // 15% longer animation duration (1500ms -> 1725ms)
-    _animController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1725),
-    );
-  }
-
-  @override
-  void dispose() {
-    _animController.dispose();
-    super.dispose();
-  }
-
-  void triggerCuteAnimation() {
-    if (!mounted) return;
-    setState(() {
-      _animIndex = (_animIndex + 1) % 3;
-    });
-    _animController.forward(from: 0.0);
-  }
-
-  double _calculateHeightFactor(double t) {
-    if (t < 0.16) {
-      final subT = (t / 0.16).clamp(0.0, 1.0);
-      return Curves.easeOutBack.transform(subT).clamp(0.0, 1.08);
-    } else if (t < 0.82) {
-      return 1.0;
-    } else {
-      final subT = ((t - 0.82) / 0.18).clamp(0.0, 1.0);
-      return (1.0 - Curves.easeInOutCubic.transform(subT)).clamp(0.0, 1.0);
-    }
-  }
-
-  double _calculateCuteProgress(double t) {
-    if (t < 0.16) return 0.0;
-    if (t > 0.82) return 1.0;
-    return ((t - 0.16) / 0.66).clamp(0.0, 1.0);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final appColors = context.appColors;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final bgColor = widget.isGenerating
-        ? appColors.surface
-        : (widget.hasText
-            ? appColors.accent
-            : (_isHovered ? appColors.surface : appColors.background));
-
-    final textColor = widget.isGenerating
-        ? appColors.textPrimary
-        : (widget.hasText ? Colors.white : appColors.textSecondary.withValues(alpha: 0.7));
-
-    final borderColor = widget.isGenerating
-        ? appColors.borderSubtle
-        : (widget.hasText
-            ? appColors.accent
-            : (_isHovered ? appColors.border : appColors.borderSubtle));
-
-    return AnimatedBuilder(
-      animation: _animController,
-      builder: (context, _) {
-        final double animValue = _animController.value;
-        final double heightFactor = animValue > 0.0 ? _calculateHeightFactor(animValue) : 0.0;
-        final double cuteProgress = animValue > 0.0 ? _calculateCuteProgress(animValue) : 0.0;
-        final double extensionHeight = heightFactor * 44.0;
-
-        return MouseRegion(
-          onEnter: (_) => setState(() => _isHovered = true),
-          onExit: (_) => setState(() => _isHovered = false),
-          cursor: widget.onTap != null ? SystemMouseCursors.click : SystemMouseCursors.basic,
-          child: GestureDetector(
-            onTapDown: (_) => setState(() => _isPressed = true),
-            onTapUp: (_) => setState(() => _isPressed = false),
-            onTapCancel: () => setState(() => _isPressed = false),
-            onTap: () {
-              if (widget.onTap != null) {
-                if (!widget.isGenerating && widget.hasText) {
-                  triggerCuteAnimation();
-                }
-                widget.onTap!();
-              }
-            },
-            child: AnimatedScale(
-              scale: _isPressed ? 0.94 : (_isHovered && (widget.hasText || widget.isGenerating) ? 1.02 : 1.0),
-              duration: const Duration(milliseconds: 120),
-              curve: Curves.easeOutBack,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: bgColor,
-                  borderRadius: BorderRadius.circular(16.0),
-                  border: Border.all(color: borderColor, width: 1.0),
-                  boxShadow: extensionHeight > 1.0
-                      ? [
-                          BoxShadow(
-                            color: appColors.accent.withValues(alpha: 0.32),
-                            blurRadius: 14.0,
-                            offset: const Offset(0, -4),
-                          ),
-                        ]
-                      : (widget.hasText
-                          ? [
-                              BoxShadow(
-                                color: appColors.accent.withValues(alpha: isDark ? 0.32 : 0.22),
-                                blurRadius: 8.0,
-                                offset: const Offset(0, 2),
-                              ),
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.04),
-                                blurRadius: 3.0,
-                                offset: const Offset(0, 1),
-                              ),
-                            ]
-                          : null),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Cute upward animated Llama extension
-                    if (extensionHeight > 0.5)
-                      SizedBox(
-                        height: extensionHeight,
-                        width: 82.0,
-                        child: ClipRect(
-                          child: CustomPaint(
-                            painter: _CuteLlamaPainter(
-                              cuteProgress: cuteProgress,
-                              animType: _animIndex,
-                              llamaColor: isDark ? Colors.white : const Color(0xFF181816),
-                              isDark: isDark,
-                              sparkleColor: isDark ? Colors.white : appColors.accent,
-                            ),
-                          ),
-                        ),
-                      ),
-
-                    // Base Send Button Content with refined icon & label
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 6.0),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            widget.isGenerating
-                                ? Icons.stop_rounded
-                                : Icons.arrow_upward_rounded,
-                            size: 13.5,
-                            color: textColor,
-                          ),
-                          const SizedBox(width: 4.5),
-                          Text(
-                            widget.isGenerating ? I18n.stop : I18n.send,
-                            style: AppTypography.uiControl.copyWith(
-                              color: textColor,
-                              fontSize: 12.0,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.1,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// Painter for the cute Llama animation with 3 joyful variations:
-/// 0: Ear Wiggle & Sparkles
-/// 1: Bouncy Hop & Floating Heart
-/// 2: Eager Nod & Wink
-class _CuteLlamaPainter extends CustomPainter {
-  final double cuteProgress; // 0.0 to 1.0
-  final int animType;        // 0, 1, 2
-  final Color llamaColor;
-  final bool isDark;
-  final Color sparkleColor;
-
-  _CuteLlamaPainter({
-    required this.cuteProgress,
-    required this.animType,
-    required this.llamaColor,
-    this.isDark = true,
-    this.sparkleColor = Colors.white,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2 + 1.0);
-
-    double yOffset = 0.0;
-    double rotation = 0.0;
-    bool isWinking = false;
-    double earWiggle = 0.0;
-
-    if (animType == 0) {
-      // 0: Ear Wiggle & Sparkles
-      rotation = math.sin(cuteProgress * math.pi * 4) * 0.08;
-      earWiggle = math.sin(cuteProgress * math.pi * 8) * 0.25;
-    } else if (animType == 1) {
-      // 1: Bouncy Hop & Floating Heart
-      yOffset = -((math.sin(cuteProgress * math.pi * 4)).abs()) * 4.0;
-      rotation = math.sin(cuteProgress * math.pi * 2) * 0.04;
-    } else {
-      // 2: Eager Nod & Wink
-      yOffset = math.sin(cuteProgress * math.pi * 6) * 2.2;
-      isWinking = cuteProgress >= 0.25 && cuteProgress <= 0.70;
-    }
-
-    canvas.save();
-    canvas.translate(center.dx, center.dy + yOffset);
-    canvas.rotate(rotation);
-
-    // Draw cute Llama head, neck, and ears
-    _drawLlama(canvas, earWiggle, isWinking);
-
-    canvas.restore();
-
-    // Draw floating cute effects in canvas coordinate space
-    if (animType == 0) {
-      _drawSparkles(canvas, center);
-    } else if (animType == 1) {
-      _drawHeart(canvas, center);
-    } else {
-      _drawNodStars(canvas, center);
-    }
-  }
-
-  void _drawLlama(Canvas canvas, double earWiggle, bool isWinking) {
-    const double scale = 0.82;
-
-    final Path bodyPath = Path()
-      ..moveTo(-5.0 * scale, 10.0 * scale)
-      ..lineTo(-4.5 * scale, 0.0 * scale)
-      // Left ear (with gentle wiggle)
-      ..lineTo((-5.5 + earWiggle * 2.2) * scale, -9.5 * scale)
-      ..lineTo(-2.0 * scale, -4.5 * scale)
-      // Right ear (with opposite gentle wiggle)
-      ..lineTo((0.5 - earWiggle * 2.2) * scale, -8.5 * scale)
-      ..lineTo(2.0 * scale, -3.0 * scale)
-      // Snout
-      ..lineTo(8.5 * scale, -1.0 * scale)
-      ..lineTo(9.0 * scale, 2.0 * scale)
-      ..lineTo(7.0 * scale, 3.5 * scale)
-      ..lineTo(3.5 * scale, 3.5 * scale)
-      ..lineTo(4.0 * scale, 10.0 * scale)
-      ..close();
-
-    // Body fill
-    final fillPaint = Paint()
-      ..color = llamaColor.withValues(alpha: isDark ? 0.22 : 0.12)
-      ..style = PaintingStyle.fill;
-    canvas.drawPath(bodyPath, fillPaint);
-
-    // Body outline
-    final outlinePaint = Paint()
-      ..color = llamaColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawPath(bodyPath, outlinePaint);
-
-    // Cute blush cheek
-    final blushPaint = Paint()
-      ..color = Colors.pinkAccent.shade100.withValues(alpha: 0.65)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(const Offset(3.69, 1.64), 1.31, blushPaint);
-
-    // Eye: round dot or cute wink arc
-    if (isWinking) {
-      final winkPaint = Paint()
-        ..color = llamaColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2
-        ..strokeCap = StrokeCap.round;
-      canvas.drawLine(
-        const Offset(0.41, -0.41),
-        const Offset(2.46, 0.41),
-        winkPaint,
-      );
-    } else {
-      final eyePaint = Paint()
-        ..color = llamaColor
-        ..style = PaintingStyle.fill;
-      canvas.drawCircle(const Offset(1.64, -0.41), 0.82, eyePaint);
-    }
-  }
-
-  void _drawSparkles(Canvas canvas, Offset center) {
-    final double sparkleScale = (math.sin(cuteProgress * math.pi)).clamp(0.0, 1.0);
-    if (sparkleScale <= 0.05) return;
-
-    // Sparkle 1: Top-left gold star
-    final Offset s1 = Offset(center.dx - 18.0, center.dy - 8.0);
-    _draw4PointStar(canvas, s1, 3.8 * sparkleScale, isDark ? Colors.amberAccent : Colors.amber.shade700);
-
-    // Sparkle 2: Top-right bright star
-    final Offset s2 = Offset(center.dx + 16.0, center.dy - 10.0);
-    _draw4PointStar(canvas, s2, 3.2 * sparkleScale, sparkleColor);
-  }
-
-  void _drawHeart(Canvas canvas, Offset center) {
-    final double heartProgress = (cuteProgress * 1.3).clamp(0.0, 1.0);
-    if (heartProgress <= 0.05 || heartProgress >= 0.95) return;
-
-    final double hx = center.dx + 14.0;
-    final double hy = center.dy - 4.0 - heartProgress * 15.0;
-    final double hs = (math.sin(heartProgress * math.pi)).clamp(0.0, 1.0) * 2.2;
-
-    final Path heartPath = Path()
-      ..moveTo(hx, hy + hs * 0.8)
-      ..cubicTo(hx - hs * 1.8, hy - hs * 1.5, hx - hs * 2.5, hy + hs * 0.8, hx, hy + hs * 2.5)
-      ..cubicTo(hx + hs * 2.5, hy + hs * 0.8, hx + hs * 1.8, hy - hs * 1.5, hx, hy + hs * 0.8)
-      ..close();
-
-    final Paint heartPaint = Paint()
-      ..color = Colors.pinkAccent.shade100.withValues(alpha: (1.0 - heartProgress * 0.7))
-      ..style = PaintingStyle.fill;
-    canvas.drawPath(heartPath, heartPaint);
-  }
-
-  void _drawNodStars(Canvas canvas, Offset center) {
-    final double starScale = (math.sin(cuteProgress * math.pi)).clamp(0.0, 1.0);
-    if (starScale <= 0.05) return;
-
-    // A tiny star floating from the snout
-    final Offset p1 = Offset(center.dx + 17.0, center.dy - 6.0);
-    _draw4PointStar(canvas, p1, 3.0 * starScale, isDark ? Colors.amberAccent : Colors.amber.shade700);
-
-    final Offset p2 = Offset(center.dx - 16.0, center.dy - 5.0);
-    _draw4PointStar(canvas, p2, 2.4 * starScale, sparkleColor);
-  }
-
-  void _draw4PointStar(Canvas canvas, Offset pos, double size, Color color) {
-    final Path path = Path()
-      ..moveTo(pos.dx, pos.dy - size)
-      ..quadraticBezierTo(pos.dx, pos.dy, pos.dx + size, pos.dy)
-      ..quadraticBezierTo(pos.dx, pos.dy, pos.dx, pos.dy + size)
-      ..quadraticBezierTo(pos.dx, pos.dy, pos.dx - size, pos.dy)
-      ..quadraticBezierTo(pos.dx, pos.dy, pos.dx, pos.dy - size)
-      ..close();
-
-    final Paint paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _CuteLlamaPainter oldDelegate) {
-    return oldDelegate.cuteProgress != cuteProgress ||
-        oldDelegate.animType != animType ||
-        oldDelegate.llamaColor != llamaColor ||
-        oldDelegate.isDark != isDark ||
-        oldDelegate.sparkleColor != sparkleColor;
-  }
-}

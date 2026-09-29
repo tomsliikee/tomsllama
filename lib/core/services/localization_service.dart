@@ -106,6 +106,10 @@ class I18n {
 
   static String get totalLabel => isGerman ? 'Gesamt' : 'Total';
 
+  static String get noSpeedTestedYet => isGerman
+      ? 'Noch keine Geschwindigkeit getestet, bitte erste Nachricht senden'
+      : 'No speed tested yet, please write first message';
+
   static String totalAttachedTokens(int tokens) {
     final tokenStr = tokens >= 1000 ? '~${(tokens / 1000).toStringAsFixed(1)}k' : '~$tokens';
     return isGerman ? 'Gesamt: $tokenStr tok' : 'Total: $tokenStr tok';

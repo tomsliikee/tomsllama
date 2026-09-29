@@ -74,6 +74,7 @@ class SettingsService {
     required double genSpeed,
     required int sampleCount,
     required String detectedDeviceType,
+    Map<String, dynamic>? modelProfiles,
   }) async {
     try {
       final file = await _getFile();
@@ -88,6 +89,7 @@ class SettingsService {
         'gen_speed': genSpeed,
         'sample_count': sampleCount,
         'device_type': detectedDeviceType,
+        if (modelProfiles != null) 'model_profiles': modelProfiles,
         'updated_at': DateTime.now().toIso8601String(),
       };
       await file.writeAsString(jsonEncode(map));

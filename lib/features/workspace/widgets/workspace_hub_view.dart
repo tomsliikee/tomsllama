@@ -17,6 +17,7 @@ import '../../chat/widgets/persona_chip.dart';
 import '../../models/controllers/model_controller.dart';
 import '../controllers/workspace_hub_controller.dart';
 import 'cute_llama_file_mascot.dart';
+import '../../chat/widgets/cute_send_button.dart';
 
 class WorkspaceHubView extends ConsumerStatefulWidget {
   final Workspace workspace;
@@ -308,10 +309,13 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
 
   Widget _buildContextFilesCard(AppThemeExtension appColors, Color cardBackground, bool isDark) {
     final totalFileTokens = widget.files.fold<int>(0, (sum, f) => sum + f.estimatedTokens);
+    final modelState = ref.watch(modelProvider);
+    final activeModel = modelState.selectedModel ?? (modelState.models.isNotEmpty ? modelState.models.first.name : null);
     final hwCalibration = ref.watch(hardwareCalibrationProvider);
     final fileEstimate = hwCalibration.estimatePrompt(
       tokens: totalFileTokens,
       mode: ChatExecutionMode.optimal,
+      modelName: activeModel,
     );
     final tokenStr = totalFileTokens >= 1000
         ? '~${(totalFileTokens / 1000).toStringAsFixed(1)}k tok'
@@ -497,7 +501,9 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                 ),
                 const SizedBox(width: 6.0),
                 Text(
-                  '${I18n.totalLabel}: $tokenStr • ${fileEstimate.speedDisplay} • ${fileEstimate.durationDisplay}',
+                  !fileEstimate.isTested
+                      ? '${I18n.totalLabel}: $tokenStr • ${fileEstimate.speedDisplay}'
+                      : '${I18n.totalLabel}: $tokenStr • ${fileEstimate.speedDisplay} • ${fileEstimate.durationDisplay}',
                   style: AppTypography.code.copyWith(
                     fontSize: 11.0,
                     color: appColors.textSecondary,
@@ -574,77 +580,51 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               // Chips for model and role
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
-                    decoration: BoxDecoration(
-                      color: isDark ? appColors.surface : appColors.background,
-                      borderRadius: BorderRadius.circular(16.0),
-                      border: Border.all(color: appColors.borderSubtle, width: 1.0),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.bolt, size: 12.5, color: appColors.textSecondary),
-                        const SizedBox(width: 4.0),
-                        Text(
-                          activeModel,
-                          style: AppTypography.code.copyWith(
-                            fontSize: 11.5,
-                            color: appColors.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8.0),
-                  PersonaChip(
-                    personaName: _selectedPersona,
-                    onTap: () {},
-                    onSelectPersona: (p) => setState(() => _selectedPersona = p),
-                  ),
-                ],
-              ),
-
-              // Highlighted Send button matching chat composer
-              InkWell(
-                onTap: canSend ? _submit : null,
-                borderRadius: BorderRadius.circular(16.0),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 7.0),
-                  decoration: BoxDecoration(
-                    color: canSend
-                        ? appColors.accent
-                        : (isDark ? appColors.surface : appColors.background),
-                    borderRadius: BorderRadius.circular(16.0),
-                    border: Border.all(
-                      color: canSend ? appColors.accent : appColors.borderSubtle,
-                      width: 1.0,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 12.0),
+                  child: Wrap(
+                    spacing: 8.0,
+                    runSpacing: 6.0,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Text(
-                        I18n.send,
-                        style: AppTypography.uiControl.copyWith(
-                          color: canSend ? Colors.white : appColors.textSecondary.withValues(alpha: 0.6),
-                          fontSize: 12.0,
-                          fontWeight: FontWeight.w600,
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
+                        decoration: BoxDecoration(
+                          color: isDark ? appColors.surface : appColors.background,
+                          borderRadius: BorderRadius.circular(16.0),
+                          border: Border.all(color: appColors.borderSubtle, width: 1.0),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.bolt, size: 12.5, color: appColors.textSecondary),
+                            const SizedBox(width: 4.0),
+                            Text(
+                              activeModel,
+                              style: AppTypography.code.copyWith(
+                                fontSize: 11.5,
+                                color: appColors.textPrimary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 4.0),
-                      Icon(
-                        Icons.arrow_upward_rounded,
-                        size: 13.0,
-                        color: canSend ? Colors.white : appColors.textSecondary.withValues(alpha: 0.6),
+                      PersonaChip(
+                        personaName: _selectedPersona,
+                        onTap: () {},
+                        onSelectPersona: (p) => setState(() => _selectedPersona = p),
                       ),
                     ],
                   ),
                 ),
+              ),
+
+              // Circular Send Button with organic Cloud morph & Cute Llama
+              CuteSendButton(
+                isGenerating: false,
+                hasText: canSend,
+                onTap: canSend ? _submit : null,
               ),
             ],
           ),
