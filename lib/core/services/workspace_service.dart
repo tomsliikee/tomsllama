@@ -59,6 +59,7 @@ class WorkspaceService {
     '.conf',
     '.proto',
     '.gradle',
+    '.pdf',
   };
 
   /// Loads and indexes a workspace directory, discovering files and git branch info.

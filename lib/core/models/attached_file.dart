@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import '../services/context_manager.dart';
+import '../services/pdf_service.dart';
 
 class AttachedFile {
   final String path;
@@ -38,12 +39,32 @@ class AttachedFile {
     final ext = p.extension(filePath).toLowerCase();
     const binaryExtensions = {
       '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico',
-      '.pdf', '.zip', '.tar', '.gz', '.7z', '.rar',
+      '.zip', '.tar', '.gz', '.7z', '.rar',
       '.exe', '.dll', '.so', '.dylib', '.bin',
       '.mp3', '.mp4', '.wav', '.mov', '.avi',
       '.db', '.sqlite', '.sqlite3',
     };
     if (binaryExtensions.contains(ext)) return null;
+
+    final name = p.basename(filePath);
+    final relPath = workspaceRoot != null && filePath.startsWith(workspaceRoot)
+        ? p.relative(filePath, from: workspaceRoot)
+        : name;
+
+    // Handle PDF extraction via PdfService
+    if (ext == '.pdf') {
+      final pdfResult = await PdfService.extractText(filePath, maxPages: 25);
+      if (pdfResult == null) return null;
+      return AttachedFile(
+        path: filePath,
+        name: name,
+        relativePath: relPath,
+        sizeInBytes: stat.size,
+        estimatedTokens: ContextManager.estimateTokens(pdfResult.text),
+        content: pdfResult.text,
+        extension: ext,
+      );
+    }
 
     try {
       final lines = <String>[];
@@ -73,11 +94,6 @@ class AttachedFile {
             '\n\n// ... [Truncated: Showing first $maxLines lines of ${p.basename(filePath)} (~$totalLineCount+ total lines) for CPU performance] ...';
       }
 
-      final name = p.basename(filePath);
-      final relPath = workspaceRoot != null && filePath.startsWith(workspaceRoot)
-          ? p.relative(filePath, from: workspaceRoot)
-          : name;
-
       return AttachedFile(
         path: filePath,
         name: name,
@@ -94,6 +110,9 @@ class AttachedFile {
 
   /// Formatted markdown block for LLM prompt injection.
   String toMarkdownBlock() {
+    if (extension == '.pdf') {
+      return '[Attached PDF Document: $relativePath]\n```text\n$content\n```';
+    }
     final lang = extension.startsWith('.') ? extension.substring(1) : extension;
     return '`$relativePath`\n```$lang\n$content\n```';
   }

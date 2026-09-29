@@ -597,7 +597,11 @@ class _AttachedFilePill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.description_outlined, size: 13.0, color: appColors.accent),
+          Icon(
+            file.extension == '.pdf' ? Icons.picture_as_pdf_outlined : Icons.description_outlined,
+            size: 13.0,
+            color: file.extension == '.pdf' ? Colors.redAccent.shade200 : appColors.accent,
+          ),
           const SizedBox(width: 5.0),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 160.0),
