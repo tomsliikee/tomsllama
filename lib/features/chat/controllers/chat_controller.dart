@@ -209,7 +209,9 @@ class ChatNotifier extends StateNotifier<ChatState> {
     bool isFirstMessageInConv = false;
     final titleSeed = text.trim().isNotEmpty
         ? text.trim()
-        : (explicitAttached.isNotEmpty ? 'File: ${explicitAttached.first.name}' : 'New Chat');
+        : (explicitAttached.isNotEmpty
+            ? I18n.attachedFilePrefix(explicitAttached.first.name)
+            : I18n.newChatTitle);
 
     if (convId.isEmpty) {
       final newConv = await _ref.read(sidebarProvider.notifier).createNewConversation(
@@ -366,14 +368,11 @@ class ChatNotifier extends StateNotifier<ChatState> {
     final userTokens = ContextManager.estimateTokens(promptPayload);
     final totalTokens = systemTokens + userTokens;
 
-    final isGerman = I18n.isGerman;
     String? statusMsg;
     if (hasPdf) {
-      statusMsg = isGerman ? 'Lese PDF-Dokument ein...' : 'Analyzing PDF document...';
+      statusMsg = I18n.readingPdf;
     } else if (totalTokens > 600) {
-      statusMsg = isGerman
-          ? 'CPU evaluiert Kontext (~$totalTokens Tokens)...'
-          : 'CPU evaluating prompt context (~$totalTokens tokens)...';
+      statusMsg = I18n.cpuEvaluatingPrompt(totalTokens);
     }
 
     state = state.copyWith(

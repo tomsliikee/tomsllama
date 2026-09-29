@@ -405,14 +405,14 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
                               file: file,
                               onRemove: () => ref.read(workspaceProvider.notifier).removeAttachedFile(file.path),
                             ),
-                          if (workspaceState.attachedFiles.isNotEmpty)
+                          if (workspaceState.attachedFiles.length > 1)
                             Padding(
                               padding: const EdgeInsets.only(left: 2.0),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    '~${(workspaceState.totalAttachedTokens / 1000).toStringAsFixed(1)}k tok',
+                                    I18n.totalAttachedTokens(workspaceState.totalAttachedTokens),
                                     style: AppTypography.code.copyWith(
                                       fontSize: 10.0,
                                       color: appColors.textSecondary.withValues(alpha: 0.6),
@@ -421,7 +421,7 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
                                   if (workspaceState.totalAttachedTokens > 1000) ...[
                                     const SizedBox(width: 5.0),
                                     Text(
-                                      '• CPU-Vorlauf: ca. ${((workspaceState.totalAttachedTokens / 40.0) / 60.0).toStringAsFixed(1)} Min',
+                                      I18n.cpuLeadTime(workspaceState.totalAttachedTokens),
                                       style: AppTypography.code.copyWith(
                                         fontSize: 10.0,
                                         color: Colors.amber.shade700,
@@ -464,7 +464,9 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
                                 Icon(Icons.alternate_email_rounded, size: 12.0, color: appColors.accent),
                                 const SizedBox(width: 5.0),
                                 Text(
-                                  'Workspace: ${workspaceState.workspace?.name ?? "Files"}',
+                                  workspaceState.workspace != null
+                                      ? 'Workspace: ${workspaceState.workspace!.name}'
+                                      : I18n.workspaceFilesPrefix,
                                   style: AppTypography.uiControl.copyWith(
                                     fontSize: 11.0,
                                     fontWeight: FontWeight.w600,
@@ -473,7 +475,7 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
                                 ),
                                 const Spacer(),
                                 Text(
-                                  '↑↓ to navigate • Enter/Tab to select',
+                                  I18n.atMentionNavigationHint,
                                   style: AppTypography.code.copyWith(
                                     fontSize: 9.5,
                                     color: appColors.textSecondary.withValues(alpha: 0.5),
@@ -543,7 +545,11 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
                       height: 1.5,
                     ),
                     decoration: InputDecoration(
-                      hintText: I18n.composerPlaceholder(widget.modelName ?? "qwen2.5:3b"),
+                      hintText: I18n.composerPlaceholder(
+                        widget.modelName ??
+                            widget.selectedModel ??
+                            (widget.models.isNotEmpty ? widget.models.first.name : 'qwen2.5:3b'),
+                      ),
                       hintStyle: AppTypography.uiControl.copyWith(
                         color: appColors.textSecondary.withValues(alpha: 0.6),
                         fontSize: 14.0,
@@ -860,7 +866,7 @@ class _AttachChipState extends State<_AttachChip> {
                               Icon(Icons.folder_outlined, size: 14.0, color: appColors.accent),
                               const SizedBox(width: 8.0),
                               Text(
-                                'Open Project Workspace...',
+                                I18n.openProjectWorkspace,
                                 style: AppTypography.uiControl.copyWith(
                                   fontSize: 12.0,
                                   fontWeight: FontWeight.w500,
@@ -884,7 +890,7 @@ class _AttachChipState extends State<_AttachChip> {
                               Icon(Icons.snippet_folder_outlined, size: 14.0, color: appColors.accent),
                               const SizedBox(width: 8.0),
                               Text(
-                                'Attach Folder Files...',
+                                I18n.attachFolderFiles,
                                 style: AppTypography.uiControl.copyWith(
                                   fontSize: 12.0,
                                   fontWeight: FontWeight.w500,
@@ -909,7 +915,7 @@ class _AttachChipState extends State<_AttachChip> {
                               Icon(Icons.description_outlined, size: 14.0, color: appColors.accent),
                               const SizedBox(width: 8.0),
                               Text(
-                                'Attach Files...',
+                                I18n.attachFiles,
                                 style: AppTypography.uiControl.copyWith(
                                   fontSize: 12.0,
                                   fontWeight: FontWeight.w500,
@@ -963,7 +969,7 @@ class _AttachChipState extends State<_AttachChip> {
                 ),
                 const SizedBox(width: 4.0),
                 Text(
-                  'Attach',
+                  I18n.attach,
                   style: AppTypography.uiControl.copyWith(
                     fontSize: 12.0,
                     fontWeight: FontWeight.w500,

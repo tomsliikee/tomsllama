@@ -161,7 +161,7 @@ class _WorkspaceListItemState extends State<WorkspaceListItem> {
           style: AppTypography.headline.copyWith(fontSize: 16.0, color: appColors.textPrimary),
         ),
         content: Text(
-          'Möchtest du den Workspace "${widget.workspace.name}" und alle zugehörigen Chats und Dateien wirklich löschen?',
+          I18n.deleteWorkspaceConfirmMessage(widget.workspace.name),
           style: AppTypography.uiControl.copyWith(fontSize: 13.0, color: appColors.textSecondary),
         ),
         actions: [
@@ -178,7 +178,7 @@ class _WorkspaceListItemState extends State<WorkspaceListItem> {
               widget.onDelete?.call();
             },
             child: Text(
-              'Löschen',
+              I18n.delete,
               style: AppTypography.uiControl.copyWith(color: Colors.redAccent),
             ),
           ),

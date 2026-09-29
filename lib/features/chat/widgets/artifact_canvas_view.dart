@@ -220,7 +220,7 @@ class _CanvasCopyPillState extends State<_CanvasCopyPill> {
             ),
             const SizedBox(width: 4.5),
             Text(
-              _copied ? 'Copied' : 'Copy',
+              _copied ? I18n.copied : I18n.copy,
               style: AppTypography.uiControl.copyWith(
                 color: color,
                 fontSize: 11.5,

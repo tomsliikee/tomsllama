@@ -9,6 +9,7 @@ import '../../../core/models/workspace_context_file.dart';
 import '../../../core/services/context_manager.dart';
 import '../../../core/services/database_service.dart';
 import '../../../core/services/pdf_service.dart';
+import '../../../core/services/localization_service.dart';
 
 enum SidebarMode { chats, workspaces }
 
@@ -85,7 +86,7 @@ class WorkspaceListNotifier extends StateNotifier<WorkspaceListState> {
     final now = DateTime.now();
     final ws = Workspace(
       id: '${now.millisecondsSinceEpoch}_ws',
-      name: name.trim().isEmpty ? 'Neuer Workspace' : name.trim(),
+      name: name.trim().isEmpty ? I18n.newWorkspaceTitle : name.trim(),
       prompt: prompt,
       createdAt: now,
       updatedAt: now,

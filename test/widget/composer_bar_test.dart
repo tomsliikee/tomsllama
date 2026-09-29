@@ -125,7 +125,7 @@ void main() {
     // Verify chips render properly
     expect(find.text('llama3:latest'), findsOneWidget);
     expect(find.text(I18n.modeOptimal), findsOneWidget);
-    expect(find.text('Attach'), findsOneWidget);
+    expect(find.text(I18n.attach), findsOneWidget);
     expect(find.byIcon(Icons.attach_file_rounded), findsOneWidget);
 
     // Open mode menu

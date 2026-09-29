@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/ollama_model.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/services/localization_service.dart';
 
 class ModelSelectorDropdown extends StatelessWidget {
   final List<OllamaModel> models;
@@ -53,7 +54,7 @@ class ModelSelectorDropdown extends StatelessWidget {
               DropdownMenuItem<String>(
                 value: null,
                 enabled: false,
-                child: Text('No models installed', style: TextStyle(color: appColors.textSecondary)),
+                child: Text(I18n.noModelsInstalled, style: TextStyle(color: appColors.textSecondary)),
               ),
             ...models.map((model) {
               return DropdownMenuItem<String>(
@@ -69,7 +70,7 @@ class ModelSelectorDropdown extends StatelessWidget {
                   Icon(Icons.tune, size: 14.0, color: appColors.textSecondary),
                   const SizedBox(width: 8.0),
                   Text(
-                    'Manage Models...',
+                    I18n.manageModels,
                     style: AppTypography.uiControl.copyWith(
                       color: appColors.textSecondary,
                       fontSize: 12.0,

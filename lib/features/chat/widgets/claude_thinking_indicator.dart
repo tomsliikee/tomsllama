@@ -65,13 +65,9 @@ class _ClaudeThinkingIndicatorState extends State<ClaudeThinkingIndicator> {
             : '~$tokens';
 
         if (remainingSeconds > 0) {
-          activeText = I18n.isGerman
-              ? 'CPU evaluiert Kontext ($tokenStr Tokens • noch ~$remainingStr)...'
-              : 'CPU evaluating context ($tokenStr tokens • ~$remainingStr left)...';
+          activeText = I18n.cpuEvaluatingContext(tokenStr, remainingStr);
         } else {
-          activeText = I18n.isGerman
-              ? 'CPU finalisiert Kontext ($tokenStr Tokens, ${_elapsedSeconds}s)...'
-              : 'CPU finalizing context ($tokenStr tokens, ${_elapsedSeconds}s)...';
+          activeText = I18n.cpuFinalizingContext(tokenStr, _elapsedSeconds);
         }
       } else if (base.endsWith('...')) {
         final prefix = base.substring(0, base.length - 3);

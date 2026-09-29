@@ -155,7 +155,11 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                           ),
                           const SizedBox(height: 2.0),
                           Text(
-                            'Workspace Hub • ${widget.chats.length} Chats • ${widget.files.length} Kontext-Dateien (~${activeWsState.totalEstimatedTokens} Tokens)',
+                            I18n.workspaceHubSubtitle(
+                              widget.chats.length,
+                              widget.files.length,
+                              activeWsState.totalEstimatedTokens,
+                            ),
                             style: AppTypography.uiControl.copyWith(
                               color: appColors.textSecondary,
                               fontSize: 12.0,
@@ -238,7 +242,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                     border: Border.all(color: appColors.borderSubtle, width: 1.0),
                   ),
                   child: Text(
-                    'Speichern',
+                    I18n.save,
                     style: AppTypography.uiControl.copyWith(
                       color: appColors.textPrimary,
                       fontSize: 11.5,
@@ -260,7 +264,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
               height: 1.45,
             ),
             decoration: InputDecoration(
-              hintText: 'Gib hier dauerhafte Instruktionen, Coding-Regeln oder Rollenanweisungen für diesen Workspace ein (z. B. "Du bist Principal Engineer, antworte präzise auf Deutsch")...',
+              hintText: I18n.workspacePromptHint,
               hintStyle: AppTypography.body.copyWith(color: appColors.textSecondary.withValues(alpha: 0.6), fontSize: 13.0),
               border: InputBorder.none,
               isDense: true,
@@ -333,7 +337,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                               Icon(Icons.add, size: 13.0, color: appColors.textPrimary),
                               const SizedBox(width: 4.0),
                               Text(
-                                'Datei hinzufügen',
+                                I18n.addFile,
                                 style: AppTypography.uiControl.copyWith(
                                   color: appColors.textPrimary,
                                   fontSize: 11.5,
@@ -348,7 +352,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                   ),
                   const SizedBox(height: 6.0),
                   Text(
-                    'Dateien hier ablegen. Sie werden in jedem Chat dieses Workspaces automatisch geladen.',
+                    I18n.workspaceDropFilesHint,
                     style: AppTypography.uiControl.copyWith(
                       color: appColors.textSecondary,
                       fontSize: 11.5,
@@ -362,7 +366,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                       padding: const EdgeInsets.symmetric(vertical: 14.0),
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        'Noch keine Dateien hinterlegt. Ziehe Dokumente oder Code hierher.',
+                        I18n.workspaceNoFilesHint,
                         style: AppTypography.uiControl.copyWith(
                           color: appColors.textSecondary.withValues(alpha: 0.7),
                           fontSize: 12.0,
@@ -558,7 +562,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
               ),
             ),
             Text(
-              '${widget.chats.length} Konversationen',
+              I18n.workspaceConversationsCount(widget.chats.length),
               style: AppTypography.uiControl.copyWith(
                 color: appColors.textSecondary,
                 fontSize: 11.5,
@@ -578,7 +582,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
               border: Border.all(color: appColors.borderSubtle, width: 1.0),
             ),
             child: Text(
-              'Noch keine Chats in diesem Workspace vorhanden.\nStelle oben eine Frage, um die erste Unterhaltung zu starten.',
+              I18n.workspaceNoChatsHint,
               textAlign: TextAlign.center,
               style: AppTypography.uiControl.copyWith(
                 color: appColors.textSecondary,
@@ -627,7 +631,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                             ),
                             const SizedBox(height: 2.0),
                             Text(
-                              '$dateStr • Rolle: ${chat.persona}',
+                              '$dateStr • ${I18n.roleLabel}${chat.persona}',
                               style: AppTypography.uiControl.copyWith(
                                 color: appColors.textSecondary,
                                 fontSize: 11.0,

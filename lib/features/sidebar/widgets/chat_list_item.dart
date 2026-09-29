@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/conversation.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/services/localization_service.dart';
 
 /// Tactile wobble / jiggle animation wrapper for items during drag-and-drop
 class WobbleItem extends StatefulWidget {
@@ -157,7 +158,7 @@ class _ChatListItemState extends State<ChatListItem> {
                   // Title text
                   Expanded(
                     child: Text(
-                      widget.conversation.title.isEmpty ? 'Neuer Chat' : widget.conversation.title,
+                      widget.conversation.title.isEmpty ? I18n.newChatTitle : widget.conversation.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppTypography.uiControl.copyWith(
