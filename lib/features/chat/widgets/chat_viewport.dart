@@ -81,22 +81,26 @@ class _ChatViewportState extends State<ChatViewport> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const TomsllamaLogo(size: 38.0, animate: true),
-            const SizedBox(height: 16.0),
+            const TomsllamaLogo(
+              size: 46.0,
+              animate: true,
+              enableIdleAnimation: true,
+            ),
+            const SizedBox(height: 20.0),
             Text(
               'tomsllama',
               style: AppTypography.headline.copyWith(
                 color: appColors.textPrimary,
-                fontSize: 22.0,
-                letterSpacing: -0.3,
+                fontSize: 26.4,
+                letterSpacing: -0.4,
               ),
             ),
-            const SizedBox(height: 6.0),
+            const SizedBox(height: 8.0),
             Text(
               I18n.subtitle,
               style: AppTypography.uiControl.copyWith(
                 color: appColors.textSecondary,
-                fontSize: 13.0,
+                fontSize: 15.6,
                 fontWeight: FontWeight.w400,
               ),
             ),

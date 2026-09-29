@@ -69,20 +69,55 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify header and primary role are immediately in view
-    expect(find.text('ROLLE & HAUPTPROMPT'), findsOneWidget);
-    expect(find.text('Senior Coder'), findsOneWidget);
+    expect(find.text(I18n.roleAndPrompt), findsOneWidget);
+    expect(find.text(I18n.isGerman ? 'Senior-Entwickler' : 'Senior Coder'), findsOneWidget);
 
     // Scroll down to reveal the additional section
     await tester.drag(find.byType(ListView), const Offset(0, -120));
     await tester.pumpAndSettle();
 
-    expect(find.text('ZUSÄTZLICHE'), findsOneWidget);
-    expect(find.text('Deep Analyst'), findsOneWidget);
+    expect(find.text(I18n.isGerman ? 'ZUSÄTZLICHE' : 'ADDITIONAL'), findsOneWidget);
+    expect(find.text(I18n.isGerman ? 'Tiefenanalytiker' : 'Deep Analyst'), findsOneWidget);
 
     // Tap a role
-    await tester.tap(find.text('Deep Analyst'));
+    await tester.tap(find.text(I18n.isGerman ? 'Tiefenanalytiker' : 'Deep Analyst'));
     await tester.pumpAndSettle();
 
-    expect(selectedPersona, 'Deep Analyst');
+    expect(selectedPersona, I18n.isGerman ? 'Tiefenanalytiker' : 'Deep Analyst');
+  });
+
+  testWidgets('ComposerBar renders Model and Temperature chips and handles narrow layout without overflow', (WidgetTester tester) async {
+    String? selectedModel;
+    double? selectedTemp;
+
+    await tester.binding.setSurfaceSize(const Size(400, 600));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: claudeTheme,
+        home: Scaffold(
+          body: ComposerBar(
+            isGenerating: false,
+            activePersonaName: 'Standard',
+            selectedModel: 'llama3:latest',
+            temperature: 0.7,
+            onModelChanged: (m) => selectedModel = m,
+            onTemperatureChanged: (t) => selectedTemp = t,
+            onSend: (_) {},
+            onStop: () {},
+            onPersonaTap: () {},
+          ),
+        ),
+      ),
+    );
+
+    // Verify chips render properly
+    expect(find.text('llama3:latest'), findsOneWidget);
+    expect(find.text('0.7'), findsOneWidget);
+    expect(find.byIcon(Icons.tune), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_upward_rounded), findsOneWidget);
+
+    // Reset surface size
+    await tester.binding.setSurfaceSize(null);
   });
 }
