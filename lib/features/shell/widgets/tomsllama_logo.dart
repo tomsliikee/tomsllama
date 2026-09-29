@@ -197,9 +197,7 @@ class TomsllamaLogo extends StatefulWidget {
   State<TomsllamaLogo> createState() => _TomsllamaLogoState();
 }
 
-class _TomsllamaLogoState extends State<TomsllamaLogo> with TickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _scaleAnimation;
+class _TomsllamaLogoState extends State<TomsllamaLogo> with SingleTickerProviderStateMixin {
   AnimationController? _idleController;
   Timer? _idleTimer;
   int _idleAnimIndex = 0;
@@ -207,23 +205,6 @@ class _TomsllamaLogoState extends State<TomsllamaLogo> with TickerProviderStateM
   @override
   void initState() {
     super.initState();
-
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 3500),
-    );
-
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.06).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeInOut,
-      ),
-    );
-
-    if (widget.animate) {
-      _controller.repeat(reverse: true);
-    }
-
     if (widget.enableIdleAnimation) {
       _initIdleAnimation();
     }
@@ -264,7 +245,6 @@ class _TomsllamaLogoState extends State<TomsllamaLogo> with TickerProviderStateM
   void dispose() {
     _idleTimer?.cancel();
     _idleController?.dispose();
-    _controller.dispose();
     super.dispose();
   }
 
@@ -272,15 +252,11 @@ class _TomsllamaLogoState extends State<TomsllamaLogo> with TickerProviderStateM
   Widget build(BuildContext context) {
     final appColors = context.appColors;
 
-    return AnimatedBuilder(
-      animation: Listenable.merge([
-        _scaleAnimation,
-        if (_idleController != null) _idleController!,
-      ]),
-      builder: (context, _) {
-        return Transform.scale(
-          scale: widget.animate ? _scaleAnimation.value : 1.0,
-          child: SizedBox(
+    if (widget.enableIdleAnimation && _idleController != null) {
+      return AnimatedBuilder(
+        animation: _idleController!,
+        builder: (context, _) {
+          return SizedBox(
             width: widget.size,
             height: widget.size,
             child: CustomPaint(
@@ -290,9 +266,21 @@ class _TomsllamaLogoState extends State<TomsllamaLogo> with TickerProviderStateM
                 idleAnimType: _idleAnimIndex,
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      );
+    }
+
+    return SizedBox(
+      width: widget.size,
+      height: widget.size,
+      child: CustomPaint(
+        painter: TomsllamaLogoPainter(
+          accentColor: appColors.accent,
+          idleProgress: 0.0,
+          idleAnimType: 0,
+        ),
+      ),
     );
   }
 }
