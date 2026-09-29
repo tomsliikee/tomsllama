@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'package:path/path.dart' as p;
 import 'package:syncfusion_flutter_pdf/pdf.dart';
+import '../services/context_manager.dart';
 
 class PdfExtractionResult {
   final String text;
@@ -19,8 +21,8 @@ class PdfService {
   /// Extracts text from a PDF file with page caps and character caps for local CPU performance.
   static Future<PdfExtractionResult?> extractText(
     String filePath, {
-    int maxPages = 20,
-    int maxCharacters = 30000,
+    int maxPages = 5,
+    int maxCharacters = 6000,
   }) async {
     final file = File(filePath);
     if (!await file.exists()) return null;
@@ -38,8 +40,18 @@ class PdfService {
         );
       }
 
+      final info = document.documentInformation;
+      final String? title = info.title.trim().isNotEmpty ? info.title.trim() : null;
+      final String? author = info.author.trim().isNotEmpty ? info.author.trim() : null;
+      final String? subject = info.subject.trim().isNotEmpty ? info.subject.trim() : null;
+
       final extractor = PdfTextExtractor(document);
       final StringBuffer buffer = StringBuffer();
+
+      buffer.writeln(
+          '[PDF Overview: ${p.basename(filePath)} | Pages: $totalPages${title != null ? ' | Title: $title' : ''}${author != null ? ' | Author: $author' : ''}${subject != null ? ' | Subject: $subject' : ''}]');
+      buffer.writeln();
+
       int pagesRead = 0;
       bool isTruncated = false;
 
@@ -47,9 +59,7 @@ class PdfService {
       for (int i = 0; i < pagesToRead; i++) {
         final String pageText = extractor.extractText(startPageIndex: i, endPageIndex: i).trim();
         if (pageText.isNotEmpty) {
-          if (totalPages > 1) {
-            buffer.writeln('--- Page ${i + 1} ---');
-          }
+          buffer.writeln('--- Page ${i + 1} ---');
           buffer.writeln(pageText);
           buffer.writeln();
         }
@@ -66,7 +76,7 @@ class PdfService {
       }
 
       final extractedText = buffer.toString().trim();
-      final hasTextLayer = extractedText.isNotEmpty;
+      final hasTextLayer = extractedText.length > 50;
 
       String finalText = extractedText;
       if (!hasTextLayer) {
@@ -74,7 +84,7 @@ class PdfService {
             '[Hinweis: Diese PDF enthält keine lesbare Textebene (gescanntes Dokument/Foto ohne OCR). Es konnte kein Text extrahiert werden.]';
       } else if (isTruncated) {
         finalText +=
-            '\n\n// ... [Truncated: Extracted first $pagesRead of $totalPages pages for CPU performance] ...';
+            '\n\n// ... [Truncated: Extracted first $pagesRead of $totalPages pages (~${ContextManager.estimateTokens(extractedText)} tokens) for CPU performance] ...';
       }
 
       return PdfExtractionResult(

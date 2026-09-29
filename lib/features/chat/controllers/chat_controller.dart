@@ -356,7 +356,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     final totalTokens = ContextManager.estimateTokens(promptPayload);
     int dynamicNumCtx = 4096;
     if (totalTokens > 1500) {
-      dynamicNumCtx = (totalTokens + 2500).clamp(4096, 12288);
+      dynamicNumCtx = (totalTokens + 1500).clamp(4096, 6144);
     }
 
     // Prepare message payload with sliding window bounded by dynamicNumCtx

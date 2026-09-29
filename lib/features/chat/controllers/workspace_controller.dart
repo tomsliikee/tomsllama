@@ -151,6 +151,7 @@ class WorkspaceNotifier extends StateNotifier<WorkspaceState> {
       setActiveConversation(conversationId);
     }
 
+    state = state.copyWith(isLoading: true);
     final List<AttachedFile> newFiles = [...state.attachedFiles];
     final existingPaths = newFiles.map((f) => f.path).toSet();
 
@@ -166,7 +167,7 @@ class WorkspaceNotifier extends StateNotifier<WorkspaceState> {
       }
     }
 
-    state = state.copyWith(attachedFiles: newFiles);
+    state = state.copyWith(attachedFiles: newFiles, isLoading: false);
     _syncActiveState();
   }
 
