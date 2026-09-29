@@ -117,6 +117,22 @@ void main() {
     expect(find.byIcon(Icons.tune), findsOneWidget);
     expect(find.byIcon(Icons.arrow_upward_rounded), findsOneWidget);
 
+    // Open temperature popover
+    await tester.tap(find.text('0.7'));
+    await tester.pumpAndSettle();
+
+    // Verify presets are displayed
+    expect(find.text(I18n.tempCode), findsOneWidget);
+    expect(find.text(I18n.tempNormal), findsOneWidget);
+    expect(find.text(I18n.tempCreative), findsOneWidget);
+
+    // Tap Code preset
+    await tester.tap(find.text(I18n.tempCode));
+    await tester.pumpAndSettle();
+    expect(selectedTemp, 0.2);
+
+    expect(selectedModel, isNull);
+
     // Reset surface size
     await tester.binding.setSurfaceSize(null);
   });

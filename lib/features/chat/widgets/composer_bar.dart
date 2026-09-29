@@ -793,7 +793,7 @@ class _TemperatureChipState extends State<_TemperatureChip> {
                   child: Material(
                     color: Colors.transparent,
                     child: Container(
-                      width: 240.0,
+                      width: 275.0,
                       padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
                       decoration: BoxDecoration(
                         color: appColors.surface,
@@ -863,34 +863,41 @@ class _TemperatureChipState extends State<_TemperatureChip> {
                           ),
                           const SizedBox(height: 6.0),
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              _buildTempPreset(
-                                label: I18n.tempCode,
-                                isSelected: (currentTemp - 0.2).abs() < 0.01,
-                                onTap: () {
-                                  setPopoverState(() => currentTemp = 0.2);
-                                  widget.onTemperatureChanged?.call(0.2);
-                                },
-                                appColors: appColors,
+                              Expanded(
+                                child: _buildTempPreset(
+                                  label: I18n.tempCode,
+                                  isSelected: (currentTemp - 0.2).abs() < 0.01,
+                                  onTap: () {
+                                    setPopoverState(() => currentTemp = 0.2);
+                                    widget.onTemperatureChanged?.call(0.2);
+                                  },
+                                  appColors: appColors,
+                                ),
                               ),
-                              _buildTempPreset(
-                                label: I18n.tempNormal,
-                                isSelected: (currentTemp - 0.7).abs() < 0.01,
-                                onTap: () {
-                                  setPopoverState(() => currentTemp = 0.7);
-                                  widget.onTemperatureChanged?.call(0.7);
-                                },
-                                appColors: appColors,
+                              const SizedBox(width: 5.0),
+                              Expanded(
+                                child: _buildTempPreset(
+                                  label: I18n.tempNormal,
+                                  isSelected: (currentTemp - 0.7).abs() < 0.01,
+                                  onTap: () {
+                                    setPopoverState(() => currentTemp = 0.7);
+                                    widget.onTemperatureChanged?.call(0.7);
+                                  },
+                                  appColors: appColors,
+                                ),
                               ),
-                              _buildTempPreset(
-                                label: I18n.tempCreative,
-                                isSelected: (currentTemp - 1.0).abs() < 0.01,
-                                onTap: () {
-                                  setPopoverState(() => currentTemp = 1.0);
-                                  widget.onTemperatureChanged?.call(1.0);
-                                },
-                                appColors: appColors,
+                              const SizedBox(width: 5.0),
+                              Expanded(
+                                child: _buildTempPreset(
+                                  label: I18n.tempCreative,
+                                  isSelected: (currentTemp - 1.0).abs() < 0.01,
+                                  onTap: () {
+                                    setPopoverState(() => currentTemp = 1.0);
+                                    widget.onTemperatureChanged?.call(1.0);
+                                  },
+                                  appColors: appColors,
+                                ),
                               ),
                             ],
                           ),
@@ -917,7 +924,7 @@ class _TemperatureChipState extends State<_TemperatureChip> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(10.0),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7.0, vertical: 3.5),
+        padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 3.5),
         decoration: BoxDecoration(
           color: isSelected ? appColors.accentSubtle : Colors.transparent,
           borderRadius: BorderRadius.circular(10.0),
@@ -925,12 +932,16 @@ class _TemperatureChipState extends State<_TemperatureChip> {
             color: isSelected ? appColors.accent.withValues(alpha: 0.3) : appColors.borderSubtle,
           ),
         ),
-        child: Text(
-          label,
-          style: AppTypography.uiControl.copyWith(
-            color: isSelected ? appColors.accent : appColors.textSecondary,
-            fontSize: 10.5,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+        child: Center(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.uiControl.copyWith(
+              color: isSelected ? appColors.accent : appColors.textSecondary,
+              fontSize: 10.0,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+            ),
           ),
         ),
       ),

@@ -31,14 +31,14 @@ class TomsllamaLogoPainter extends CustomPainter {
     if (t > 0.0) {
       if (idleAnimType == 0) {
         // Type 0: Curious head tilt with ear twitch and cute winking blush
-        rotation = math.sin(t * math.pi) * 0.12;
-        earTwitch = math.sin(t * math.pi * 5) * 1.8 * scaleX;
-        isWinking = t >= 0.25 && t <= 0.75;
+        rotation = math.sin(t * math.pi) * 0.18;
+        earTwitch = math.sin(t * math.pi * 6) * 2.4 * scaleX;
+        isWinking = t >= 0.20 && t <= 0.80;
       } else {
         // Type 1: Gentle curious bounce with ear flutter and happy squint
-        yOffset = -((math.sin(t * math.pi * 2)).abs()) * 2.2 * scaleY;
-        earTwitch = math.sin(t * math.pi * 4) * 1.4 * scaleX;
-        isSquinting = t >= 0.20 && t <= 0.80;
+        yOffset = -((math.sin(t * math.pi * 2)).abs()) * 3.2 * scaleY;
+        earTwitch = math.sin(t * math.pi * 5) * 1.8 * scaleX;
+        isSquinting = t >= 0.18 && t <= 0.82;
       }
     }
 
@@ -197,19 +197,16 @@ class TomsllamaLogo extends StatefulWidget {
   State<TomsllamaLogo> createState() => _TomsllamaLogoState();
 }
 
-class _TomsllamaLogoState extends State<TomsllamaLogo>
-    with TickerProviderStateMixin, WidgetsBindingObserver {
+class _TomsllamaLogoState extends State<TomsllamaLogo> with TickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _scaleAnimation;
   AnimationController? _idleController;
   Timer? _idleTimer;
   int _idleAnimIndex = 0;
-  bool _isAppResumed = true;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
 
     _controller = AnimationController(
       vsync: this,
@@ -238,18 +235,14 @@ class _TomsllamaLogoState extends State<TomsllamaLogo>
       duration: const Duration(milliseconds: 1700),
     );
 
+    // Runs every 10 seconds unconditionally (even when window is unfocused)
     _idleTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      if (!mounted || !_isAppResumed) return;
+      if (!mounted) return;
       setState(() {
         _idleAnimIndex = (_idleAnimIndex + 1) % 2;
       });
       _idleController?.forward(from: 0.0);
     });
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    _isAppResumed = (state == AppLifecycleState.resumed);
   }
 
   @override
@@ -269,7 +262,6 @@ class _TomsllamaLogoState extends State<TomsllamaLogo>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _idleTimer?.cancel();
     _idleController?.dispose();
     _controller.dispose();
@@ -285,23 +277,22 @@ class _TomsllamaLogoState extends State<TomsllamaLogo>
         _scaleAnimation,
         if (_idleController != null) _idleController!,
       ]),
-      builder: (context, child) {
+      builder: (context, _) {
         return Transform.scale(
           scale: widget.animate ? _scaleAnimation.value : 1.0,
-          child: child,
+          child: SizedBox(
+            width: widget.size,
+            height: widget.size,
+            child: CustomPaint(
+              painter: TomsllamaLogoPainter(
+                accentColor: appColors.accent,
+                idleProgress: _idleController?.value ?? 0.0,
+                idleAnimType: _idleAnimIndex,
+              ),
+            ),
+          ),
         );
       },
-      child: SizedBox(
-        width: widget.size,
-        height: widget.size,
-        child: CustomPaint(
-          painter: TomsllamaLogoPainter(
-            accentColor: appColors.accent,
-            idleProgress: _idleController?.value ?? 0.0,
-            idleAnimType: _idleAnimIndex,
-          ),
-        ),
-      ),
     );
   }
 }
