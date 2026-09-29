@@ -213,7 +213,7 @@ class MessageBubble extends StatelessWidget {
           ),
         
         // Claude-style unified thinking & status indicator when waiting for answer
-        if (isThinking && message.content.isEmpty)
+        if (isThinking && message.content.isEmpty && (message.thinkContent == null || message.thinkContent!.isEmpty))
           ClaudeThinkingIndicator(statusMessage: statusMessage),
 
         // Main Answer Markdown

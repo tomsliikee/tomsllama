@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
@@ -235,9 +236,20 @@ class ActiveWorkspaceNotifier extends StateNotifier<ActiveWorkspaceState> {
       tokens = ContextManager.estimateTokens(content);
     } else {
       try {
-        final text = await file.readAsString();
-        content = text;
-        tokens = ContextManager.estimateTokens(text);
+        final lines = await file
+            .openRead()
+            .transform(const Utf8Decoder(allowMalformed: true))
+            .transform(const LineSplitter())
+            .toList();
+
+        const maxLines = 400;
+        if (lines.length > maxLines) {
+          final truncated = lines.take(maxLines).join('\n');
+          content = '$truncated\n\n// ... [Truncated: Showing first $maxLines lines of $name (${lines.length} total lines) for CPU performance] ...';
+        } else {
+          content = lines.join('\n');
+        }
+        tokens = ContextManager.estimateTokens(content);
       } catch (_) {
         return false;
       }

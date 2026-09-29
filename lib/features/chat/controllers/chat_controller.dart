@@ -12,8 +12,6 @@ import 'package:path/path.dart' as p;
 import '../../../../core/utils/think_parser.dart';
 import '../../../../core/models/attached_file.dart';
 import '../../../../core/models/workspace_info.dart';
-import '../../../../core/services/repo_map_service.dart';
-import '../../../../core/services/workspace_search_service.dart';
 import '../../sidebar/controllers/sidebar_controller.dart';
 import '../../chat/controllers/workspace_controller.dart';
 import '../../../../core/models/workspace.dart';
@@ -143,6 +141,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     );
 
     _ref.read(workspaceProvider.notifier).setActiveConversation(newConv.id);
+    _ref.read(workspaceProvider.notifier).clearWorkspace();
 
     // 4. Set state to the new conversation
     state = state.copyWith(
@@ -153,6 +152,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
       errorMessage: null,
       clearCanvas: true,
       isCanvasOpen: false,
+      clearStatusMessage: true,
     );
   }
 
@@ -187,16 +187,63 @@ class ChatNotifier extends StateNotifier<ChatState> {
   }) async {
     final wsNotifier = _ref.read(workspaceProvider.notifier);
     final wsState = _ref.read(workspaceProvider);
-    final effectiveWorkspace = workspace ?? wsState.workspace;
-    final effectiveFiles = List<AttachedFile>.from(attachedFiles ?? wsState.attachedFiles);
+    final explicitAttached = attachedFiles ?? wsState.attachedFiles;
 
-    // Dynamic File Ingestion & RepoMap from Workspace:
-    String? repoMap;
-    if (effectiveWorkspace != null) {
+    if (text.trim().isEmpty && explicitAttached.isEmpty) return;
+    if (state.isGenerating) return;
+
+    // 1. Ensure active conversation exists
+    String convId = state.conversationId ?? '';
+    bool isFirstMessageInConv = false;
+    final titleSeed = text.trim().isNotEmpty
+        ? text.trim()
+        : (explicitAttached.isNotEmpty ? 'File: ${explicitAttached.first.name}' : 'New Chat');
+
+    if (convId.isEmpty) {
+      final newConv = await _ref.read(sidebarProvider.notifier).createNewConversation(
+        title: titleSeed.length > 25 ? '${titleSeed.substring(0, 25)}...' : titleSeed,
+        persona: state.activePersonaName,
+      );
+      convId = newConv.id;
+      isFirstMessageInConv = true;
+      wsNotifier.setActiveConversation(convId);
+      state = state.copyWith(conversationId: convId);
+    } else {
+      // Check if this conversation had 0 user messages so far
+      if (!state.messages.any((m) => m.role == 'user')) {
+        isFirstMessageInConv = true;
+        final previewTitle = titleSeed.length > 25 ? '${titleSeed.substring(0, 25)}...' : titleSeed;
+        await _ref.read(sidebarProvider.notifier).updateTitle(convId, previewTitle);
+      }
+    }
+
+    // 2. Check if conversation belongs to a Claude-style Workspace with active context
+    final allConvs = await _db.getConversations();
+    final currentConv = allConvs.where((c) => c.id == convId).firstOrNull;
+    final workspaceId = currentConv?.workspaceId;
+    final isWorkspaceContextEnabled = currentConv?.isWorkspaceContextEnabled ?? true;
+
+    Workspace? claudeWorkspace;
+    List<WorkspaceContextFile> claudeWorkspaceFiles = const [];
+
+    if (workspaceId != null && isWorkspaceContextEnabled) {
+      claudeWorkspace = await _db.getWorkspace(workspaceId);
+      if (claudeWorkspace != null) {
+        claudeWorkspaceFiles = await _db.getWorkspaceFiles(workspaceId);
+      }
+    }
+
+    // 3. Resolve attached files & legacy workspace
+    // Legacy disk workspace is ONLY used if NOT in a Claude Workspace
+    final effectiveWorkspace = claudeWorkspace == null ? (workspace ?? wsState.workspace) : null;
+    final effectiveFiles = List<AttachedFile>.from(explicitAttached);
+
+    // Dynamic File Ingestion: ONLY if user explicitly opened a disk workspace AND mentions files
+    if (effectiveWorkspace != null && effectiveWorkspace.files.isNotEmpty) {
       final textLower = text.toLowerCase();
       final alreadyAttachedPaths = effectiveFiles.map((f) => f.path).toSet();
 
-      // A. Explicit mentions in user query
+      // Only attach if user explicitly mentions the file name in their query
       for (final relPath in effectiveWorkspace.files) {
         final filename = p.basename(relPath).toLowerCase();
         final relPathLower = relPath.toLowerCase();
@@ -210,6 +257,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
             final autoFile = await AttachedFile.fromPath(
               fullPath,
               workspaceRoot: effectiveWorkspace.path,
+              maxLines: 250,
             );
             if (autoFile != null) {
               effectiveFiles.add(autoFile);
@@ -217,93 +265,6 @@ class ChatNotifier extends StateNotifier<ChatState> {
             }
           }
         }
-      }
-
-      // B. Smart Heuristic Retrieval (Keyword & Symbol Matcher)
-      final relevantMatches = await WorkspaceSearchService.searchRelevantFiles(
-        text,
-        effectiveWorkspace.path,
-        effectiveWorkspace.files,
-        excludedPaths: alreadyAttachedPaths,
-        maxResults: 2,
-      );
-      for (final match in relevantMatches) {
-        if (!alreadyAttachedPaths.contains(match.path)) {
-          effectiveFiles.add(match);
-          alreadyAttachedPaths.add(match.path);
-        }
-      }
-
-      // C. If effectiveFiles is STILL empty, auto-load at most 1 primary overview file
-      if (effectiveFiles.isEmpty) {
-        const overviewCandidates = {'readme.md', 'pubspec.yaml', 'package.json', 'cargo.toml', 'pyproject.toml'};
-        for (final relPath in effectiveWorkspace.files) {
-          final base = p.basename(relPath).toLowerCase();
-          if (overviewCandidates.contains(base)) {
-            final fullPath = p.join(effectiveWorkspace.path, relPath);
-            final overviewFile = await AttachedFile.fromPath(
-              fullPath,
-              workspaceRoot: effectiveWorkspace.path,
-              maxLines: 250,
-            );
-            if (overviewFile != null) {
-              effectiveFiles.add(overviewFile);
-              break;
-            }
-          }
-        }
-      }
-
-      // D. Generate Compact Repo Map (AST / Symbol Outline)
-      if (effectiveWorkspace.files.isNotEmpty) {
-        repoMap = await RepoMapService.generateRepoMap(
-          effectiveWorkspace.path,
-          effectiveWorkspace.files,
-          maxSymbols: 60,
-        );
-      }
-    }
-
-    if (text.trim().isEmpty && effectiveFiles.isEmpty) return;
-    if (state.isGenerating) return;
-
-    // 1. Ensure active conversation exists
-    String convId = state.conversationId ?? '';
-    bool isFirstMessageInConv = false;
-    final titleSeed = text.trim().isNotEmpty
-        ? text.trim()
-        : (effectiveFiles.isNotEmpty ? 'File: ${effectiveFiles.first.name}' : 'New Chat');
-
-    if (convId.isEmpty) {
-      final newConv = await _ref.read(sidebarProvider.notifier).createNewConversation(
-        title: titleSeed.length > 25 ? '${titleSeed.substring(0, 25)}...' : titleSeed,
-        persona: state.activePersonaName,
-      );
-      convId = newConv.id;
-      isFirstMessageInConv = true;
-      state = state.copyWith(conversationId: convId);
-    } else {
-      // Check if this conversation had 0 user messages so far
-      if (!state.messages.any((m) => m.role == 'user')) {
-        isFirstMessageInConv = true;
-        final previewTitle = titleSeed.length > 25 ? '${titleSeed.substring(0, 25)}...' : titleSeed;
-        await _ref.read(sidebarProvider.notifier).updateTitle(convId, previewTitle);
-      }
-    }
-
-    // Check if conversation belongs to a Claude-style Workspace with active context
-    final allConvs = await _db.getConversations();
-    final currentConv = allConvs.where((c) => c.id == convId).firstOrNull;
-    final workspaceId = currentConv?.workspaceId;
-    final isWorkspaceContextEnabled = currentConv?.isWorkspaceContextEnabled ?? true;
-
-    Workspace? claudeWorkspace;
-    List<WorkspaceContextFile> claudeWorkspaceFiles = const [];
-
-    if (workspaceId != null && isWorkspaceContextEnabled) {
-      claudeWorkspace = await _db.getWorkspace(workspaceId);
-      if (claudeWorkspace != null) {
-        claudeWorkspaceFiles = await _db.getWorkspaceFiles(workspaceId);
       }
     }
 
@@ -335,10 +296,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
       if (systemPromptBuffer.isNotEmpty) systemPromptBuffer.writeln('\n');
       systemPromptBuffer.writeln('### Project Workspace: `${effectiveWorkspace.name}`${effectiveWorkspace.gitBranch != null ? ' (Git Branch: `${effectiveWorkspace.gitBranch}`)' : ''}');
       if (effectiveWorkspace.files.isNotEmpty) {
-        systemPromptBuffer.writeln('#### Project File Structure:\n```\n${effectiveWorkspace.formattedFileTree}\n```');
-      }
-      if (repoMap != null && repoMap.isNotEmpty) {
-        systemPromptBuffer.writeln('#### Workspace Code Outline (Key Symbols):\n$repoMap');
+        final previewFiles = effectiveWorkspace.files.take(20).join(', ');
+        systemPromptBuffer.writeln('#### Project Files Preview: $previewFiles');
       }
       systemPromptBuffer.writeln('#### Workspace Tools:\nYou have access to the `read_file(file_path)` function. When you need to read or verify code from any file in the workspace, call `read_file` with the relative file path.');
     }
@@ -362,7 +321,6 @@ class ChatNotifier extends StateNotifier<ChatState> {
     // 2. Add user message with clean display content (only explicitly attached pills encoded)
     final now = DateTime.now();
     String displayContent = text.trim();
-    final explicitAttached = attachedFiles ?? wsState.attachedFiles;
     if (explicitAttached.isNotEmpty) {
       final fileNames = explicitAttached.map((f) => f.name).join(', ');
       displayContent = '[attached:$fileNames]${displayContent.isNotEmpty ? '\n$displayContent' : ''}';
@@ -400,7 +358,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     String? statusMsg;
     if (hasPdf) {
       statusMsg = isGerman ? 'Lese PDF-Dokument ein...' : 'Analyzing PDF document...';
-    } else if (totalTokens > 300) {
+    } else if (totalTokens > 600) {
       statusMsg = isGerman
           ? 'CPU evaluiert Kontext (~$totalTokens Tokens)...'
           : 'CPU evaluating prompt context (~$totalTokens tokens)...';
@@ -499,7 +457,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
           (chunk) {
             if (!mounted) return;
             if (state.statusMessage != null) {
-              state = state.copyWith(statusMessage: null);
+              state = state.copyWith(clearStatusMessage: true);
             }
             rawStreamBuffer.write(chunk);
             tokenEstimate++;
@@ -639,7 +597,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   void stopGeneration() {
     _activeStream?.cancel();
-    state = state.copyWith(isGenerating: false);
+    state = state.copyWith(isGenerating: false, clearStatusMessage: true);
   }
 
   @override
