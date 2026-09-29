@@ -1778,7 +1778,9 @@ class _SendButtonState extends State<_SendButton> with SingleTickerProviderState
                             painter: _CuteLlamaPainter(
                               cuteProgress: cuteProgress,
                               animType: _animIndex,
-                              llamaColor: Colors.white,
+                              llamaColor: isDark ? Colors.white : const Color(0xFF181816),
+                              isDark: isDark,
+                              sparkleColor: isDark ? Colors.white : appColors.accent,
                             ),
                           ),
                         ),
@@ -1829,11 +1831,15 @@ class _CuteLlamaPainter extends CustomPainter {
   final double cuteProgress; // 0.0 to 1.0
   final int animType;        // 0, 1, 2
   final Color llamaColor;
+  final bool isDark;
+  final Color sparkleColor;
 
   _CuteLlamaPainter({
     required this.cuteProgress,
     required this.animType,
     required this.llamaColor,
+    this.isDark = true,
+    this.sparkleColor = Colors.white,
   });
 
   @override
@@ -1900,7 +1906,7 @@ class _CuteLlamaPainter extends CustomPainter {
 
     // Body fill
     final fillPaint = Paint()
-      ..color = llamaColor.withValues(alpha: 0.22)
+      ..color = llamaColor.withValues(alpha: isDark ? 0.22 : 0.12)
       ..style = PaintingStyle.fill;
     canvas.drawPath(bodyPath, fillPaint);
 
@@ -1945,11 +1951,11 @@ class _CuteLlamaPainter extends CustomPainter {
 
     // Sparkle 1: Top-left gold star
     final Offset s1 = Offset(center.dx - 18.0, center.dy - 8.0);
-    _draw4PointStar(canvas, s1, 3.8 * sparkleScale, Colors.amberAccent);
+    _draw4PointStar(canvas, s1, 3.8 * sparkleScale, isDark ? Colors.amberAccent : Colors.amber.shade700);
 
     // Sparkle 2: Top-right bright star
     final Offset s2 = Offset(center.dx + 16.0, center.dy - 10.0);
-    _draw4PointStar(canvas, s2, 3.2 * sparkleScale, Colors.white);
+    _draw4PointStar(canvas, s2, 3.2 * sparkleScale, sparkleColor);
   }
 
   void _drawHeart(Canvas canvas, Offset center) {
@@ -1978,10 +1984,10 @@ class _CuteLlamaPainter extends CustomPainter {
 
     // A tiny star floating from the snout
     final Offset p1 = Offset(center.dx + 17.0, center.dy - 6.0);
-    _draw4PointStar(canvas, p1, 3.0 * starScale, Colors.amberAccent);
+    _draw4PointStar(canvas, p1, 3.0 * starScale, isDark ? Colors.amberAccent : Colors.amber.shade700);
 
     final Offset p2 = Offset(center.dx - 16.0, center.dy - 5.0);
-    _draw4PointStar(canvas, p2, 2.4 * starScale, Colors.white);
+    _draw4PointStar(canvas, p2, 2.4 * starScale, sparkleColor);
   }
 
   void _draw4PointStar(Canvas canvas, Offset pos, double size, Color color) {
@@ -2003,6 +2009,8 @@ class _CuteLlamaPainter extends CustomPainter {
   bool shouldRepaint(covariant _CuteLlamaPainter oldDelegate) {
     return oldDelegate.cuteProgress != cuteProgress ||
         oldDelegate.animType != animType ||
-        oldDelegate.llamaColor != llamaColor;
+        oldDelegate.llamaColor != llamaColor ||
+        oldDelegate.isDark != isDark ||
+        oldDelegate.sparkleColor != sparkleColor;
   }
 }
