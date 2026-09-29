@@ -235,6 +235,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                                           messages: chatState.messages,
                                           isGenerating: chatState.isGenerating,
                                           modelName: selectedModel,
+                                          statusMessage: chatState.statusMessage,
                                           onRegenerate: () {
                                             // Regenerate last user turn safely
                                             final lastUser = chatState.messages.where((m) => m.role == 'user').lastOrNull;

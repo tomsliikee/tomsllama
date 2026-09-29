@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/models/message.dart';
 import '../../../../core/models/persona.dart';
@@ -11,6 +12,8 @@ import 'package:path/path.dart' as p;
 import '../../../../core/utils/think_parser.dart';
 import '../../../../core/models/attached_file.dart';
 import '../../../../core/models/workspace_info.dart';
+import '../../../../core/services/repo_map_service.dart';
+import '../../../../core/services/workspace_search_service.dart';
 import '../../sidebar/controllers/sidebar_controller.dart';
 import 'workspace_controller.dart';
 
@@ -24,6 +27,7 @@ class ChatState {
   final String? canvasContent;
   final String? canvasLanguage;
   final String? errorMessage;
+  final String? statusMessage;
 
   const ChatState({
     this.conversationId,
@@ -35,6 +39,7 @@ class ChatState {
     this.canvasContent,
     this.canvasLanguage,
     this.errorMessage,
+    this.statusMessage,
   });
 
   ChatState copyWith({
@@ -47,7 +52,9 @@ class ChatState {
     String? canvasContent,
     String? canvasLanguage,
     String? errorMessage,
+    String? statusMessage,
     bool clearCanvas = false,
+    bool clearStatusMessage = false,
   }) {
     return ChatState(
       conversationId: conversationId ?? this.conversationId,
@@ -59,6 +66,7 @@ class ChatState {
       canvasContent: clearCanvas ? null : (canvasContent ?? this.canvasContent),
       canvasLanguage: clearCanvas ? null : (canvasLanguage ?? this.canvasLanguage),
       errorMessage: errorMessage,
+      statusMessage: clearStatusMessage ? null : (statusMessage ?? this.statusMessage),
     );
   }
 }
@@ -175,11 +183,13 @@ class ChatNotifier extends StateNotifier<ChatState> {
     final effectiveWorkspace = workspace ?? wsState.workspace;
     final effectiveFiles = List<AttachedFile>.from(attachedFiles ?? wsState.attachedFiles);
 
-    // Dynamic File Ingestion from Workspace:
+    // Dynamic File Ingestion & RepoMap from Workspace:
+    String? repoMap;
     if (effectiveWorkspace != null) {
       final textLower = text.toLowerCase();
       final alreadyAttachedPaths = effectiveFiles.map((f) => f.path).toSet();
 
+      // A. Explicit mentions in user query
       for (final relPath in effectiveWorkspace.files) {
         final filename = p.basename(relPath).toLowerCase();
         final relPathLower = relPath.toLowerCase();
@@ -202,8 +212,22 @@ class ChatNotifier extends StateNotifier<ChatState> {
         }
       }
 
-      // If effectiveFiles is STILL empty, auto-load at most 1 primary overview file
-      // (e.g. README.md, pubspec.yaml) so the model understands the project without CPU freeze
+      // B. Smart Heuristic Retrieval (Keyword & Symbol Matcher)
+      final relevantMatches = await WorkspaceSearchService.searchRelevantFiles(
+        text,
+        effectiveWorkspace.path,
+        effectiveWorkspace.files,
+        excludedPaths: alreadyAttachedPaths,
+        maxResults: 2,
+      );
+      for (final match in relevantMatches) {
+        if (!alreadyAttachedPaths.contains(match.path)) {
+          effectiveFiles.add(match);
+          alreadyAttachedPaths.add(match.path);
+        }
+      }
+
+      // C. If effectiveFiles is STILL empty, auto-load at most 1 primary overview file
       if (effectiveFiles.isEmpty) {
         const overviewCandidates = {'readme.md', 'pubspec.yaml', 'package.json', 'cargo.toml', 'pyproject.toml'};
         for (final relPath in effectiveWorkspace.files) {
@@ -222,6 +246,15 @@ class ChatNotifier extends StateNotifier<ChatState> {
           }
         }
       }
+
+      // D. Generate Compact Repo Map (AST / Symbol Outline)
+      if (effectiveWorkspace.files.isNotEmpty) {
+        repoMap = await RepoMapService.generateRepoMap(
+          effectiveWorkspace.path,
+          effectiveWorkspace.files,
+          maxSymbols: 60,
+        );
+      }
     }
 
     if (text.trim().isEmpty && effectiveFiles.isEmpty) return;
@@ -235,6 +268,9 @@ class ChatNotifier extends StateNotifier<ChatState> {
         buffer.writeln('### Project Workspace: `${effectiveWorkspace.name}`${effectiveWorkspace.gitBranch != null ? ' (Git Branch: `${effectiveWorkspace.gitBranch}`)' : ''}');
         if (effectiveWorkspace.files.isNotEmpty) {
           buffer.writeln('#### Project File Structure:\n```\n${effectiveWorkspace.formattedFileTree}\n```');
+        }
+        if (repoMap != null && repoMap.isNotEmpty) {
+          buffer.writeln('#### Workspace Code Outline (Key Symbols):\n$repoMap');
         }
       }
       if (effectiveFiles.isNotEmpty) {
@@ -343,95 +379,164 @@ class ChatNotifier extends StateNotifier<ChatState> {
       wsNotifier.clearAttachments();
     }
 
-    try {
-      final stream = _ollama.streamChat(
-        modelName,
-        promptMessages,
-        temperature: state.temperature,
-        numCtx: dynamicNumCtx,
-      );
-      _activeStream = stream.listen(
-        (chunk) {
-          if (!mounted) return;
-          rawStreamBuffer.write(chunk);
-          tokenEstimate++;
+    final List<Map<String, dynamic>> tools = effectiveWorkspace != null
+        ? [
+            {
+              'type': 'function',
+              'function': {
+                'name': 'read_file',
+                'description': 'Reads the content of a specific file in the workspace to inspect code details',
+                'parameters': {
+                  'type': 'object',
+                  'properties': {
+                    'file_path': {
+                      'type': 'string',
+                      'description': 'Relative path of the file in the workspace (e.g. lib/core/services/git_service.dart)',
+                    },
+                  },
+                  'required': ['file_path'],
+                },
+              },
+            },
+          ]
+        : [];
 
-          final parsed = ThinkParser.parse(rawStreamBuffer.toString());
-
-          final currentAssistant = Message(
-            id: assistantMsgId,
-            conversationId: convId,
-            role: 'assistant',
-            content: parsed.content,
-            thinkContent: parsed.thinkContent.isNotEmpty ? parsed.thinkContent : null,
-            createdAt: now,
-            tokens: tokenEstimate,
-            generationDurationMs: stopwatch.elapsedMilliseconds,
-          );
-
-          final msgs = List<Message>.from(state.messages);
-          if (msgs.isNotEmpty && msgs.last.id == assistantMsgId) {
-            msgs[msgs.length - 1] = currentAssistant;
-          }
-          state = state.copyWith(messages: msgs);
-        },
-        onError: (err) {
-          if (!mounted) return;
-          final msgs = state.messages.where((m) => m.id != assistantMsgId).toList();
-          state = state.copyWith(
-            messages: msgs,
-            isGenerating: false,
-            errorMessage: 'Stream error: $err',
-          );
-        },
-        onDone: () async {
-          stopwatch.stop();
-          if (!mounted) return;
-
-          if (rawStreamBuffer.isEmpty) {
-            final msgs = state.messages.where((m) => m.id != assistantMsgId).toList();
-            state = state.copyWith(messages: msgs, isGenerating: false);
-            return;
-          }
-
-          final parsed = ThinkParser.parse(rawStreamBuffer.toString());
-
-          final finalizedMsg = Message(
-            id: assistantMsgId,
-            conversationId: convId,
-            role: 'assistant',
-            content: parsed.content,
-            thinkContent: parsed.thinkContent.isNotEmpty ? parsed.thinkContent : null,
-            createdAt: now,
-            tokens: tokenEstimate,
-            generationDurationMs: stopwatch.elapsedMilliseconds,
-          );
-
-          await _db.saveMessage(finalizedMsg);
-          if (!mounted) return;
-
-          state = state.copyWith(isGenerating: false);
-
-          // Auto-summarize title in background if it was the first user message
-          if (isFirstMessageInConv) {
-            try {
-              final title = await TitleService.generateTitle([userMsg], modelOverride: modelName);
-              if (title.isNotEmpty && title != 'New Chat' && title != 'Neuer Chat') {
-                await _ref.read(sidebarProvider.notifier).updateTitle(convId, title);
+    Future<void> runStream({bool withTools = true}) async {
+      try {
+        final stream = _ollama.streamChat(
+          modelName,
+          promptMessages,
+          temperature: state.temperature,
+          numCtx: dynamicNumCtx,
+          tools: withTools && tools.isNotEmpty ? tools : null,
+          onToolCall: (toolCall) async {
+            final fn = toolCall['function'];
+            if (fn != null && fn['name'] == 'read_file') {
+              final args = fn['arguments'];
+              String? reqPath;
+              if (args is Map) {
+                reqPath = args['file_path'] as String?;
+              } else if (args is String) {
+                try {
+                  final decoded = jsonDecode(args);
+                  reqPath = decoded['file_path'] as String?;
+                } catch (_) {}
               }
-            } catch (_) {
-              // Title generation is non-critical background task
+              if (reqPath != null && effectiveWorkspace != null) {
+                state = state.copyWith(statusMessage: 'Inspecting $reqPath...');
+                final fullPath = p.join(effectiveWorkspace.path, reqPath);
+                final file = await AttachedFile.fromPath(
+                  fullPath,
+                  workspaceRoot: effectiveWorkspace.path,
+                  maxLines: 350,
+                );
+                if (file != null && mounted) {
+                  promptMessages.add({
+                    'role': 'tool',
+                    'content': 'File: $reqPath\n```\n${file.content}\n```',
+                  });
+                  state = state.copyWith(clearStatusMessage: true);
+                }
+              }
             }
-          }
-        },
-        cancelOnError: true,
-      );
-    } catch (e) {
-      state = state.copyWith(
-        isGenerating: false,
-        errorMessage: 'Failed to start stream: $e',
-      );
+          },
+        );
+
+        _activeStream = stream.listen(
+          (chunk) {
+            if (!mounted) return;
+            rawStreamBuffer.write(chunk);
+            tokenEstimate++;
+
+            final parsed = ThinkParser.parse(rawStreamBuffer.toString());
+
+            final currentAssistant = Message(
+              id: assistantMsgId,
+              conversationId: convId,
+              role: 'assistant',
+              content: parsed.content,
+              thinkContent: parsed.thinkContent.isNotEmpty ? parsed.thinkContent : null,
+              createdAt: now,
+              tokens: tokenEstimate,
+              generationDurationMs: stopwatch.elapsedMilliseconds,
+            );
+
+            final msgs = List<Message>.from(state.messages);
+            if (msgs.isNotEmpty && msgs.last.id == assistantMsgId) {
+              msgs[msgs.length - 1] = currentAssistant;
+            }
+            state = state.copyWith(messages: msgs);
+          },
+          onError: (err) {
+            if (!mounted) return;
+            if (withTools && err.toString().contains('400')) {
+              runStream(withTools: false);
+              return;
+            }
+            final msgs = state.messages.where((m) => m.id != assistantMsgId).toList();
+            state = state.copyWith(
+              messages: msgs,
+              isGenerating: false,
+              clearStatusMessage: true,
+              errorMessage: 'Stream error: $err',
+            );
+          },
+          onDone: () async {
+            stopwatch.stop();
+            if (!mounted) return;
+
+            if (rawStreamBuffer.isEmpty) {
+              final msgs = state.messages.where((m) => m.id != assistantMsgId).toList();
+              state = state.copyWith(messages: msgs, isGenerating: false, clearStatusMessage: true);
+              return;
+            }
+
+            final parsed = ThinkParser.parse(rawStreamBuffer.toString());
+
+            final finalizedMsg = Message(
+              id: assistantMsgId,
+              conversationId: convId,
+              role: 'assistant',
+              content: parsed.content,
+              thinkContent: parsed.thinkContent.isNotEmpty ? parsed.thinkContent : null,
+              createdAt: now,
+              tokens: tokenEstimate,
+              generationDurationMs: stopwatch.elapsedMilliseconds,
+            );
+
+            await _db.saveMessage(finalizedMsg);
+            if (!mounted) return;
+
+            state = state.copyWith(isGenerating: false, clearStatusMessage: true);
+
+            // Auto-summarize title in background if it was the first user message
+            if (isFirstMessageInConv) {
+              try {
+                final title = await TitleService.generateTitle([userMsg], modelOverride: modelName);
+                if (title.isNotEmpty && title != 'New Chat' && title != 'Neuer Chat') {
+                  await _ref.read(sidebarProvider.notifier).updateTitle(convId, title);
+                }
+              } catch (_) {
+                // Title generation is non-critical background task
+              }
+            }
+          },
+          cancelOnError: true,
+        );
+      } catch (err) {
+        if (withTools && err.toString().contains('400')) {
+          runStream(withTools: false);
+        } else {
+          state = state.copyWith(
+            isGenerating: false,
+            clearStatusMessage: true,
+            errorMessage: 'Ollama error: $err',
+          );
+        }
+      }
     }
+
+    await runStream(withTools: true);
   }
 
   void stopGeneration() {
