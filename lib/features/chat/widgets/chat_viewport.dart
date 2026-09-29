@@ -136,10 +136,10 @@ class _ChatViewportState extends State<ChatViewport> {
               Padding(
                 padding: const EdgeInsets.only(left: 64.0, top: 4.0, bottom: 8.0),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
                   decoration: BoxDecoration(
-                    color: appColors.hover,
-                    borderRadius: BorderRadius.circular(12.0),
+                    color: appColors.background,
+                    borderRadius: BorderRadius.circular(16.0),
                     border: Border.all(color: appColors.borderSubtle, width: 1.0),
                   ),
                   child: Row(

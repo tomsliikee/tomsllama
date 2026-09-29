@@ -307,33 +307,50 @@ class ChatNotifier extends StateNotifier<ChatState> {
       }
     }
 
-    // Build the complete prompt payload
-    String promptPayload = text.trim();
-    if (effectiveFiles.isNotEmpty || effectiveWorkspace != null || claudeWorkspaceFiles.isNotEmpty) {
-      final buffer = StringBuffer();
-      if (claudeWorkspace != null && claudeWorkspaceFiles.isNotEmpty) {
-        buffer.writeln('### Workspace Knowledge Base: `${claudeWorkspace.name}`');
+    // Build static system prompt (Persona + Claude Workspace Instructions + Knowledge Base Files + Project Repo Structure)
+    // This prefix is identical across turns, allowing Ollama's KV-cache to hit on turn 2+ (reducing prompt eval from 45s to 1s).
+    final matchedPersona = Persona.defaultPersonas.firstWhere(
+      (p) => p.name.toLowerCase() == state.activePersonaName.toLowerCase(),
+      orElse: () => Persona.defaultPersonas.first,
+    );
+    final systemPromptBuffer = StringBuffer();
+    if (matchedPersona.systemPrompt.trim().isNotEmpty) {
+      systemPromptBuffer.writeln(matchedPersona.systemPrompt.trim());
+    }
+    if (claudeWorkspace != null) {
+      if (claudeWorkspace.prompt.trim().isNotEmpty) {
+        if (systemPromptBuffer.isNotEmpty) systemPromptBuffer.writeln('\n');
+        systemPromptBuffer.writeln('### Workspace Instructions & Rules (${claudeWorkspace.name}):\n${claudeWorkspace.prompt.trim()}');
+      }
+      if (claudeWorkspaceFiles.isNotEmpty) {
+        if (systemPromptBuffer.isNotEmpty) systemPromptBuffer.writeln('\n');
+        systemPromptBuffer.writeln('### Workspace Knowledge Base (${claudeWorkspace.name}):');
         for (final file in claudeWorkspaceFiles) {
-          buffer.writeln(file.toMarkdownBlock());
-          buffer.writeln();
+          systemPromptBuffer.writeln(file.toMarkdownBlock());
+          systemPromptBuffer.writeln();
         }
       }
-      if (effectiveWorkspace != null) {
-        buffer.writeln('### Project Workspace: `${effectiveWorkspace.name}`${effectiveWorkspace.gitBranch != null ? ' (Git Branch: `${effectiveWorkspace.gitBranch}`)' : ''}');
-        if (effectiveWorkspace.files.isNotEmpty) {
-          buffer.writeln('#### Project File Structure:\n```\n${effectiveWorkspace.formattedFileTree}\n```');
-        }
-        if (repoMap != null && repoMap.isNotEmpty) {
-          buffer.writeln('#### Workspace Code Outline (Key Symbols):\n$repoMap');
-        }
-        buffer.writeln('#### Workspace Tools:\nYou have access to the `read_file(file_path)` function. When you need to read or verify code from any file in the workspace, call `read_file` with the relative file path.');
+    }
+    if (effectiveWorkspace != null) {
+      if (systemPromptBuffer.isNotEmpty) systemPromptBuffer.writeln('\n');
+      systemPromptBuffer.writeln('### Project Workspace: `${effectiveWorkspace.name}`${effectiveWorkspace.gitBranch != null ? ' (Git Branch: `${effectiveWorkspace.gitBranch}`)' : ''}');
+      if (effectiveWorkspace.files.isNotEmpty) {
+        systemPromptBuffer.writeln('#### Project File Structure:\n```\n${effectiveWorkspace.formattedFileTree}\n```');
       }
-      if (effectiveFiles.isNotEmpty) {
-        buffer.writeln('#### Attached Context Files (Full Content):');
-        for (final file in effectiveFiles) {
-          buffer.writeln(file.toMarkdownBlock());
-          buffer.writeln();
-        }
+      if (repoMap != null && repoMap.isNotEmpty) {
+        systemPromptBuffer.writeln('#### Workspace Code Outline (Key Symbols):\n$repoMap');
+      }
+      systemPromptBuffer.writeln('#### Workspace Tools:\nYou have access to the `read_file(file_path)` function. When you need to read or verify code from any file in the workspace, call `read_file` with the relative file path.');
+    }
+
+    // Build the user turn prompt payload (standalone attached files + query)
+    String promptPayload = text.trim();
+    if (effectiveFiles.isNotEmpty) {
+      final buffer = StringBuffer();
+      buffer.writeln('#### Attached Context Files:');
+      for (final file in effectiveFiles) {
+        buffer.writeln(file.toMarkdownBlock());
+        buffer.writeln();
       }
       if (text.trim().isNotEmpty) {
         buffer.writeln('#### User Request:');
@@ -373,15 +390,29 @@ class ChatNotifier extends StateNotifier<ChatState> {
     final updatedMessages = [...state.messages, userMsg, assistantMsg];
     final hasPdf = effectiveFiles.any((f) => f.extension == '.pdf') ||
         claudeWorkspaceFiles.any((f) => f.extension == '.pdf');
+
+    // 4. Discrete token budget and num_ctx tiers to prevent Ollama runner reload on CPU
+    final systemTokens = ContextManager.estimateTokens(systemPromptBuffer.toString());
+    final userTokens = ContextManager.estimateTokens(promptPayload);
+    final totalTokens = systemTokens + userTokens;
+
+    final isGerman = I18n.isGerman;
+    String? statusMsg;
+    if (hasPdf) {
+      statusMsg = isGerman ? 'Lese PDF-Dokument ein...' : 'Analyzing PDF document...';
+    } else if (totalTokens > 300) {
+      statusMsg = isGerman
+          ? 'CPU evaluiert Kontext (~$totalTokens Tokens)...'
+          : 'CPU evaluating prompt context (~$totalTokens tokens)...';
+    }
+
     state = state.copyWith(
       messages: updatedMessages,
       isGenerating: true,
       errorMessage: null,
-      statusMessage: hasPdf ? (I18n.isGerman ? 'Lese PDF-Dokument ein...' : 'Analyzing PDF document...') : null,
+      statusMessage: statusMsg,
     );
 
-    // 4. Discrete token budget and num_ctx tiers to prevent Ollama runner reload on CPU
-    final totalTokens = ContextManager.estimateTokens(promptPayload);
     final int? ollamaNumCtx;
     final int slidingWindowBudget;
     if (totalTokens > 3600) {
@@ -410,19 +441,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
       return <String, dynamic>{'role': m.role, 'content': m.content};
     }).toList();
 
-    // Add system persona and workspace prompt if defined
-    final matchedPersona = Persona.defaultPersonas.firstWhere(
-      (p) => p.name.toLowerCase() == state.activePersonaName.toLowerCase(),
-      orElse: () => Persona.defaultPersonas.first,
-    );
-    final systemPromptBuffer = StringBuffer();
-    if (matchedPersona.systemPrompt.trim().isNotEmpty) {
-      systemPromptBuffer.writeln(matchedPersona.systemPrompt.trim());
-    }
-    if (claudeWorkspace != null && claudeWorkspace.prompt.trim().isNotEmpty) {
-      if (systemPromptBuffer.isNotEmpty) systemPromptBuffer.writeln('\n');
-      systemPromptBuffer.writeln('### Workspace Instructions & Rules (${claudeWorkspace.name}):\n${claudeWorkspace.prompt.trim()}');
-    }
+    // Insert system prompt at index 0
     if (systemPromptBuffer.isNotEmpty) {
       promptMessages.insert(0, {
         'role': 'system',
