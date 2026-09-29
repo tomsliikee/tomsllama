@@ -34,17 +34,35 @@ class WorkspaceState {
 class WorkspaceNotifier extends StateNotifier<WorkspaceState> {
   WorkspaceNotifier() : super(const WorkspaceState());
 
-  Future<void> setWorkspace(String directoryPath) async {
+  Future<void> setWorkspace(String directoryPath, {bool autoAttachFiles = true}) async {
     state = state.copyWith(isLoading: true);
     final ws = await WorkspaceService.loadWorkspace(directoryPath);
+    final List<AttachedFile> newAttached = [...state.attachedFiles];
+
+    if (autoAttachFiles) {
+      final dirFiles = await WorkspaceService.loadDirectoryFiles(
+        directoryPath,
+        workspaceRoot: directoryPath,
+        maxFiles: 25,
+      );
+      final existingPaths = newAttached.map((f) => f.path).toSet();
+      for (final f in dirFiles) {
+        if (!existingPaths.contains(f.path)) {
+          newAttached.add(f);
+          existingPaths.add(f.path);
+        }
+      }
+    }
+
     state = state.copyWith(
       workspace: ws,
+      attachedFiles: newAttached,
       isLoading: false,
     );
   }
 
   void clearWorkspace() {
-    state = state.copyWith(clearWorkspace: true);
+    state = state.copyWith(clearWorkspace: true, attachedFiles: const []);
   }
 
   Future<void> attachFiles(List<String> paths) async {

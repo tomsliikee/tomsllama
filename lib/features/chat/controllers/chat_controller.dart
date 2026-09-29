@@ -7,9 +7,11 @@ import '../../../../core/services/ollama_service.dart';
 import '../../../../core/services/title_service.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/context_manager.dart';
+import 'package:path/path.dart' as p;
 import '../../../../core/utils/think_parser.dart';
 import '../../../../core/models/attached_file.dart';
 import '../../../../core/models/workspace_info.dart';
+import '../../../../core/services/workspace_service.dart';
 import '../../sidebar/controllers/sidebar_controller.dart';
 import 'workspace_controller.dart';
 
@@ -172,7 +174,46 @@ class ChatNotifier extends StateNotifier<ChatState> {
     final wsNotifier = _ref.read(workspaceProvider.notifier);
     final wsState = _ref.read(workspaceProvider);
     final effectiveWorkspace = workspace ?? wsState.workspace;
-    final effectiveFiles = attachedFiles ?? wsState.attachedFiles;
+    final effectiveFiles = List<AttachedFile>.from(attachedFiles ?? wsState.attachedFiles);
+
+    // Dynamic File Ingestion from Workspace:
+    if (effectiveWorkspace != null) {
+      final textLower = text.toLowerCase();
+      final alreadyAttachedPaths = effectiveFiles.map((f) => f.path).toSet();
+
+      for (final relPath in effectiveWorkspace.files) {
+        final filename = p.basename(relPath).toLowerCase();
+        final relPathLower = relPath.toLowerCase();
+
+        final isMentioned = textLower.contains(relPathLower) ||
+            (filename.length > 3 && textLower.contains(filename));
+
+        if (isMentioned) {
+          final fullPath = p.join(effectiveWorkspace.path, relPath);
+          if (!alreadyAttachedPaths.contains(fullPath)) {
+            final autoFile = await AttachedFile.fromPath(
+              fullPath,
+              workspaceRoot: effectiveWorkspace.path,
+            );
+            if (autoFile != null) {
+              effectiveFiles.add(autoFile);
+              alreadyAttachedPaths.add(fullPath);
+            }
+          }
+        }
+      }
+
+      // If effectiveFiles is STILL empty, auto-load top files from workspace
+      // so the model has actual code to inspect rather than just names
+      if (effectiveFiles.isEmpty) {
+        final topFiles = await WorkspaceService.loadDirectoryFiles(
+          effectiveWorkspace.path,
+          workspaceRoot: effectiveWorkspace.path,
+          maxFiles: 15,
+        );
+        effectiveFiles.addAll(topFiles);
+      }
+    }
 
     if (text.trim().isEmpty && effectiveFiles.isEmpty) return;
     if (state.isGenerating) return;
@@ -188,7 +229,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
         }
       }
       if (effectiveFiles.isNotEmpty) {
-        buffer.writeln('#### Attached Context Files:');
+        buffer.writeln('#### Attached Context Files (Full Content):');
         for (final file in effectiveFiles) {
           buffer.writeln(file.toMarkdownBlock());
           buffer.writeln();
@@ -285,8 +326,10 @@ class ChatNotifier extends StateNotifier<ChatState> {
     final stopwatch = Stopwatch()..start();
     int tokenEstimate = 0;
 
-    // Clear attachments once sent
-    wsNotifier.clearAttachments();
+    // Only clear standalone attachments if no workspace is active (preserve workspace files across conversation)
+    if (wsState.workspace == null) {
+      wsNotifier.clearAttachments();
+    }
 
     try {
       final stream = _ollama.streamChat(
