@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import '../models/workspace_info.dart';
+import '../models/attached_file.dart';
 import 'git_service.dart';
 
 class WorkspaceService {
@@ -134,5 +135,46 @@ class WorkspaceService {
     } catch (_) {
       // Ignore unreadable subdirectories
     }
+  }
+
+  /// Traverses [directoryPath] and reads code/text files into AttachedFile models
+  /// up to [maxFiles] or [maxTotalTokens] limit to prevent prompt overflows.
+  static Future<List<AttachedFile>> loadDirectoryFiles(
+    String directoryPath, {
+    String? workspaceRoot,
+    int maxFiles = 25,
+    int maxTotalTokens = 8000,
+  }) async {
+    final dir = Directory(directoryPath);
+    if (!await dir.exists()) return [];
+
+    final List<String> filePaths = [];
+    await _scanDirectory(
+      dir,
+      directoryPath,
+      filePaths,
+      maxFiles: maxFiles * 2,
+    );
+
+    final List<AttachedFile> attached = [];
+    int totalTokens = 0;
+
+    for (final relPath in filePaths) {
+      if (attached.length >= maxFiles) break;
+      final fullPath = p.join(directoryPath, relPath);
+      final file = await AttachedFile.fromPath(
+        fullPath,
+        workspaceRoot: workspaceRoot ?? directoryPath,
+      );
+      if (file != null) {
+        if (totalTokens + file.estimatedTokens > maxTotalTokens && attached.isNotEmpty) {
+          continue;
+        }
+        attached.add(file);
+        totalTokens += file.estimatedTokens;
+      }
+    }
+
+    return attached;
   }
 }

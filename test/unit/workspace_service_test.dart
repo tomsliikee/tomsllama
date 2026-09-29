@@ -45,5 +45,15 @@ void main() {
       expect(attached.toMarkdownBlock(), contains('`pubspec.yaml`'));
       expect(attached.toMarkdownBlock(), contains('```yaml'));
     });
+
+    test('loadDirectoryFiles loads code files from a directory as AttachedFiles with contents', () async {
+      final libDir = '${Directory.current.path}/lib/core/constants';
+      final files = await WorkspaceService.loadDirectoryFiles(libDir);
+
+      expect(files, isNotEmpty);
+      expect(files.any((f) => f.name.endsWith('.dart')), isTrue);
+      expect(files.first.content, isNotEmpty);
+      expect(files.first.estimatedTokens, greaterThan(0));
+    });
   });
 }

@@ -66,6 +66,30 @@ class WorkspaceNotifier extends StateNotifier<WorkspaceState> {
     state = state.copyWith(attachedFiles: newFiles);
   }
 
+  Future<void> attachFolderFiles(String directoryPath, {int maxFiles = 25}) async {
+    state = state.copyWith(isLoading: true);
+    final files = await WorkspaceService.loadDirectoryFiles(
+      directoryPath,
+      workspaceRoot: state.workspace?.path,
+      maxFiles: maxFiles,
+    );
+
+    final List<AttachedFile> newFiles = [...state.attachedFiles];
+    final existingPaths = newFiles.map((f) => f.path).toSet();
+
+    for (final file in files) {
+      if (!existingPaths.contains(file.path)) {
+        newFiles.add(file);
+        existingPaths.add(file.path);
+      }
+    }
+
+    state = state.copyWith(
+      attachedFiles: newFiles,
+      isLoading: false,
+    );
+  }
+
   void removeAttachedFile(String path) {
     final updated = state.attachedFiles.where((f) => f.path != path).toList();
     state = state.copyWith(attachedFiles: updated);

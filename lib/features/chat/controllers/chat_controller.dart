@@ -183,6 +183,9 @@ class ChatNotifier extends StateNotifier<ChatState> {
       final buffer = StringBuffer();
       if (effectiveWorkspace != null) {
         buffer.writeln('### Project Workspace: `${effectiveWorkspace.name}`${effectiveWorkspace.gitBranch != null ? ' (Git Branch: `${effectiveWorkspace.gitBranch}`)' : ''}');
+        if (effectiveWorkspace.files.isNotEmpty) {
+          buffer.writeln('#### Project File Structure:\n```\n${effectiveWorkspace.formattedFileTree}\n```');
+        }
       }
       if (effectiveFiles.isNotEmpty) {
         buffer.writeln('#### Attached Context Files:');

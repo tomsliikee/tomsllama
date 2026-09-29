@@ -236,7 +236,10 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
     }
 
     if (dirPaths.isNotEmpty) {
-      await ref.read(workspaceProvider.notifier).setWorkspace(dirPaths.first);
+      for (final dirPath in dirPaths) {
+        await ref.read(workspaceProvider.notifier).setWorkspace(dirPath);
+        await ref.read(workspaceProvider.notifier).attachFolderFiles(dirPath);
+      }
     }
     if (filePaths.isNotEmpty) {
       await ref.read(workspaceProvider.notifier).attachFiles(filePaths);
@@ -247,6 +250,14 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
     final result = await FilePicker.platform.getDirectoryPath();
     if (result != null && mounted) {
       await ref.read(workspaceProvider.notifier).setWorkspace(result);
+    }
+  }
+
+  Future<void> _pickFolderFiles() async {
+    final result = await FilePicker.platform.getDirectoryPath();
+    if (result != null && mounted) {
+      await ref.read(workspaceProvider.notifier).setWorkspace(result);
+      await ref.read(workspaceProvider.notifier).attachFolderFiles(result);
     }
   }
 
@@ -503,6 +514,7 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
                               ),
                             _AttachChip(
                               onPickWorkspace: _pickWorkspace,
+                              onAttachFolder: _pickFolderFiles,
                               onPickFiles: _pickFiles,
                             ),
                           ],
@@ -664,10 +676,12 @@ class _AttachedFilePill extends StatelessWidget {
 
 class _AttachChip extends StatefulWidget {
   final VoidCallback onPickWorkspace;
+  final VoidCallback onAttachFolder;
   final VoidCallback onPickFiles;
 
   const _AttachChip({
     required this.onPickWorkspace,
+    required this.onAttachFolder,
     required this.onPickFiles,
   });
 
@@ -720,7 +734,7 @@ class _AttachChipState extends State<_AttachChip> {
             ),
           ),
           Positioned(
-            width: 200,
+            width: 210,
             child: CompositedTransformFollower(
               link: _layerLink,
               showWhenUnlinked: false,
@@ -758,7 +772,31 @@ class _AttachChipState extends State<_AttachChip> {
                               Icon(Icons.folder_outlined, size: 14.0, color: appColors.accent),
                               const SizedBox(width: 8.0),
                               Text(
-                                'Open Project Folder...',
+                                'Open Project Workspace...',
+                                style: AppTypography.uiControl.copyWith(
+                                  fontSize: 12.0,
+                                  fontWeight: FontWeight.w500,
+                                  color: appColors.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(height: 1.0, color: appColors.borderSubtle),
+                      InkWell(
+                        onTap: () {
+                          _closeMenu();
+                          widget.onAttachFolder();
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 9.0),
+                          child: Row(
+                            children: [
+                              Icon(Icons.snippet_folder_outlined, size: 14.0, color: appColors.accent),
+                              const SizedBox(width: 8.0),
+                              Text(
+                                'Attach Folder Files...',
                                 style: AppTypography.uiControl.copyWith(
                                   fontSize: 12.0,
                                   fontWeight: FontWeight.w500,

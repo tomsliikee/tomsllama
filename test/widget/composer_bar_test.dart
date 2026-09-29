@@ -152,15 +152,15 @@ void main() {
       overrides: [
         workspaceProvider.overrideWith((ref) {
           final notifier = WorkspaceNotifier();
-          notifier.state = WorkspaceState(
-            workspace: const WorkspaceInfo(
+          notifier.state = const WorkspaceState(
+            workspace: WorkspaceInfo(
               path: '/home/toms/git/tomsllama',
               name: 'tomsllama',
               gitBranch: 'exp',
               isGitRepo: true,
               files: ['lib/main.dart', 'pubspec.yaml'],
             ),
-            attachedFiles: const [
+            attachedFiles: [
               AttachedFile(
                 path: '/home/toms/git/tomsllama/lib/main.dart',
                 name: 'main.dart',

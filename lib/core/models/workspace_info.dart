@@ -13,6 +13,19 @@ class WorkspaceInfo {
     this.files = const [],
   });
 
+  String get formattedFileTree {
+    if (files.isEmpty) return 'No files indexed.';
+    final displayFiles = files.take(80).toList();
+    final buffer = StringBuffer();
+    for (final f in displayFiles) {
+      buffer.writeln('- $f');
+    }
+    if (files.length > 80) {
+      buffer.writeln('... and ${files.length - 80} more files');
+    }
+    return buffer.toString().trim();
+  }
+
   WorkspaceInfo copyWith({
     String? path,
     String? name,
