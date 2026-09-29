@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:desktop_drop/desktop_drop.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
@@ -9,9 +11,11 @@ import '../../../core/services/database_service.dart';
 import '../../sidebar/controllers/sidebar_controller.dart';
 import '../../models/controllers/model_controller.dart';
 import '../../chat/controllers/chat_controller.dart';
+import '../../chat/controllers/workspace_controller.dart';
 import '../../sidebar/widgets/sidebar_view.dart';
 import '../../chat/widgets/chat_viewport.dart';
 import '../../chat/widgets/composer_bar.dart';
+import '../../chat/widgets/file_drop_overlay.dart';
 import '../../chat/widgets/artifact_canvas_view.dart';
 import 'csd_header_bar.dart';
 import '../../models/widgets/quick_switcher_modal.dart';
@@ -28,6 +32,7 @@ class DesktopShell extends ConsumerStatefulWidget {
 class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener {
   bool _isSidebarOpen = true;
   bool _isZenMode = false;
+  bool _isDraggingOverChat = false;
   late final TextEditingController _searchController;
 
   @override
@@ -96,6 +101,32 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
     await ref.read(chatProvider.notifier).startNewChat();
   }
 
+  Future<void> _handleChatDrop(DropDoneDetails details) async {
+    final activeConvId = ref.read(chatProvider).conversationId;
+    final dirPaths = <String>[];
+    final filePaths = <String>[];
+
+    for (final file in details.files) {
+      final path = file.path;
+      final type = FileSystemEntity.typeSync(path);
+      if (type == FileSystemEntityType.directory) {
+        dirPaths.add(path);
+      } else if (type == FileSystemEntityType.file) {
+        filePaths.add(path);
+      }
+    }
+
+    final wsNotifier = ref.read(workspaceProvider.notifier);
+    if (dirPaths.isNotEmpty) {
+      for (final dirPath in dirPaths) {
+        await wsNotifier.setWorkspace(dirPath, conversationId: activeConvId);
+      }
+    }
+    if (filePaths.isNotEmpty) {
+      await wsNotifier.attachFiles(filePaths, conversationId: activeConvId);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final appColors = context.appColors;
@@ -160,6 +191,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                           },
                           onDeleteChat: (id) async {
                             await sidebarNotifier.deleteConversation(id);
+                            ref.read(workspaceProvider.notifier).removeConversation(id);
                             if (chatState.conversationId == id) {
                               final remaining = ref.read(sidebarProvider).conversations;
                               if (remaining.isNotEmpty) {
@@ -203,68 +235,89 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                           ),
                           chatPanel: Padding(
                             padding: EdgeInsets.fromLTRB(4.0, 10.0, chatState.isCanvasOpen ? 5.0 : 10.0, 12.0),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: appColors.surface,
-                                borderRadius: BorderRadius.circular(18.0),
-                                border: Border.all(color: appColors.borderSubtle, width: 1.0),
-                              ),
-                              clipBehavior: Clip.antiAlias,
-                              child: Column(
-                                children: [
-                                  Expanded(
-                                    child: AnimatedSwitcher(
-                                      duration: const Duration(milliseconds: 240),
-                                      switchInCurve: Curves.easeOutCubic,
-                                      switchOutCurve: Curves.easeInCubic,
-                                      transitionBuilder: (child, animation) {
-                                        return SlideTransition(
-                                          position: Tween<Offset>(
-                                            begin: const Offset(0.04, 0.0),
-                                            end: Offset.zero,
-                                          ).animate(animation),
-                                          child: FadeTransition(
-                                            opacity: animation,
-                                            child: child,
+                            child: DropTarget(
+                              onDragEntered: (_) => setState(() => _isDraggingOverChat = true),
+                              onDragExited: (_) => setState(() => _isDraggingOverChat = false),
+                              onDragDone: (details) {
+                                setState(() => _isDraggingOverChat = false);
+                                _handleChatDrop(details);
+                              },
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: appColors.surface,
+                                  borderRadius: BorderRadius.circular(18.0),
+                                  border: Border.all(
+                                    color: _isDraggingOverChat ? appColors.accent : appColors.borderSubtle,
+                                    width: 1.0,
+                                  ),
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: Stack(
+                                  children: [
+                                    Column(
+                                      children: [
+                                        Expanded(
+                                          child: AnimatedSwitcher(
+                                            duration: const Duration(milliseconds: 240),
+                                            switchInCurve: Curves.easeOutCubic,
+                                            switchOutCurve: Curves.easeInCubic,
+                                            transitionBuilder: (child, animation) {
+                                              return SlideTransition(
+                                                position: Tween<Offset>(
+                                                  begin: const Offset(0.04, 0.0),
+                                                  end: Offset.zero,
+                                                ).animate(animation),
+                                                child: FadeTransition(
+                                                  opacity: animation,
+                                                  child: child,
+                                                ),
+                                              );
+                                            },
+                                            child: KeyedSubtree(
+                                              key: ValueKey(chatState.conversationId ?? 'empty_chat'),
+                                              child: ChatViewport(
+                                                messages: chatState.messages,
+                                                isGenerating: chatState.isGenerating,
+                                                modelName: selectedModel,
+                                                statusMessage: chatState.statusMessage,
+                                                onRegenerate: () {
+                                                  // Regenerate last user turn safely
+                                                  final lastUser = chatState.messages.where((m) => m.role == 'user').lastOrNull;
+                                                  if (lastUser != null) {
+                                                    chatNotifier.sendMessage(lastUser.content, selectedModel);
+                                                  }
+                                                },
+                                              ),
+                                            ),
                                           ),
-                                        );
-                                      },
-                                      child: KeyedSubtree(
-                                        key: ValueKey(chatState.conversationId ?? 'empty_chat'),
-                                        child: ChatViewport(
-                                          messages: chatState.messages,
+                                        ),
+                                        ComposerBar(
                                           isGenerating: chatState.isGenerating,
+                                          activePersonaName: chatState.activePersonaName,
                                           modelName: selectedModel,
-                                          statusMessage: chatState.statusMessage,
-                                          onRegenerate: () {
-                                            // Regenerate last user turn safely
-                                            final lastUser = chatState.messages.where((m) => m.role == 'user').lastOrNull;
-                                            if (lastUser != null) {
-                                              chatNotifier.sendMessage(lastUser.content, selectedModel);
-                                            }
+                                          models: modelState.models,
+                                          selectedModel: selectedModel,
+                                          onModelChanged: (m) {
+                                            if (m != null) modelNotifier.selectModel(m);
                                           },
+                                          onManageModels: _openModelManager,
+                                          temperature: chatState.temperature,
+                                          onTemperatureChanged: (temp) => chatNotifier.setTemperature(temp),
+                                          onPersonaTap: () {},
+                                          onSelectPersona: (persona) => chatNotifier.setPersona(persona),
+                                          onSend: (text) => chatNotifier.sendMessage(text, selectedModel),
+                                          onStop: () => chatNotifier.stopGeneration(),
+                                        ),
+                                      ],
+                                    ),
+                                    if (_isDraggingOverChat)
+                                      const Positioned.fill(
+                                        child: IgnorePointer(
+                                          child: FileDropOverlay(),
                                         ),
                                       ),
-                                    ),
-                                  ),
-                                  ComposerBar(
-                                    isGenerating: chatState.isGenerating,
-                                    activePersonaName: chatState.activePersonaName,
-                                    modelName: selectedModel,
-                                    models: modelState.models,
-                                    selectedModel: selectedModel,
-                                    onModelChanged: (m) {
-                                      if (m != null) modelNotifier.selectModel(m);
-                                    },
-                                    onManageModels: _openModelManager,
-                                    temperature: chatState.temperature,
-                                    onTemperatureChanged: (temp) => chatNotifier.setTemperature(temp),
-                                    onPersonaTap: () {},
-                                    onSelectPersona: (persona) => chatNotifier.setPersona(persona),
-                                    onSend: (text) => chatNotifier.sendMessage(text, selectedModel),
-                                    onStop: () => chatNotifier.stopGeneration(),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),

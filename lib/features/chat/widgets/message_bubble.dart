@@ -157,7 +157,15 @@ class MessageBubble extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.insert_drive_file_outlined, size: 12.0, color: appColors.accent),
+                            Icon(
+                              file.toLowerCase().endsWith('.pdf')
+                                  ? Icons.picture_as_pdf_outlined
+                                  : Icons.insert_drive_file_outlined,
+                              size: 12.0,
+                              color: file.toLowerCase().endsWith('.pdf')
+                                  ? Colors.redAccent.shade200
+                                  : appColors.accent,
+                            ),
                             const SizedBox(width: 4.0),
                             Text(
                               file,

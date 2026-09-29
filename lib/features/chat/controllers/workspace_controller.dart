@@ -33,9 +33,49 @@ class WorkspaceState {
 }
 
 class WorkspaceNotifier extends StateNotifier<WorkspaceState> {
+  final Map<String, WorkspaceState> _conversationStates = {};
+  String? _activeConversationId;
+
   WorkspaceNotifier() : super(const WorkspaceState());
 
-  Future<void> setWorkspace(String directoryPath, {bool autoAttachFiles = true}) async {
+  void setActiveConversation(String? conversationId) {
+    if (_activeConversationId == conversationId) return;
+
+    if (_activeConversationId != null) {
+      _conversationStates[_activeConversationId!] = state;
+    }
+
+    _activeConversationId = conversationId;
+    if (conversationId != null && _conversationStates.containsKey(conversationId)) {
+      state = _conversationStates[conversationId]!;
+    } else {
+      state = const WorkspaceState();
+    }
+  }
+
+  void removeConversation(String conversationId) {
+    _conversationStates.remove(conversationId);
+    if (_activeConversationId == conversationId) {
+      _activeConversationId = null;
+      state = const WorkspaceState();
+    }
+  }
+
+  void _syncActiveState() {
+    if (_activeConversationId != null) {
+      _conversationStates[_activeConversationId!] = state;
+    }
+  }
+
+  Future<void> setWorkspace(
+    String directoryPath, {
+    bool autoAttachFiles = true,
+    String? conversationId,
+  }) async {
+    if (conversationId != null && conversationId != _activeConversationId) {
+      setActiveConversation(conversationId);
+    }
+
     state = state.copyWith(isLoading: true);
     final ws = await WorkspaceService.loadWorkspace(directoryPath);
     final List<AttachedFile> newAttached = [...state.attachedFiles];
@@ -95,13 +135,23 @@ class WorkspaceNotifier extends StateNotifier<WorkspaceState> {
       attachedFiles: newAttached,
       isLoading: false,
     );
+    _syncActiveState();
   }
 
   void clearWorkspace() {
     state = state.copyWith(clearWorkspace: true, attachedFiles: const []);
+    _syncActiveState();
   }
 
-  Future<void> attachFiles(List<String> paths) async {
+  Future<void> attachFiles(
+    List<String> paths, {
+    String? conversationId,
+  }) async {
+    if (conversationId != null && conversationId != _activeConversationId) {
+      setActiveConversation(conversationId);
+    }
+
+    state = state.copyWith(isLoading: true);
     final List<AttachedFile> newFiles = [...state.attachedFiles];
     final existingPaths = newFiles.map((f) => f.path).toSet();
 
@@ -117,10 +167,19 @@ class WorkspaceNotifier extends StateNotifier<WorkspaceState> {
       }
     }
 
-    state = state.copyWith(attachedFiles: newFiles);
+    state = state.copyWith(attachedFiles: newFiles, isLoading: false);
+    _syncActiveState();
   }
 
-  Future<void> attachFolderFiles(String directoryPath, {int maxFiles = 6}) async {
+  Future<void> attachFolderFiles(
+    String directoryPath, {
+    int maxFiles = 6,
+    String? conversationId,
+  }) async {
+    if (conversationId != null && conversationId != _activeConversationId) {
+      setActiveConversation(conversationId);
+    }
+
     state = state.copyWith(isLoading: true);
     final files = await WorkspaceService.loadDirectoryFiles(
       directoryPath,
@@ -142,15 +201,18 @@ class WorkspaceNotifier extends StateNotifier<WorkspaceState> {
       attachedFiles: newFiles,
       isLoading: false,
     );
+    _syncActiveState();
   }
 
   void removeAttachedFile(String path) {
     final updated = state.attachedFiles.where((f) => f.path != path).toList();
     state = state.copyWith(attachedFiles: updated);
+    _syncActiveState();
   }
 
   void clearAttachments() {
     state = state.copyWith(attachedFiles: const []);
+    _syncActiveState();
   }
 }
 

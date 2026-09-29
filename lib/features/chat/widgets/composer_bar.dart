@@ -1,8 +1,6 @@
-import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
@@ -56,7 +54,6 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   final GlobalKey<_SendButtonState> _sendButtonKey = GlobalKey<_SendButtonState>();
-  bool _isDragging = false;
   bool _hasText = false;
   bool _isFocused = false;
 
@@ -221,30 +218,6 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
     return KeyEventResult.ignored;
   }
 
-  Future<void> _handleDrop(DropDoneDetails details) async {
-    final dirPaths = <String>[];
-    final filePaths = <String>[];
-
-    for (final file in details.files) {
-      final path = file.path;
-      final type = FileSystemEntity.typeSync(path);
-      if (type == FileSystemEntityType.directory) {
-        dirPaths.add(path);
-      } else if (type == FileSystemEntityType.file) {
-        filePaths.add(path);
-      }
-    }
-
-    if (dirPaths.isNotEmpty) {
-      for (final dirPath in dirPaths) {
-        await ref.read(workspaceProvider.notifier).setWorkspace(dirPath);
-      }
-    }
-    if (filePaths.isNotEmpty) {
-      await ref.read(workspaceProvider.notifier).attachFiles(filePaths);
-    }
-  }
-
   Future<void> _pickWorkspace() async {
     final result = await FilePicker.platform.getDirectoryPath();
     if (result != null && mounted) {
@@ -282,22 +255,15 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
         constraints: const BoxConstraints(maxWidth: 680),
         child: Padding(
           padding: const EdgeInsets.only(left: 24.0, right: 24.0, bottom: 20.0),
-          child: DropTarget(
-            onDragEntered: (_) => setState(() => _isDragging = true),
-            onDragExited: (_) => setState(() => _isDragging = false),
-            onDragDone: (details) {
-              setState(() => _isDragging = false);
-              _handleDrop(details);
-            },
-            child: Container(
-              padding: const EdgeInsets.all(12.0),
-              decoration: BoxDecoration(
-                color: appColors.surface, // #FFFFFF in Claude and Pond
-                borderRadius: BorderRadius.circular(20.0),
-                border: Border.all(
-                  color: (_isFocused || _isDragging) ? appColors.accent : appColors.borderSubtle,
-                  width: 1.0,
-                ),
+          child: Container(
+            padding: const EdgeInsets.all(12.0),
+            decoration: BoxDecoration(
+              color: appColors.surface, // #FFFFFF in Claude and Pond
+              borderRadius: BorderRadius.circular(20.0),
+              border: Border.all(
+                color: _isFocused ? appColors.accent : appColors.borderSubtle,
+                width: 1.0,
+              ),
                 boxShadow: [
                   BoxShadow(
                     color: isDark
@@ -466,9 +432,7 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
                       height: 1.5,
                     ),
                     decoration: InputDecoration(
-                      hintText: _isDragging
-                          ? (I18n.isGerman ? 'Datei oder Ordner hier ablegen...' : 'Drop file or folder here...')
-                          : I18n.composerPlaceholder(widget.modelName ?? "qwen2.5:3b"),
+                      hintText: I18n.composerPlaceholder(widget.modelName ?? "qwen2.5:3b"),
                       hintStyle: AppTypography.uiControl.copyWith(
                         color: appColors.textSecondary.withValues(alpha: 0.6),
                         fontSize: 14.0,
@@ -533,9 +497,8 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
             ),
           ),
         ),
-      ),
-    );
-  }
+      );
+    }
 }
 
 class _WorkspacePill extends StatelessWidget {
@@ -634,7 +597,11 @@ class _AttachedFilePill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.description_outlined, size: 13.0, color: appColors.accent),
+          Icon(
+            file.extension == '.pdf' ? Icons.picture_as_pdf_outlined : Icons.description_outlined,
+            size: 13.0,
+            color: file.extension == '.pdf' ? Colors.redAccent.shade200 : appColors.accent,
+          ),
           const SizedBox(width: 5.0),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 160.0),

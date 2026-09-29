@@ -82,6 +82,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
   Future<void> loadConversation(String conversationId) async {
     _activeStream?.cancel();
 
+    _ref.read(workspaceProvider.notifier).setActiveConversation(conversationId);
+
     // Retrieve the persona saved specifically for this conversation
     final allConvs = await _db.getConversations();
     final conv = allConvs.where((c) => c.id == conversationId).firstOrNull;
@@ -126,6 +128,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     // 2. If current conversation already exists and has 0 messages, just reset persona to Standard!
     if (state.conversationId != null && state.messages.isEmpty) {
       _ref.read(sidebarProvider.notifier).setActiveConversation(state.conversationId!);
+      _ref.read(workspaceProvider.notifier).setActiveConversation(state.conversationId!);
       state = state.copyWith(activePersonaName: 'Standard');
       return;
     }
@@ -136,6 +139,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
       title: title,
       persona: 'Standard',
     );
+
+    _ref.read(workspaceProvider.notifier).setActiveConversation(newConv.id);
 
     // 4. Set state to the new conversation
     state = state.copyWith(
@@ -341,17 +346,19 @@ class ChatNotifier extends StateNotifier<ChatState> {
     );
 
     final updatedMessages = [...state.messages, userMsg, assistantMsg];
+    final hasPdf = effectiveFiles.any((f) => f.extension == '.pdf');
     state = state.copyWith(
       messages: updatedMessages,
       isGenerating: true,
       errorMessage: null,
+      statusMessage: hasPdf ? (I18n.isGerman ? 'Lese PDF-Dokument ein...' : 'Analyzing PDF document...') : null,
     );
 
     // 4. Calculate dynamic token budget and num_ctx for Ollama
     final totalTokens = ContextManager.estimateTokens(promptPayload);
-    int dynamicNumCtx = 4096;
-    if (totalTokens > 1500) {
-      dynamicNumCtx = (totalTokens + 2500).clamp(4096, 12288);
+    int dynamicNumCtx = 2048;
+    if (totalTokens > 800) {
+      dynamicNumCtx = (totalTokens + 1024).clamp(2048, 4096);
     }
 
     // Prepare message payload with sliding window bounded by dynamicNumCtx
@@ -430,6 +437,9 @@ class ChatNotifier extends StateNotifier<ChatState> {
         _activeStream = stream.listen(
           (chunk) {
             if (!mounted) return;
+            if (state.statusMessage != null) {
+              state = state.copyWith(statusMessage: null);
+            }
             rawStreamBuffer.write(chunk);
             tokenEstimate++;
 
