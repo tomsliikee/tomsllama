@@ -273,4 +273,65 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Current draft'), findsOneWidget);
   });
+
+  testWidgets('ComposerBar displays total summary next to pills when multiple files attached', (WidgetTester tester) async {
+    final container = ProviderContainer(
+      overrides: [
+        workspaceProvider.overrideWith((ref) {
+          final notifier = WorkspaceNotifier();
+          notifier.state = const WorkspaceState(
+            attachedFiles: [
+              AttachedFile(
+                path: '/home/toms/git/tomsllama/doc1.md',
+                name: 'doc1.md',
+                relativePath: 'doc1.md',
+                sizeInBytes: 1024,
+                estimatedTokens: 300,
+                content: '# Doc 1',
+                extension: '.md',
+              ),
+              AttachedFile(
+                path: '/home/toms/git/tomsllama/doc2.md',
+                name: 'doc2.md',
+                relativePath: 'doc2.md',
+                sizeInBytes: 2048,
+                estimatedTokens: 600,
+                content: '# Doc 2',
+                extension: '.md',
+              ),
+            ],
+          );
+          return notifier;
+        }),
+      ],
+    );
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: claudeTheme,
+          home: Scaffold(
+            body: ComposerBar(
+              isGenerating: false,
+              activePersonaName: 'Standard',
+              onSend: (_) {},
+              onStop: () {},
+              onPersonaTap: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Verify both files are rendered with their token count but without individual speed/time
+    expect(find.text('doc1.md'), findsOneWidget);
+    expect(find.text('300 tok'), findsOneWidget);
+    expect(find.text('doc2.md'), findsOneWidget);
+    expect(find.text('600 tok'), findsOneWidget);
+
+    // Verify summary pill is rendered next to them with total tokens (300+600=900 tok) and speed
+    expect(find.textContaining('${I18n.totalLabel}: 900 tok'), findsOneWidget);
+    expect(find.textContaining('tok/s'), findsOneWidget);
+  });
 }

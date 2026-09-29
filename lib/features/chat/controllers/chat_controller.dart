@@ -12,6 +12,7 @@ import 'package:path/path.dart' as p;
 import '../../../../core/utils/think_parser.dart';
 import '../../../../core/models/attached_file.dart';
 import '../../../../core/models/workspace_info.dart';
+import '../../../../core/services/hardware_calibration_service.dart';
 import '../../sidebar/controllers/sidebar_controller.dart';
 import '../../chat/controllers/workspace_controller.dart';
 import '../../../../core/models/workspace.dart';
@@ -368,11 +369,17 @@ class ChatNotifier extends StateNotifier<ChatState> {
     final userTokens = ContextManager.estimateTokens(promptPayload);
     final totalTokens = systemTokens + userTokens;
 
+    final hwEstimate = HardwareCalibrationService().estimatePrompt(
+      tokens: totalTokens,
+      mode: state.mode,
+    );
+
     String? statusMsg;
     if (hasPdf) {
       statusMsg = I18n.readingPdf;
     } else if (totalTokens > 600) {
-      statusMsg = I18n.cpuEvaluatingPrompt(totalTokens);
+      final tokenStr = totalTokens >= 1000 ? '~${(totalTokens / 1000).toStringAsFixed(1)}k' : '$totalTokens';
+      statusMsg = I18n.cpuEvaluatingContext(tokenStr, hwEstimate.durationDisplay);
     }
 
     state = state.copyWith(
@@ -475,6 +482,22 @@ class ChatNotifier extends StateNotifier<ChatState> {
           tools: withTools && tools.isNotEmpty ? tools : null,
           onToolCall: (toolCall) {
             pendingToolCall = toolCall;
+          },
+          onDoneMetrics: (metrics) {
+            final promptCount = metrics['prompt_eval_count'] as int? ?? 0;
+            final promptDurationNs = metrics['prompt_eval_duration'] as int? ?? 0;
+            final evalCount = metrics['eval_count'] as int? ?? 0;
+            final evalDurationNs = metrics['eval_duration'] as int? ?? 0;
+
+            if (promptDurationNs > 0 || evalDurationNs > 0) {
+              HardwareCalibrationService().recordMetrics(
+                promptEvalCount: promptCount,
+                promptEvalDurationNs: promptDurationNs,
+                evalCount: evalCount,
+                evalDurationNs: evalDurationNs,
+                modelName: modelName,
+              );
+            }
           },
         );
 

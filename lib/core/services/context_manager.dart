@@ -4,11 +4,13 @@ class ContextManager {
   /// Default sliding window limit suited for Intel i5-8350U (CPU inference)
   static const int defaultTokenLimit = 4096;
 
-  /// A rough heuristic for token counting if the API doesn't provide exact counts beforehand.
-  /// Typically, 1 token ≈ 4 characters in English text.
+  /// A heuristic for token counting calibrated for local models (e.g. Qwen2.5/Llama3).
+  /// Empirically, German text, code syntax, umlauts, and markdown formatting
+  /// average ~2.8 to 3.2 characters per token. We use a conservative 3 chars/token
+  /// to avoid underestimating context size and memory latency.
   static int estimateTokens(String text) {
     if (text.isEmpty) return 0;
-    return (text.length / 4).ceil();
+    return (text.length / 3).ceil();
   }
 
   /// Trims the message history to fit within the [maxTokens] limit.

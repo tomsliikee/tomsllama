@@ -54,4 +54,43 @@ class SettingsService {
       await file.writeAsString(jsonEncode(map));
     } catch (_) {}
   }
+
+  Future<Map<String, dynamic>?> loadHardwareProfile() async {
+    try {
+      final file = await _getFile();
+      if (await file.exists()) {
+        final content = await file.readAsString();
+        final map = jsonDecode(content) as Map<String, dynamic>;
+        if (map['hardware_profile'] != null) {
+          return map['hardware_profile'] as Map<String, dynamic>;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> saveHardwareProfile({
+    required double promptEvalSpeed,
+    required double genSpeed,
+    required int sampleCount,
+    required String detectedDeviceType,
+  }) async {
+    try {
+      final file = await _getFile();
+      Map<String, dynamic> map = {};
+      if (await file.exists()) {
+        try {
+          map = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+        } catch (_) {}
+      }
+      map['hardware_profile'] = {
+        'prompt_eval_speed': promptEvalSpeed,
+        'gen_speed': genSpeed,
+        'sample_count': sampleCount,
+        'device_type': detectedDeviceType,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+      await file.writeAsString(jsonEncode(map));
+    } catch (_) {}
+  }
 }

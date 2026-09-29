@@ -104,6 +104,8 @@ class I18n {
       ? '$count Konversationen'
       : '$count Conversations';
 
+  static String get totalLabel => isGerman ? 'Gesamt' : 'Total';
+
   static String totalAttachedTokens(int tokens) {
     final tokenStr = tokens >= 1000 ? '~${(tokens / 1000).toStringAsFixed(1)}k' : '~$tokens';
     return isGerman ? 'Gesamt: $tokenStr tok' : 'Total: $tokenStr tok';

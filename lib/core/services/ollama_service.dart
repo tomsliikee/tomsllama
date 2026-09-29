@@ -31,8 +31,10 @@ class OllamaService {
     List<Map<String, dynamic>> messages, {
     double? temperature,
     int? numCtx,
+    int? numThread,
     List<Map<String, dynamic>>? tools,
     void Function(Map<String, dynamic> toolCall)? onToolCall,
+    void Function(Map<String, dynamic> doneMetrics)? onDoneMetrics,
   }) async* {
     final client = http.Client();
     final request = http.Request('POST', Uri.parse('$baseUrl/api/chat'));
@@ -52,6 +54,17 @@ class OllamaService {
     if (numCtx != null) {
       options['num_ctx'] = numCtx;
     }
+    if (numThread != null) {
+      options['num_thread'] = numThread;
+    } else {
+      // Keep at least 1 core free for OS / Wayland compositor / UI to prevent desktop input freezing
+      final procs = Platform.numberOfProcessors;
+      if (procs > 4) {
+        options['num_thread'] = 4;
+      } else if (procs > 1) {
+        options['num_thread'] = procs - 1;
+      }
+    }
     if (options.isNotEmpty) {
       payload['options'] = options;
     }
@@ -67,18 +80,24 @@ class OllamaService {
         if (line.trim().isEmpty) continue;
         try {
           final data = jsonDecode(line);
-          final msg = data['message'];
-          if (msg != null && msg is Map<String, dynamic>) {
-            // Check for native tool calls or json tool call in content
-            final toolCall = _extractToolCall(msg);
-            if (toolCall != null) {
-              onToolCall?.call(toolCall);
+          if (data is Map<String, dynamic>) {
+            if (data['done'] == true) {
+              onDoneMetrics?.call(data);
             }
 
-            if (msg['content'] != null) {
-              final content = msg['content'] as String;
-              if (content.isNotEmpty && toolCall == null) {
-                yield content;
+            final msg = data['message'];
+            if (msg != null && msg is Map<String, dynamic>) {
+              // Check for native tool calls or json tool call in content
+              final toolCall = _extractToolCall(msg);
+              if (toolCall != null) {
+                onToolCall?.call(toolCall);
+              }
+
+              if (msg['content'] != null) {
+                final content = msg['content'] as String;
+                if (content.isNotEmpty && toolCall == null) {
+                  yield content;
+                }
               }
             }
           }

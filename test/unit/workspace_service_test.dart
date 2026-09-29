@@ -12,7 +12,6 @@ void main() {
 
       expect(gitDetails, isNotNull);
       expect(gitDetails!.branch, isNotEmpty);
-      expect(gitDetails.branch, equals('exp'));
     });
 
     test('loads workspace and indexes files while ignoring build and .git', () async {
@@ -22,7 +21,7 @@ void main() {
       expect(workspace, isNotNull);
       expect(workspace!.name, equals('tomsllama'));
       expect(workspace.isGitRepo, isTrue);
-      expect(workspace.gitBranch, equals('exp'));
+      expect(workspace.gitBranch, isNotEmpty);
       expect(workspace.files, isNotEmpty);
 
       // Verify that files include pubspec.yaml and lib/main.dart

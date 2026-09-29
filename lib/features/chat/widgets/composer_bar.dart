@@ -11,6 +11,7 @@ import '../../../core/models/attached_file.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../core/services/localization_service.dart';
+import '../../../core/services/hardware_calibration_service.dart';
 import '../controllers/chat_controller.dart';
 import '../controllers/workspace_controller.dart';
 import 'persona_chip.dart';
@@ -388,52 +389,50 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
                 children: [
                   // Active Workspace & Attached File Pills
                   if (workspaceState.workspace != null || workspaceState.attachedFiles.isNotEmpty) ...[
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8.0),
-                      child: Wrap(
-                        spacing: 6.0,
-                        runSpacing: 6.0,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          if (workspaceState.workspace != null)
-                            _WorkspacePill(
-                              workspace: workspaceState.workspace!,
-                              onRemove: () => ref.read(workspaceProvider.notifier).clearWorkspace(),
-                            ),
-                          for (final file in workspaceState.attachedFiles)
-                            _AttachedFilePill(
-                              file: file,
-                              onRemove: () => ref.read(workspaceProvider.notifier).removeAttachedFile(file.path),
-                            ),
-                          if (workspaceState.attachedFiles.length > 1)
-                            Padding(
-                              padding: const EdgeInsets.only(left: 2.0),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    I18n.totalAttachedTokens(workspaceState.totalAttachedTokens),
-                                    style: AppTypography.code.copyWith(
-                                      fontSize: 10.0,
-                                      color: appColors.textSecondary.withValues(alpha: 0.6),
-                                    ),
-                                  ),
-                                  if (workspaceState.totalAttachedTokens > 1000) ...[
-                                    const SizedBox(width: 5.0),
-                                    Text(
-                                      I18n.cpuLeadTime(workspaceState.totalAttachedTokens),
-                                      style: AppTypography.code.copyWith(
-                                        fontSize: 10.0,
-                                        color: Colors.amber.shade700,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                        ],
-                      ),
+                    Builder(
+                      builder: (context) {
+                        final hwCalibration = ref.watch(hardwareCalibrationProvider);
+                        final isSingleFile = workspaceState.attachedFiles.length == 1;
+                        final singleFileEstimate = isSingleFile
+                            ? hwCalibration.estimatePrompt(
+                                tokens: workspaceState.attachedFiles.first.estimatedTokens,
+                                mode: widget.mode,
+                              )
+                            : null;
+                        final totalEstimate = workspaceState.attachedFiles.length > 1
+                            ? hwCalibration.estimatePrompt(
+                                tokens: workspaceState.totalAttachedTokens,
+                                mode: widget.mode,
+                              )
+                            : null;
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8.0),
+                          child: Wrap(
+                            spacing: 6.0,
+                            runSpacing: 6.0,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              if (workspaceState.workspace != null)
+                                _WorkspacePill(
+                                  workspace: workspaceState.workspace!,
+                                  onRemove: () => ref.read(workspaceProvider.notifier).clearWorkspace(),
+                                ),
+                              for (final file in workspaceState.attachedFiles)
+                                _AttachedFilePill(
+                                  file: file,
+                                  estimate: isSingleFile ? singleFileEstimate : null,
+                                  onRemove: () => ref.read(workspaceProvider.notifier).removeAttachedFile(file.path),
+                                ),
+                              if (workspaceState.attachedFiles.length > 1 && totalEstimate != null)
+                                _AttachedFilesSummaryPill(
+                                  totalTokens: workspaceState.totalAttachedTokens,
+                                  estimate: totalEstimate,
+                                ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
                   ],
 
@@ -690,10 +689,12 @@ class _WorkspacePill extends StatelessWidget {
 
 class _AttachedFilePill extends StatelessWidget {
   final AttachedFile file;
+  final HardwareEstimate? estimate;
   final VoidCallback onRemove;
 
   const _AttachedFilePill({
     required this.file,
+    this.estimate,
     required this.onRemove,
   });
 
@@ -701,10 +702,6 @@ class _AttachedFilePill extends StatelessWidget {
   Widget build(BuildContext context) {
     final appColors = context.appColors;
     final isLarge = file.estimatedTokens > 1000;
-    final estSec = (file.estimatedTokens / 40.0).round();
-    final estTimeStr = estSec >= 60
-        ? '${(estSec / 60.0).toStringAsFixed(1)} Min'
-        : '${estSec}s';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
@@ -742,8 +739,8 @@ class _AttachedFilePill extends StatelessWidget {
           ),
           const SizedBox(width: 4.0),
           Text(
-            isLarge
-                ? '~${(file.estimatedTokens / 1000).toStringAsFixed(1)}k tok • ca. $estTimeStr'
+            file.estimatedTokens >= 1000
+                ? '~${(file.estimatedTokens / 1000).toStringAsFixed(1)}k tok'
                 : '${file.estimatedTokens} tok',
             style: AppTypography.code.copyWith(
               fontSize: 10.0,
@@ -753,6 +750,19 @@ class _AttachedFilePill extends StatelessWidget {
               fontWeight: isLarge ? FontWeight.w600 : FontWeight.w400,
             ),
           ),
+          if (estimate != null) ...[
+            const SizedBox(width: 4.0),
+            Text(
+              '• ${estimate!.speedDisplay} • ${estimate!.durationDisplay}',
+              style: AppTypography.code.copyWith(
+                fontSize: 10.0,
+                color: isLarge
+                    ? Colors.amber.shade800
+                    : appColors.accent,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
           const SizedBox(width: 4.0),
           InkWell(
             onTap: onRemove,
@@ -760,6 +770,56 @@ class _AttachedFilePill extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.all(2.0),
               child: Icon(Icons.close_rounded, size: 12.0, color: appColors.textSecondary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AttachedFilesSummaryPill extends StatelessWidget {
+  final int totalTokens;
+  final HardwareEstimate estimate;
+
+  const _AttachedFilesSummaryPill({
+    required this.totalTokens,
+    required this.estimate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final appColors = context.appColors;
+    final isLarge = totalTokens > 1000;
+    final tokenStr = totalTokens >= 1000
+        ? '~${(totalTokens / 1000).toStringAsFixed(1)}k tok'
+        : '$totalTokens tok';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      decoration: BoxDecoration(
+        color: isLarge ? Colors.amber.withValues(alpha: 0.08) : appColors.hover,
+        borderRadius: BorderRadius.circular(14.0),
+        border: Border.all(
+          color: isLarge ? Colors.amber.withValues(alpha: 0.35) : appColors.borderSubtle,
+          width: 1.0,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.speed_rounded,
+            size: 13.0,
+            color: isLarge ? Colors.amber.shade700 : appColors.accent,
+          ),
+          const SizedBox(width: 5.0),
+          Text(
+            '${I18n.totalLabel}: $tokenStr • ${estimate.speedDisplay} • ${estimate.durationDisplay}',
+            style: AppTypography.code.copyWith(
+              fontSize: 10.0,
+              color: isLarge ? Colors.amber.shade800 : appColors.textSecondary,
+              fontWeight: isLarge ? FontWeight.w600 : FontWeight.w500,
             ),
           ),
         ],

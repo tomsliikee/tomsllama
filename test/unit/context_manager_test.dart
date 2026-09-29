@@ -42,7 +42,8 @@ void main() {
   });
 
   test('Context manager estimates tokens correctly', () {
-    expect(ContextManager.estimateTokens('1234'), 1);
-    expect(ContextManager.estimateTokens('12345678'), 2);
+    expect(ContextManager.estimateTokens('123'), 1);
+    expect(ContextManager.estimateTokens('123456'), 2);
+    expect(ContextManager.estimateTokens('1234'), 2);
   });
 }

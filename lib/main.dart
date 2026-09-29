@@ -8,12 +8,16 @@ import 'core/theme/app_theme.dart';
 import 'features/shell/widgets/desktop_shell.dart';
 import 'core/services/database_service.dart';
 import 'core/services/localization_service.dart';
+import 'core/services/hardware_calibration_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Initialize SQLite database
   await DatabaseService().database;
+
+  // Initialize Hardware Calibration profile (CPU/GPU detection)
+  await HardwareCalibrationService().init();
 
   // Initialize Window Manager
   if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
