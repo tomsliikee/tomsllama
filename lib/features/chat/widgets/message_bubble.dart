@@ -49,6 +49,39 @@ class MessageBubble extends StatelessWidget {
 
   Widget _buildUserMessage(BuildContext context, AppThemeExtension appColors) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Parse clean display text and any attached files / workspace
+    String displayText = message.content;
+    final List<String> attachedFiles = [];
+    String? workspaceName;
+    String? gitBranch;
+
+    if (displayText.contains('#### User Request:')) {
+      final parts = displayText.split(RegExp(r'#### User Request:\s*'));
+      displayText = parts.last.trim();
+      final header = parts.first;
+
+      // Extract workspace if present
+      final wsMatch = RegExp(r'### Project Workspace: `([^`]+)`(?:\s*\(Git Branch: `([^`]+)`\))?').firstMatch(header);
+      if (wsMatch != null) {
+        workspaceName = wsMatch.group(1);
+        gitBranch = wsMatch.group(2);
+      }
+
+      // Extract attached files if present
+      final fileMatches = RegExp(r'`([^`\n]+)`\n```').allMatches(header);
+      for (final m in fileMatches) {
+        attachedFiles.add(m.group(1)!);
+      }
+    } else if (displayText.startsWith('[attached:')) {
+      final endIdx = displayText.indexOf(']');
+      if (endIdx != -1) {
+        final meta = displayText.substring(10, endIdx);
+        attachedFiles.addAll(meta.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty));
+        displayText = displayText.substring(endIdx + 1).trim();
+      }
+    }
+
     return Align(
       alignment: Alignment.centerRight,
       child: ConstrainedBox(
@@ -76,13 +109,80 @@ class MessageBubble extends StatelessWidget {
               ),
             ],
           ),
-          child: SelectableText(
-            message.content,
-            style: AppTypography.uiControl.copyWith(
-              color: appColors.textPrimary,
-              fontSize: 15.0,
-              height: 1.5,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (workspaceName != null || attachedFiles.isNotEmpty) ...[
+                Wrap(
+                  spacing: 6.0,
+                  runSpacing: 4.0,
+                  children: [
+                    if (workspaceName != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7.0, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: appColors.hover,
+                          borderRadius: BorderRadius.circular(10.0),
+                          border: Border.all(color: appColors.accent.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.folder_outlined, size: 12.0, color: appColors.accent),
+                            const SizedBox(width: 4.0),
+                            Text(
+                              workspaceName,
+                              style: AppTypography.code.copyWith(
+                                fontSize: 11.0,
+                                fontWeight: FontWeight.w600,
+                                color: appColors.textPrimary,
+                              ),
+                            ),
+                            if (gitBranch != null) ...[
+                              const SizedBox(width: 4.0),
+                              Text('($gitBranch)', style: AppTypography.code.copyWith(fontSize: 10.5, color: appColors.textSecondary)),
+                            ],
+                          ],
+                        ),
+                      ),
+                    for (final file in attachedFiles)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7.0, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: appColors.hover,
+                          borderRadius: BorderRadius.circular(10.0),
+                          border: Border.all(color: appColors.borderSubtle),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.insert_drive_file_outlined, size: 12.0, color: appColors.accent),
+                            const SizedBox(width: 4.0),
+                            Text(
+                              file,
+                              style: AppTypography.code.copyWith(
+                                fontSize: 11.0,
+                                color: appColors.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+                if (displayText.isNotEmpty) const SizedBox(height: 8.0),
+              ],
+              if (displayText.isNotEmpty)
+                SelectableText(
+                  displayText,
+                  style: AppTypography.uiControl.copyWith(
+                    color: appColors.textPrimary,
+                    fontSize: 15.0,
+                    height: 1.5,
+                  ),
+                ),
+            ],
           ),
         ),
       ),

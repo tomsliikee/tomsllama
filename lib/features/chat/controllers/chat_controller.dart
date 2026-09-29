@@ -272,6 +272,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
         if (repoMap != null && repoMap.isNotEmpty) {
           buffer.writeln('#### Workspace Code Outline (Key Symbols):\n$repoMap');
         }
+        buffer.writeln('#### Workspace Tools:\nYou have access to the `read_file(file_path)` function. When you need to read or verify code from any file in the workspace, call `read_file` with the relative file path.');
       }
       if (effectiveFiles.isNotEmpty) {
         buffer.writeln('#### Attached Context Files (Full Content):');
@@ -311,13 +312,20 @@ class ChatNotifier extends StateNotifier<ChatState> {
       }
     }
 
-    // 2. Add user message
+    // 2. Add user message with clean display content (only explicitly attached pills encoded)
     final now = DateTime.now();
+    String displayContent = text.trim();
+    final explicitAttached = attachedFiles ?? wsState.attachedFiles;
+    if (explicitAttached.isNotEmpty) {
+      final fileNames = explicitAttached.map((f) => f.name).join(', ');
+      displayContent = '[attached:$fileNames]${displayContent.isNotEmpty ? '\n$displayContent' : ''}';
+    }
+
     final userMsg = Message(
       id: '${now.millisecondsSinceEpoch}_user',
       conversationId: convId,
       role: 'user',
-      content: promptPayload,
+      content: displayContent.isNotEmpty ? displayContent : (effectiveWorkspace != null ? effectiveWorkspace.name : 'Message'),
       createdAt: now,
     );
     await _db.saveMessage(userMsg);
@@ -354,9 +362,12 @@ class ChatNotifier extends StateNotifier<ChatState> {
       messages: rawHistory,
       maxTokens: dynamicNumCtx - 500,
     );
-    final promptMessages = windowed
-        .map((m) => {'role': m.role, 'content': m.content})
-        .toList();
+    final List<Map<String, dynamic>> promptMessages = windowed.map<Map<String, dynamic>>((m) {
+      if (m.id == userMsg.id) {
+        return <String, dynamic>{'role': 'user', 'content': promptPayload};
+      }
+      return <String, dynamic>{'role': m.role, 'content': m.content};
+    }).toList();
 
     // Add system persona if defined
     final matchedPersona = Persona.defaultPersonas.firstWhere(
@@ -403,42 +414,16 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
     Future<void> runStream({bool withTools = true}) async {
       try {
+        Map<String, dynamic>? pendingToolCall;
+
         final stream = _ollama.streamChat(
           modelName,
           promptMessages,
           temperature: state.temperature,
           numCtx: dynamicNumCtx,
           tools: withTools && tools.isNotEmpty ? tools : null,
-          onToolCall: (toolCall) async {
-            final fn = toolCall['function'];
-            if (fn != null && fn['name'] == 'read_file') {
-              final args = fn['arguments'];
-              String? reqPath;
-              if (args is Map) {
-                reqPath = args['file_path'] as String?;
-              } else if (args is String) {
-                try {
-                  final decoded = jsonDecode(args);
-                  reqPath = decoded['file_path'] as String?;
-                } catch (_) {}
-              }
-              if (reqPath != null && effectiveWorkspace != null) {
-                state = state.copyWith(statusMessage: 'Inspecting $reqPath...');
-                final fullPath = p.join(effectiveWorkspace.path, reqPath);
-                final file = await AttachedFile.fromPath(
-                  fullPath,
-                  workspaceRoot: effectiveWorkspace.path,
-                  maxLines: 350,
-                );
-                if (file != null && mounted) {
-                  promptMessages.add({
-                    'role': 'tool',
-                    'content': 'File: $reqPath\n```\n${file.content}\n```',
-                  });
-                  state = state.copyWith(clearStatusMessage: true);
-                }
-              }
-            }
+          onToolCall: (toolCall) {
+            pendingToolCall = toolCall;
           },
         );
 
@@ -482,6 +467,48 @@ class ChatNotifier extends StateNotifier<ChatState> {
             );
           },
           onDone: () async {
+            // Check if model called a tool
+            if (pendingToolCall != null) {
+              final fn = pendingToolCall!['function'];
+              if (fn != null && fn['name'] == 'read_file') {
+                final args = fn['arguments'];
+                String? reqPath;
+                if (args is Map) {
+                  reqPath = args['file_path'] as String?;
+                } else if (args is String) {
+                  try {
+                    final decoded = jsonDecode(args);
+                    reqPath = decoded['file_path'] as String?;
+                  } catch (_) {}
+                }
+
+                if (reqPath != null && effectiveWorkspace != null && mounted) {
+                  state = state.copyWith(statusMessage: 'Reading $reqPath...');
+
+                  final fullPath = p.join(effectiveWorkspace.path, reqPath);
+                  final file = await AttachedFile.fromPath(
+                    fullPath,
+                    workspaceRoot: effectiveWorkspace.path,
+                    maxLines: 400,
+                  );
+
+                  promptMessages.add({
+                    'role': 'assistant',
+                    'content': '',
+                    'tool_calls': [pendingToolCall],
+                  });
+                  promptMessages.add({
+                    'role': 'tool',
+                    'content': file != null ? file.content : 'Error: File not found or unreadable.',
+                  });
+
+                  rawStreamBuffer.clear();
+                  await runStream(withTools: false);
+                  return;
+                }
+              }
+            }
+
             stopwatch.stop();
             if (!mounted) return;
 
