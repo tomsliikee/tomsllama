@@ -138,12 +138,12 @@ class WorkspaceService {
   }
 
   /// Traverses [directoryPath] and reads code/text files into AttachedFile models
-  /// up to [maxFiles] or [maxTotalTokens] limit to prevent prompt overflows.
+  /// up to [maxFiles] or [maxTotalTokens] limit to prevent prompt overflows and CPU lag.
   static Future<List<AttachedFile>> loadDirectoryFiles(
     String directoryPath, {
     String? workspaceRoot,
-    int maxFiles = 25,
-    int maxTotalTokens = 8000,
+    int maxFiles = 6,
+    int maxTotalTokens = 3000,
   }) async {
     final dir = Directory(directoryPath);
     if (!await dir.exists()) return [];
@@ -165,6 +165,7 @@ class WorkspaceService {
       final file = await AttachedFile.fromPath(
         fullPath,
         workspaceRoot: workspaceRoot ?? directoryPath,
+        maxLines: 250,
       );
       if (file != null) {
         if (totalTokens + file.estimatedTokens > maxTotalTokens && attached.isNotEmpty) {

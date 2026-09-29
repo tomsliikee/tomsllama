@@ -11,7 +11,6 @@ import 'package:path/path.dart' as p;
 import '../../../../core/utils/think_parser.dart';
 import '../../../../core/models/attached_file.dart';
 import '../../../../core/models/workspace_info.dart';
-import '../../../../core/services/workspace_service.dart';
 import '../../sidebar/controllers/sidebar_controller.dart';
 import 'workspace_controller.dart';
 
@@ -203,15 +202,25 @@ class ChatNotifier extends StateNotifier<ChatState> {
         }
       }
 
-      // If effectiveFiles is STILL empty, auto-load top files from workspace
-      // so the model has actual code to inspect rather than just names
+      // If effectiveFiles is STILL empty, auto-load at most 1 primary overview file
+      // (e.g. README.md, pubspec.yaml) so the model understands the project without CPU freeze
       if (effectiveFiles.isEmpty) {
-        final topFiles = await WorkspaceService.loadDirectoryFiles(
-          effectiveWorkspace.path,
-          workspaceRoot: effectiveWorkspace.path,
-          maxFiles: 15,
-        );
-        effectiveFiles.addAll(topFiles);
+        const overviewCandidates = {'readme.md', 'pubspec.yaml', 'package.json', 'cargo.toml', 'pyproject.toml'};
+        for (final relPath in effectiveWorkspace.files) {
+          final base = p.basename(relPath).toLowerCase();
+          if (overviewCandidates.contains(base)) {
+            final fullPath = p.join(effectiveWorkspace.path, relPath);
+            final overviewFile = await AttachedFile.fromPath(
+              fullPath,
+              workspaceRoot: effectiveWorkspace.path,
+              maxLines: 250,
+            );
+            if (overviewFile != null) {
+              effectiveFiles.add(overviewFile);
+              break;
+            }
+          }
+        }
       }
     }
 
@@ -294,11 +303,21 @@ class ChatNotifier extends StateNotifier<ChatState> {
       errorMessage: null,
     );
 
-    // 4. Prepare message payload for Ollama with sliding window context management
+    // 4. Calculate dynamic token budget and num_ctx for Ollama
+    final totalTokens = ContextManager.estimateTokens(promptPayload);
+    int dynamicNumCtx = 4096;
+    if (totalTokens > 1500) {
+      dynamicNumCtx = (totalTokens + 2500).clamp(4096, 12288);
+    }
+
+    // Prepare message payload with sliding window bounded by dynamicNumCtx
     final rawHistory = updatedMessages
         .where((m) => m.role == 'user' || (m.role == 'assistant' && m.id != assistantMsgId))
         .toList();
-    final windowed = ContextManager.applySlidingWindow(messages: rawHistory);
+    final windowed = ContextManager.applySlidingWindow(
+      messages: rawHistory,
+      maxTokens: dynamicNumCtx - 500,
+    );
     final promptMessages = windowed
         .map((m) => {'role': m.role, 'content': m.content})
         .toList();
@@ -313,13 +332,6 @@ class ChatNotifier extends StateNotifier<ChatState> {
         'role': 'system',
         'content': matchedPersona.systemPrompt,
       });
-    }
-
-    // Calculate dynamic num_ctx if context exceeds standard window
-    int? dynamicNumCtx;
-    final totalTokens = ContextManager.estimateTokens(promptPayload);
-    if (totalTokens > 1500) {
-      dynamicNumCtx = (totalTokens + 3000).clamp(4096, 16384);
     }
 
     final rawStreamBuffer = StringBuffer();

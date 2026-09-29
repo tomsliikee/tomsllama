@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import '../services/context_manager.dart';
@@ -25,25 +26,57 @@ class AttachedFile {
   static Future<AttachedFile?> fromPath(
     String filePath, {
     String? workspaceRoot,
-    int maxSizeBytes = 300 * 1024, // 300 KB limit for single file
+    int maxSizeBytes = 500 * 1024,
+    int maxLines = 500,
   }) async {
     final file = File(filePath);
     if (!await file.exists()) return null;
 
     final stat = await file.stat();
     if (stat.type != FileSystemEntityType.file) return null;
-    if (stat.size > maxSizeBytes) {
-      // Too large for prompt injection
-      return null;
-    }
+
+    final ext = p.extension(filePath).toLowerCase();
+    const binaryExtensions = {
+      '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico',
+      '.pdf', '.zip', '.tar', '.gz', '.7z', '.rar',
+      '.exe', '.dll', '.so', '.dylib', '.bin',
+      '.mp3', '.mp4', '.wav', '.mov', '.avi',
+      '.db', '.sqlite', '.sqlite3',
+    };
+    if (binaryExtensions.contains(ext)) return null;
 
     try {
-      final content = await file.readAsString();
+      final lines = <String>[];
+      int totalLineCount = 0;
+      bool isTruncated = false;
+
+      final stream = file
+          .openRead()
+          .transform(const Utf8Decoder(allowMalformed: true))
+          .transform(const LineSplitter());
+
+      await for (final line in stream) {
+        totalLineCount++;
+        if (lines.length < maxLines) {
+          lines.add(line);
+        } else {
+          isTruncated = true;
+          if (totalLineCount >= maxLines + 200) {
+            break;
+          }
+        }
+      }
+
+      String content = lines.join('\n');
+      if (isTruncated) {
+        content +=
+            '\n\n// ... [Truncated: Showing first $maxLines lines of ${p.basename(filePath)} (~$totalLineCount+ total lines) for CPU performance] ...';
+      }
+
       final name = p.basename(filePath);
       final relPath = workspaceRoot != null && filePath.startsWith(workspaceRoot)
           ? p.relative(filePath, from: workspaceRoot)
           : name;
-      final ext = p.extension(filePath).toLowerCase();
 
       return AttachedFile(
         path: filePath,
@@ -55,7 +88,6 @@ class AttachedFile {
         extension: ext,
       );
     } catch (_) {
-      // Non-utf8 binary or permission issue
       return null;
     }
   }

@@ -1,9 +1,7 @@
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:tomsllama/core/models/workspace_info.dart';
 import 'package:tomsllama/features/chat/controllers/workspace_controller.dart';
-import 'package:tomsllama/core/services/workspace_service.dart';
 
 void main() {
   test('setWorkspace automatically loads code files into attachedFiles with full content', () async {

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 import '../../../core/models/attached_file.dart';
 import '../../../core/models/workspace_info.dart';
 import '../../../core/services/workspace_service.dart';
@@ -39,17 +40,52 @@ class WorkspaceNotifier extends StateNotifier<WorkspaceState> {
     final ws = await WorkspaceService.loadWorkspace(directoryPath);
     final List<AttachedFile> newAttached = [...state.attachedFiles];
 
-    if (autoAttachFiles) {
-      final dirFiles = await WorkspaceService.loadDirectoryFiles(
-        directoryPath,
-        workspaceRoot: directoryPath,
-        maxFiles: 25,
-      );
+    if (autoAttachFiles && ws != null) {
+      // Auto-attach primary overview file (e.g. pubspec.yaml, README.md)
+      // and primary entrypoint (e.g. lib/main.dart, main.py) to keep CPU prefill fast
+      // while providing essential context to the model.
+      const configCandidates = {'pubspec.yaml', 'package.json', 'cargo.toml', 'pyproject.toml', 'readme.md'};
+      const entrypointCandidates = {'lib/main.dart', 'main.dart', 'main.py', 'src/index.ts', 'src/main.rs', 'main.go', 'app.py', 'index.js'};
+
       final existingPaths = newAttached.map((f) => f.path).toSet();
-      for (final f in dirFiles) {
-        if (!existingPaths.contains(f.path)) {
-          newAttached.add(f);
-          existingPaths.add(f.path);
+
+      // 1. Attach overview / config
+      for (final relPath in ws.files) {
+        final base = p.basename(relPath).toLowerCase();
+        if (configCandidates.contains(base)) {
+          final fullPath = p.join(directoryPath, relPath);
+          if (!existingPaths.contains(fullPath)) {
+            final file = await AttachedFile.fromPath(
+              fullPath,
+              workspaceRoot: directoryPath,
+              maxLines: 250,
+            );
+            if (file != null) {
+              newAttached.add(file);
+              existingPaths.add(fullPath);
+              break;
+            }
+          }
+        }
+      }
+
+      // 2. Attach main entrypoint if found
+      for (final relPath in ws.files) {
+        final relNormalized = relPath.replaceAll('\\', '/').toLowerCase();
+        if (entrypointCandidates.contains(relNormalized)) {
+          final fullPath = p.join(directoryPath, relPath);
+          if (!existingPaths.contains(fullPath)) {
+            final file = await AttachedFile.fromPath(
+              fullPath,
+              workspaceRoot: directoryPath,
+              maxLines: 300,
+            );
+            if (file != null) {
+              newAttached.add(file);
+              existingPaths.add(fullPath);
+              break;
+            }
+          }
         }
       }
     }
@@ -84,7 +120,7 @@ class WorkspaceNotifier extends StateNotifier<WorkspaceState> {
     state = state.copyWith(attachedFiles: newFiles);
   }
 
-  Future<void> attachFolderFiles(String directoryPath, {int maxFiles = 25}) async {
+  Future<void> attachFolderFiles(String directoryPath, {int maxFiles = 6}) async {
     state = state.copyWith(isLoading: true);
     final files = await WorkspaceService.loadDirectoryFiles(
       directoryPath,

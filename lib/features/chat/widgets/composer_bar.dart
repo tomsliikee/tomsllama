@@ -238,7 +238,6 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
     if (dirPaths.isNotEmpty) {
       for (final dirPath in dirPaths) {
         await ref.read(workspaceProvider.notifier).setWorkspace(dirPath);
-        await ref.read(workspaceProvider.notifier).attachFolderFiles(dirPath);
       }
     }
     if (filePaths.isNotEmpty) {
@@ -256,7 +255,6 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
   Future<void> _pickFolderFiles() async {
     final result = await FilePicker.platform.getDirectoryPath();
     if (result != null && mounted) {
-      await ref.read(workspaceProvider.notifier).setWorkspace(result);
       await ref.read(workspaceProvider.notifier).attachFolderFiles(result);
     }
   }
