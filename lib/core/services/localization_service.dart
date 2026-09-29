@@ -36,6 +36,9 @@ class I18n {
   static String get settingsTitle => isGerman ? 'Einstellungen' : 'Settings';
   static String get close => isGerman ? 'Schließen' : 'Close';
   static String get deleteChatConfirm => isGerman ? 'Chat löschen?' : 'Delete chat?';
+  static String get dropFilesToAttach => isGerman ? 'Dateien hier ablegen' : 'Drop files to attach';
+  static String get willAttachToConversation =>
+      isGerman ? 'Wird an diese Unterhaltung angehängt' : 'Will attach to this conversation';
 
   static String get subtitle => isGerman
       ? 'Lokales, sicheres Interface für Ollama'

@@ -82,6 +82,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
   Future<void> loadConversation(String conversationId) async {
     _activeStream?.cancel();
 
+    _ref.read(workspaceProvider.notifier).setActiveConversation(conversationId);
+
     // Retrieve the persona saved specifically for this conversation
     final allConvs = await _db.getConversations();
     final conv = allConvs.where((c) => c.id == conversationId).firstOrNull;
@@ -126,6 +128,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     // 2. If current conversation already exists and has 0 messages, just reset persona to Standard!
     if (state.conversationId != null && state.messages.isEmpty) {
       _ref.read(sidebarProvider.notifier).setActiveConversation(state.conversationId!);
+      _ref.read(workspaceProvider.notifier).setActiveConversation(state.conversationId!);
       state = state.copyWith(activePersonaName: 'Standard');
       return;
     }
@@ -136,6 +139,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
       title: title,
       persona: 'Standard',
     );
+
+    _ref.read(workspaceProvider.notifier).setActiveConversation(newConv.id);
 
     // 4. Set state to the new conversation
     state = state.copyWith(
