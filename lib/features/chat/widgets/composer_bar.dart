@@ -11,6 +11,7 @@ import '../../../core/models/attached_file.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../core/services/localization_service.dart';
+import '../controllers/chat_controller.dart';
 import '../controllers/workspace_controller.dart';
 import 'persona_chip.dart';
 
@@ -63,6 +64,40 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
   List<String> _atMatches = [];
   int _atSelectedIndex = 0;
 
+  // Prompt history navigation state (ArrowUp / ArrowDown)
+  final List<String> _localPromptHistory = [];
+  int _historyIndex = -1;
+  String _draftText = '';
+  bool _isNavigatingHistory = false;
+
+  List<String> _getAllPrompts() {
+    final chatMessages = ref.read(chatProvider).messages;
+    final prompts = <String>[];
+    for (final m in chatMessages) {
+      if (m.role == 'user') {
+        String clean = m.content;
+        if (clean.contains('#### User Request:')) {
+          final parts = clean.split(RegExp(r'#### User Request:\s*'));
+          clean = parts.last.trim();
+        } else if (clean.startsWith('[attached:')) {
+          final endIdx = clean.indexOf(']');
+          if (endIdx != -1) {
+            clean = clean.substring(endIdx + 1).trim();
+          }
+        }
+        if (clean.isNotEmpty && (prompts.isEmpty || prompts.last != clean)) {
+          prompts.add(clean);
+        }
+      }
+    }
+    for (final p in _localPromptHistory) {
+      if (p.isNotEmpty && (prompts.isEmpty || prompts.last != p)) {
+        prompts.add(p);
+      }
+    }
+    return prompts;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -75,6 +110,9 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
     final hasText = _controller.text.trim().isNotEmpty;
     if (_hasText != hasText && mounted) {
       setState(() => _hasText = hasText);
+    }
+    if (!_isNavigatingHistory && _historyIndex != -1) {
+      _historyIndex = -1;
     }
     _checkAtMention();
   }
@@ -165,6 +203,14 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
     final hasAttached = ref.read(workspaceProvider).attachedFiles.isNotEmpty;
     if (text.isEmpty && !hasAttached) return;
 
+    if (text.isNotEmpty) {
+      if (_localPromptHistory.isEmpty || _localPromptHistory.last != text) {
+        _localPromptHistory.add(text);
+      }
+    }
+    _historyIndex = -1;
+    _draftText = '';
+
     _sendButtonKey.currentState?.triggerCuteAnimation();
     widget.onSend(text);
     _controller.clear();
@@ -206,12 +252,61 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
     }
 
     if (event is KeyDownEvent) {
+      // 1. Enter to submit
       if (event.logicalKey == LogicalKeyboardKey.enter) {
         final isShiftPressed = HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftLeft) ||
                                HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.shiftRight);
         if (!isShiftPressed) {
           _handleSend();
           return KeyEventResult.handled;
+        }
+      }
+
+      // 2. Arrow Up to cycle to older prompts
+      if (event.logicalKey == LogicalKeyboardKey.arrowUp && !_showAtPopup) {
+        final text = _controller.text;
+        final cursorPos = _controller.selection.isValid ? _controller.selection.start : 0;
+        final isFirstLine = !text.substring(0, cursorPos).contains('\n');
+
+        if (isFirstLine) {
+          final prompts = _getAllPrompts();
+          if (prompts.isNotEmpty) {
+            if (_historyIndex == -1) {
+              _draftText = text;
+              _historyIndex = prompts.length - 1;
+            } else if (_historyIndex > 0) {
+              _historyIndex--;
+            }
+            final targetPrompt = prompts[_historyIndex];
+            _isNavigatingHistory = true;
+            _controller.text = targetPrompt;
+            _controller.selection = TextSelection.collapsed(offset: targetPrompt.length);
+            _isNavigatingHistory = false;
+            return KeyEventResult.handled;
+          }
+        }
+      }
+
+      // 3. Arrow Down to cycle to newer prompts / restore draft
+      if (event.logicalKey == LogicalKeyboardKey.arrowDown && !_showAtPopup) {
+        if (_historyIndex != -1) {
+          final prompts = _getAllPrompts();
+          if (_historyIndex < prompts.length - 1) {
+            _historyIndex++;
+            final targetPrompt = prompts[_historyIndex];
+            _isNavigatingHistory = true;
+            _controller.text = targetPrompt;
+            _controller.selection = TextSelection.collapsed(offset: targetPrompt.length);
+            _isNavigatingHistory = false;
+            return KeyEventResult.handled;
+          } else if (_historyIndex >= prompts.length - 1) {
+            _historyIndex = -1;
+            _isNavigatingHistory = true;
+            _controller.text = _draftText;
+            _controller.selection = TextSelection.collapsed(offset: _draftText.length);
+            _isNavigatingHistory = false;
+            return KeyEventResult.handled;
+          }
         }
       }
     }

@@ -119,57 +119,15 @@ class _ChatViewportState extends State<ChatViewport> {
         final message = widget.messages[index];
         final isLast = index == widget.messages.length - 1;
         
-        final bubble = MessageBubble(
+        return MessageBubble(
           message: message,
           isThinking: isLast && widget.isGenerating,
+          statusMessage: isLast && widget.isGenerating ? widget.statusMessage : null,
           modelName: widget.modelName,
           branchIndex: 0,
           totalBranches: 1,
           onRegenerate: isLast ? widget.onRegenerate : null,
         );
-
-        if (isLast && widget.isGenerating && widget.statusMessage != null) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              bubble,
-              Padding(
-                padding: const EdgeInsets.only(left: 64.0, top: 4.0, bottom: 8.0),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
-                  decoration: BoxDecoration(
-                    color: appColors.background,
-                    borderRadius: BorderRadius.circular(16.0),
-                    border: Border.all(color: appColors.borderSubtle, width: 1.0),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 10.0,
-                        height: 10.0,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 1.5,
-                          color: appColors.accent,
-                        ),
-                      ),
-                      const SizedBox(width: 6.0),
-                      Text(
-                        widget.statusMessage!,
-                        style: AppTypography.code.copyWith(
-                          fontSize: 11.0,
-                          color: appColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          );
-        }
-
-        return bubble;
       },
     );
   }

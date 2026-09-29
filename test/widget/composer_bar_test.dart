@@ -214,4 +214,63 @@ void main() {
 
     expect(container.read(workspaceProvider).attachedFiles, isEmpty);
   });
+
+  testWidgets('ComposerBar navigates prompt history with ArrowUp and ArrowDown', (WidgetTester tester) async {
+    final sentPrompts = <String>[];
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: claudeTheme,
+          home: Scaffold(
+            body: ComposerBar(
+              isGenerating: false,
+              activePersonaName: 'Standard',
+              onSend: (text) => sentPrompts.add(text),
+              onStop: () {},
+              onPersonaTap: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final textField = find.byType(TextField);
+
+    // 1. Send first prompt
+    await tester.enterText(textField, 'First prompt');
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(sentPrompts, ['First prompt']);
+
+    // 2. Send second prompt
+    await tester.enterText(textField, 'Second prompt');
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(sentPrompts, ['First prompt', 'Second prompt']);
+
+    // 3. User types a draft: "Current draft"
+    await tester.enterText(textField, 'Current draft');
+    await tester.pumpAndSettle();
+
+    // 4. Press ArrowUp -> should load "Second prompt"
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.pumpAndSettle();
+    expect(find.text('Second prompt'), findsOneWidget);
+
+    // 5. Press ArrowUp again -> should load "First prompt"
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.pumpAndSettle();
+    expect(find.text('First prompt'), findsOneWidget);
+
+    // 6. Press ArrowDown -> should load "Second prompt"
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    expect(find.text('Second prompt'), findsOneWidget);
+
+    // 7. Press ArrowDown again -> should restore "Current draft"
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    expect(find.text('Current draft'), findsOneWidget);
+  });
 }
