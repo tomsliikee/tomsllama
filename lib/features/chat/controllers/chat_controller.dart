@@ -347,6 +347,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
       role: 'user',
       content: displayContent.isNotEmpty ? displayContent : (effectiveWorkspace != null ? effectiveWorkspace.name : 'Message'),
       createdAt: now,
+      tokens: ContextManager.estimateTokens(displayContent),
     );
     await _db.saveMessage(userMsg);
 

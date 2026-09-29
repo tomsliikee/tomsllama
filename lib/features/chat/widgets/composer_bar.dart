@@ -11,10 +11,12 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../core/services/localization_service.dart';
 import '../../../core/services/hardware_calibration_service.dart';
+import '../../../core/services/settings_service.dart';
 import '../controllers/chat_controller.dart';
 import '../controllers/workspace_controller.dart';
 import 'persona_chip.dart';
 import 'cute_send_button.dart';
+import 'composer_shelf.dart';
 
 class ComposerBar extends ConsumerStatefulWidget {
   final bool isGenerating;
@@ -58,6 +60,7 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
   final GlobalKey<CuteSendButtonState> _sendButtonKey = GlobalKey<CuteSendButtonState>();
   bool _hasText = false;
   bool _isFocused = false;
+  bool _isShelfExpanded = false;
 
   // Autocomplete '@' mention state
   bool _showAtPopup = false;
@@ -105,6 +108,18 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
     _controller.addListener(_onTextChanged);
     _focusNode.addListener(_onFocusChanged);
     _focusNode.onKeyEvent = (node, event) => _onKeyEvent(event);
+    SettingsService().loadComposerShelfExpanded().then((expanded) {
+      if (mounted && expanded) {
+        setState(() => _isShelfExpanded = true);
+      }
+    });
+  }
+
+  void _toggleShelf() {
+    setState(() {
+      _isShelfExpanded = !_isShelfExpanded;
+    });
+    SettingsService().saveComposerShelfExpanded(_isShelfExpanded);
   }
 
   void _onTextChanged() {
@@ -345,21 +360,37 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final workspaceState = ref.watch(workspaceProvider);
     final canSend = _hasText || workspaceState.attachedFiles.isNotEmpty;
+    final activeModel = widget.selectedModel ?? widget.modelName;
 
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 680),
         child: Padding(
           padding: const EdgeInsets.only(left: 24.0, right: 24.0, bottom: 20.0),
-          child: Container(
-            padding: const EdgeInsets.all(12.0),
-            decoration: BoxDecoration(
-              color: appColors.surface, // #FFFFFF in Claude and Pond
-              borderRadius: BorderRadius.circular(20.0),
-              border: Border.all(
-                color: _isFocused ? appColors.accent : appColors.borderSubtle,
-                width: 1.0,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Extended Shelf seamlessly connecting to the top edge
+              ComposerShelf(
+                isExpanded: _isShelfExpanded,
+                workspace: workspaceState.workspace,
+                attachedFiles: workspaceState.attachedFiles,
+                selectedModel: activeModel,
+                mode: widget.mode,
+                onToggle: _toggleShelf,
               ),
+
+              Container(
+                padding: const EdgeInsets.all(12.0),
+                decoration: BoxDecoration(
+                  color: appColors.surface, // #FFFFFF in Claude and Pond
+                  borderRadius: _isShelfExpanded
+                      ? const BorderRadius.vertical(bottom: Radius.circular(20.0))
+                      : BorderRadius.circular(20.0),
+                  border: Border.all(
+                    color: _isFocused ? appColors.accent : appColors.borderSubtle,
+                    width: 1.0,
+                  ),
                 boxShadow: [
                   BoxShadow(
                     color: isDark
@@ -534,32 +565,43 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
                     ),
                   ],
 
-                  // Text Input
-                  TextField(
-                    controller: _controller,
-                    focusNode: _focusNode,
-                    maxLines: 12,
-                    minLines: 2,
-                    textInputAction: TextInputAction.newline,
-                    style: AppTypography.uiControl.copyWith(
-                      color: appColors.textPrimary,
-                      fontSize: 15.0,
-                      height: 1.5,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: I18n.composerPlaceholder(
-                        widget.modelName ??
-                            widget.selectedModel ??
-                            (widget.models.isNotEmpty ? widget.models.first.name : 'qwen2.5:3b'),
+                  // Text Input with Shelf Toggle Button (^ chevron)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _controller,
+                          focusNode: _focusNode,
+                          maxLines: 12,
+                          minLines: 2,
+                          textInputAction: TextInputAction.newline,
+                          style: AppTypography.uiControl.copyWith(
+                            color: appColors.textPrimary,
+                            fontSize: 15.0,
+                            height: 1.5,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: I18n.composerPlaceholder(
+                              activeModel ??
+                                  (widget.models.isNotEmpty ? widget.models.first.name : 'qwen2.5:3b'),
+                            ),
+                            hintStyle: AppTypography.uiControl.copyWith(
+                              color: appColors.textSecondary.withValues(alpha: 0.6),
+                              fontSize: 14.0,
+                            ),
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
                       ),
-                      hintStyle: AppTypography.uiControl.copyWith(
-                        color: appColors.textSecondary.withValues(alpha: 0.6),
-                        fontSize: 14.0,
+                      const SizedBox(width: 8.0),
+                      ShelfToggleButton(
+                        isExpanded: _isShelfExpanded,
+                        onTap: _toggleShelf,
                       ),
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                    ),
+                    ],
                   ),
                   
                   const SizedBox(height: 10.0),
@@ -616,10 +658,12 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
                 ],
               ),
             ),
-          ),
+          ],
         ),
-      );
-    }
+      ),
+    ),
+  );
+}
 }
 
 class _WorkspacePill extends StatelessWidget {
@@ -754,14 +798,19 @@ class _AttachedFilePill extends StatelessWidget {
           ),
           if (estimate != null) ...[
             const SizedBox(width: 4.0),
-            Text(
-              !estimate!.isTested
-                  ? '• ${estimate!.speedDisplay}'
-                  : '• ${estimate!.speedDisplay} • ${estimate!.durationDisplay}',
-              style: AppTypography.code.copyWith(
-                fontSize: 10.0,
-                color: appColors.textSecondary,
-                fontWeight: FontWeight.w500,
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 240.0),
+              child: Text(
+                !estimate!.isTested
+                    ? '• ${estimate!.speedDisplay}'
+                    : '• ${estimate!.speedDisplay} • ${estimate!.durationDisplay}',
+                style: AppTypography.code.copyWith(
+                  fontSize: 10.0,
+                  color: appColors.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
               ),
             ),
           ],

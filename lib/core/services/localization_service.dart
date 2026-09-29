@@ -110,6 +110,13 @@ class I18n {
       ? 'Noch keine Geschwindigkeit getestet, bitte erste Nachricht senden'
       : 'No speed tested yet, please write first message';
 
+  static String get shelfNoWorkspaceActive => isGerman ? 'Kein Workspace aktiv' : 'No active workspace';
+  static String get shelfCollapse => isGerman ? 'Details einklappen' : 'Collapse details';
+  static String get shelfExpand => isGerman ? 'Details ausklappen' : 'Expand details';
+  static String get shelfStandardMsgDuration => isGerman ? 'Normale Nachricht' : 'Standard message';
+  static String get shelfTokensTodayLabel => isGerman ? 'Heute verbraucht' : 'Used today';
+  static String get shelfTokensTotalLabel => isGerman ? 'Gesamt verbraucht' : 'Used total';
+
   static String totalAttachedTokens(int tokens) {
     final tokenStr = tokens >= 1000 ? '~${(tokens / 1000).toStringAsFixed(1)}k' : '~$tokens';
     return isGerman ? 'Gesamt: $tokenStr tok' : 'Total: $tokenStr tok';

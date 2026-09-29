@@ -8,6 +8,7 @@ import '../models/message.dart';
 import '../models/persona.dart';
 import '../models/workspace.dart';
 import '../models/workspace_context_file.dart';
+import '../models/token_usage_stats.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -289,6 +290,35 @@ class DatabaseService {
       where: 'id = ?',
       whereArgs: [id],
     );
+  }
+
+  /// Returns token usage statistics aggregated across all messages for today and overall.
+  Future<TokenUsageStats> getTokenUsageStats() async {
+    final db = await database;
+    final now = DateTime.now();
+    final todayMidnight = DateTime(now.year, now.month, now.day).toIso8601String();
+
+    try {
+      final todayRes = await db.rawQuery(
+        'SELECT SUM(CASE WHEN tokens > 0 THEN tokens ELSE (LENGTH(content) / 3) END) as sum_tokens '
+        'FROM messages WHERE created_at >= ?',
+        [todayMidnight],
+      );
+      final totalRes = await db.rawQuery(
+        'SELECT SUM(CASE WHEN tokens > 0 THEN tokens ELSE (LENGTH(content) / 3) END) as sum_tokens '
+        'FROM messages',
+      );
+
+      final todayTokens = (todayRes.first['sum_tokens'] as num?)?.toInt() ?? 0;
+      final totalTokens = (totalRes.first['sum_tokens'] as num?)?.toInt() ?? 0;
+
+      return TokenUsageStats(
+        todayTokens: todayTokens,
+        totalTokens: totalTokens,
+      );
+    } catch (_) {
+      return const TokenUsageStats();
+    }
   }
 
   // --- Personas ---

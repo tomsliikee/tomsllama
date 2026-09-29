@@ -9,6 +9,7 @@ import 'package:tomsllama/core/models/attached_file.dart';
 import 'package:tomsllama/features/chat/controllers/workspace_controller.dart';
 import 'package:tomsllama/features/chat/controllers/chat_controller.dart';
 import 'package:tomsllama/features/chat/widgets/composer_bar.dart';
+import 'package:tomsllama/features/chat/widgets/composer_shelf.dart';
 
 void main() {
   testWidgets('ComposerBar renders and triggers onSend on enter', (WidgetTester tester) async {
@@ -333,5 +334,86 @@ void main() {
     // Verify summary pill is rendered next to them with total tokens (300+600=900 tok) and speed
     expect(find.textContaining('${I18n.totalLabel}: 900 tok'), findsOneWidget);
     expect(find.textContaining('tok/s'), findsOneWidget);
+  });
+
+  testWidgets('ComposerBar expands and collapses ComposerShelf on toggle', (WidgetTester tester) async {
+    final container = ProviderContainer(
+      overrides: [
+        workspaceProvider.overrideWith((ref) {
+          final notifier = WorkspaceNotifier();
+          notifier.state = const WorkspaceState(
+            workspace: WorkspaceInfo(
+              path: '/home/toms/git/tomsllama',
+              name: 'tomsllama',
+              gitBranch: 'exp',
+              isGitRepo: true,
+              files: ['lib/main.dart'],
+            ),
+            attachedFiles: [
+              AttachedFile(
+                path: '/home/toms/git/tomsllama/lib/main.dart',
+                name: 'main.dart',
+                relativePath: 'lib/main.dart',
+                sizeInBytes: 1024,
+                estimatedTokens: 256,
+                content: 'void main() {}',
+                extension: '.dart',
+              ),
+            ],
+          );
+          return notifier;
+        }),
+      ],
+    );
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: claudeTheme,
+          home: Scaffold(
+            body: ComposerBar(
+              isGenerating: false,
+              activePersonaName: 'Standard',
+              selectedModel: 'llama3:latest',
+              mode: ChatExecutionMode.optimal,
+              onSend: (_) {},
+              onStop: () {},
+              onPersonaTap: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Find the shelf toggle button
+    final toggleButton = find.byType(ShelfToggleButton);
+    expect(toggleButton, findsOneWidget);
+
+    // Tap toggle button to expand shelf
+    await tester.tap(toggleButton);
+    await tester.pumpAndSettle();
+
+    // Verify shelf contents are displayed
+    // Workspace and Git branch in shelf
+    expect(find.text('tomsllama'), findsAtLeastNWidgets(1));
+    expect(find.text('exp'), findsAtLeastNWidgets(1));
+
+    // Model and mode timing in shelf
+    expect(find.textContaining('llama3:latest'), findsAtLeastNWidgets(1));
+
+    // Attached file in shelf
+    expect(find.textContaining('main.dart'), findsAtLeastNWidgets(1));
+
+    // Token usage statistics in shelf
+    final tokenPattern = I18n.isGerman ? 'Tokens heute' : 'tokens today';
+    expect(find.textContaining(tokenPattern), findsOneWidget);
+
+    // Tap toggle button again to collapse shelf
+    await tester.tap(toggleButton);
+    await tester.pumpAndSettle();
+
+    // Shelf is collapsed
+    expect(find.textContaining(tokenPattern), findsNothing);
   });
 }

@@ -1,0 +1,419 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/constants/app_typography.dart';
+import '../../../core/models/attached_file.dart';
+import '../../../core/models/workspace_info.dart';
+import '../../../core/models/token_usage_stats.dart';
+import '../../../core/services/hardware_calibration_service.dart';
+import '../../../core/services/localization_service.dart';
+import '../../../core/services/token_stats_service.dart';
+import '../../../core/theme/app_theme.dart';
+import '../controllers/chat_controller.dart';
+
+/// An animated extended shelf that slides up from the top edge of the composer
+/// with an elastic bounce, displaying Git workspace info, attached files,
+/// model timing/mode performance, and daily & total token statistics.
+class ComposerShelf extends ConsumerStatefulWidget {
+  final bool isExpanded;
+  final WorkspaceInfo? workspace;
+  final List<AttachedFile> attachedFiles;
+  final String? selectedModel;
+  final ChatExecutionMode mode;
+  final VoidCallback onToggle;
+
+  const ComposerShelf({
+    super.key,
+    required this.isExpanded,
+    required this.workspace,
+    required this.attachedFiles,
+    required this.selectedModel,
+    required this.mode,
+    required this.onToggle,
+  });
+
+  @override
+  ConsumerState<ComposerShelf> createState() => _ComposerShelfState();
+}
+
+class _ComposerShelfState extends ConsumerState<ComposerShelf>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animController;
+  late final Animation<double> _heightAnim;
+  late final Animation<Offset> _slideAnim;
+  late final Animation<double> _fadeAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+      value: widget.isExpanded ? 1.0 : 0.0,
+    );
+
+    // Springy elastic bounce curve when opening
+    final curvedAnim = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOutBack,
+      reverseCurve: Curves.easeInOutCubic,
+    );
+
+    _heightAnim = Tween<double>(begin: 0.0, end: 1.0).animate(curvedAnim);
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0.0, 0.28),
+      end: Offset.zero,
+    ).animate(curvedAnim);
+    _fadeAnim = CurvedAnimation(
+      parent: _animController,
+      curve: const Interval(0.2, 1.0, curve: Curves.easeOut),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant ComposerShelf oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isExpanded != oldWidget.isExpanded) {
+      if (widget.isExpanded) {
+        _animController.forward();
+      } else {
+        _animController.reverse();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.isExpanded && _animController.value <= 0.001) {
+      return const SizedBox.shrink();
+    }
+    final appColors = context.appColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tokenStats = ref.watch(tokenStatsProvider);
+    final hwCalibration = ref.watch(hardwareCalibrationProvider);
+
+    // Estimate typical 300-token prompt response time for active model & mode
+    final baselineEstimate = hwCalibration.estimatePrompt(
+      tokens: 300,
+      mode: widget.mode,
+      modelName: widget.selectedModel,
+    );
+
+    // Shelf background: subtly lighter tone seamlessly extending the composer card
+    final Color shelfBg = isDark
+        ? Color.alphaBlend(Colors.white.withValues(alpha: 0.05), appColors.surface)
+        : Color.alphaBlend(Colors.black.withValues(alpha: 0.02), const Color(0xFFF9F9F8));
+
+    return AnimatedBuilder(
+      animation: _animController,
+      builder: (context, child) {
+        if (_animController.value <= 0.001) {
+          return const SizedBox.shrink();
+        }
+
+        return ClipRect(
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            heightFactor: _heightAnim.value.clamp(0.0, 1.15),
+            child: SlideTransition(
+              position: _slideAnim,
+              child: FadeTransition(
+                opacity: _fadeAnim,
+                child: Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 0.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                  decoration: BoxDecoration(
+                    color: shelfBg,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16.0),
+                    ),
+                    border: Border.all(
+                      color: appColors.borderSubtle,
+                      width: 1.0,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.03),
+                        blurRadius: 8.0,
+                        offset: const Offset(0, -3),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Row 1: Git Workspace Info & Attached Files
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Left: Git Repository & Branch
+                          Expanded(
+                            child: _buildWorkspaceSection(appColors),
+                          ),
+                          const SizedBox(width: 12.0),
+                          // Right: Attached Files Summary
+                          Expanded(
+                            child: _buildFilesSection(appColors),
+                          ),
+                        ],
+                      ),
+
+                      // Divider hairline
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Container(
+                          height: 1.0,
+                          color: appColors.borderSubtle.withValues(alpha: 0.5),
+                        ),
+                      ),
+
+                      // Row 2: Model & Mode Timing + Token Statistics
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Left: Model & Execution Mode Timing
+                          Expanded(
+                            child: _buildModelTimingSection(
+                              appColors: appColors,
+                              estimate: baselineEstimate,
+                            ),
+                          ),
+                          const SizedBox(width: 12.0),
+                          // Right: Daily & Total Token Consumption
+                          Expanded(
+                            child: _buildTokenStatsSection(
+                              appColors: appColors,
+                              tokenStats: tokenStats,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildWorkspaceSection(AppThemeExtension appColors) {
+    if (widget.workspace == null) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.folder_off_outlined, size: 13.0, color: appColors.textSecondary),
+          const SizedBox(width: 5.0),
+          Flexible(
+            child: Text(
+              I18n.shelfNoWorkspaceActive,
+              style: AppTypography.uiControl.copyWith(
+                fontSize: 11.0,
+                color: appColors.textSecondary.withValues(alpha: 0.7),
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      );
+    }
+
+    final ws = widget.workspace!;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.folder_outlined, size: 13.5, color: appColors.accent),
+        const SizedBox(width: 5.0),
+        Flexible(
+          child: Text(
+            ws.name,
+            style: AppTypography.uiControl.copyWith(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: appColors.textPrimary,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (ws.gitBranch != null && ws.gitBranch!.isNotEmpty) ...[
+          const SizedBox(width: 6.0),
+          Container(width: 1.0, height: 10.0, color: appColors.borderSubtle),
+          const SizedBox(width: 6.0),
+          Icon(Icons.call_split_rounded, size: 12.0, color: appColors.textSecondary),
+          const SizedBox(width: 3.0),
+          Flexible(
+            child: Text(
+              ws.gitBranch!,
+              style: AppTypography.code.copyWith(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w500,
+                color: appColors.accent,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildFilesSection(AppThemeExtension appColors) {
+    if (widget.attachedFiles.isEmpty) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.description_outlined, size: 13.0, color: appColors.textSecondary.withValues(alpha: 0.6)),
+          const SizedBox(width: 5.0),
+          Text(
+            I18n.isGerman ? 'Keine Dateien angehängt' : 'No files attached',
+            style: AppTypography.uiControl.copyWith(
+              fontSize: 11.0,
+              color: appColors.textSecondary.withValues(alpha: 0.7),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final totalTokens = widget.attachedFiles.fold<int>(0, (sum, f) => sum + f.estimatedTokens);
+    final count = widget.attachedFiles.length;
+    final tokenStr = totalTokens >= 1000 ? '~${(totalTokens / 1000).toStringAsFixed(1)}k' : '$totalTokens';
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.inventory_2_outlined, size: 13.5, color: appColors.accent),
+        const SizedBox(width: 5.0),
+        Flexible(
+          child: Text(
+            count == 1
+                ? '${widget.attachedFiles.first.name} ($tokenStr tok)'
+                : '$count ${I18n.isGerman ? 'Dateien' : 'files'} ($tokenStr tok)',
+            style: AppTypography.code.copyWith(
+              fontSize: 11.0,
+              color: appColors.textPrimary,
+              fontWeight: FontWeight.w500,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildModelTimingSection({
+    required AppThemeExtension appColors,
+    required HardwareEstimate estimate,
+  }) {
+    final modelName = widget.selectedModel ?? 'default';
+    final modeLabel = _getModeLabel(widget.mode);
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.bolt_rounded, size: 13.5, color: appColors.accent),
+        const SizedBox(width: 5.0),
+        Flexible(
+          child: Text(
+            estimate.isTested
+                ? '$modelName • $modeLabel • ${estimate.durationDisplay} (${estimate.speedDisplay})'
+                : '$modelName • $modeLabel • ${estimate.speedDisplay}',
+            style: AppTypography.code.copyWith(
+              fontSize: 10.5,
+              color: appColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTokenStatsSection({
+    required AppThemeExtension appColors,
+    required TokenUsageStats tokenStats,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.speed_rounded, size: 13.0, color: appColors.textSecondary),
+        const SizedBox(width: 5.0),
+        Flexible(
+          child: Text(
+            '${tokenStats.todayFormatted} • ${tokenStats.totalFormatted}',
+            style: AppTypography.code.copyWith(
+              fontSize: 10.5,
+              color: appColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _getModeLabel(ChatExecutionMode mode) {
+    switch (mode) {
+      case ChatExecutionMode.schnell:
+        return I18n.isGerman ? 'Schnell' : 'Fast';
+      case ChatExecutionMode.optimal:
+        return I18n.isGerman ? 'Optimal' : 'Optimal';
+      case ChatExecutionMode.thinking:
+        return I18n.isGerman ? 'Denken' : 'Thinking';
+    }
+  }
+}
+
+/// The discrete toggle chevron button (`^`) positioned in the composer's header/top area.
+class ShelfToggleButton extends StatelessWidget {
+  final bool isExpanded;
+  final VoidCallback onTap;
+
+  const ShelfToggleButton({
+    super.key,
+    required this.isExpanded,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final appColors = context.appColors;
+
+    return Tooltip(
+      message: isExpanded ? I18n.shelfCollapse : I18n.shelfExpand,
+      waitDuration: const Duration(milliseconds: 500),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12.0),
+          hoverColor: appColors.hover,
+          child: Padding(
+            padding: const EdgeInsets.all(4.0),
+            child: AnimatedRotation(
+              turns: isExpanded ? 0.5 : 0.0,
+              duration: const Duration(milliseconds: 240),
+              curve: Curves.easeInOutCubic,
+              child: Icon(
+                Icons.keyboard_arrow_up_rounded,
+                size: 16.0,
+                color: isExpanded ? appColors.accent : appColors.textSecondary,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

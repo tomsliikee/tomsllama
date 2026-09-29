@@ -95,4 +95,31 @@ class SettingsService {
       await file.writeAsString(jsonEncode(map));
     } catch (_) {}
   }
+
+  Future<bool> loadComposerShelfExpanded() async {
+    try {
+      final file = await _getFile();
+      if (await file.exists()) {
+        final content = await file.readAsString();
+        final map = jsonDecode(content) as Map<String, dynamic>;
+        return map['composer_shelf_expanded'] as bool? ?? false;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  Future<void> saveComposerShelfExpanded(bool expanded) async {
+    try {
+      final file = await _getFile();
+      Map<String, dynamic> map = {};
+      if (await file.exists()) {
+        try {
+          map = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+        } catch (_) {}
+      }
+      map['composer_shelf_expanded'] = expanded;
+      await file.writeAsString(jsonEncode(map));
+    } catch (_) {}
+  }
 }
+
