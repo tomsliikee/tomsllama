@@ -1,7 +1,7 @@
 <div align="center">
   <img src="readmestuff/app_icon_512.png" width="96" height="96" alt="tomsllama logo" />
   <h1>tomsllama</h1>
-  <p>A native desktop interface for local Ollama language models.</p>
+  <p>A native desktop interface for local Ollama language models with project workspaces, hardware calibration, and offline context management.</p>
 </div>
 
 ---
@@ -10,26 +10,31 @@
 
 ## Overview
 
-tomsllama is a private, lightweight desktop client for Ollama built with Flutter. It runs entirely on your local machine with zero external network requests, telemetry, or cloud dependencies.
+tomsllama is an offline, privacy-first desktop client for Ollama built with Flutter. It executes completely on your local workstation with zero telemetry, zero analytics, and zero external cloud connections.
 
-The user interface emphasizes typography and reading comfort, using serif typography for long-form answers, monospaced code blocks with syntax highlighting, and minimal 1px borders.
+The interface adheres to an anti-slop, distraction-free aesthetic: 1px hairlines, floating neutral pills, monospaced code blocks with syntax highlighting, and dedicated workspace context injection designed for developer workflows.
 
 ## Features
 
-- Local streaming: Streams token-by-token responses directly from your local Ollama instance.
-- Reasoning blocks: Collapsible accordions for thinking models like DeepSeek-R1 and Qwen2.5, displaying elapsed thinking time and token counts.
-- Split-view canvas: Open code snippets or markdown documents in a persistent right-hand panel while continuing your chat on the left.
-- Model picker and temperature slider: Switch models from the top bar and adjust generation temperature with a slider and quick presets (Code, Balanced, Creative).
-- System personas: Quickly switch system prompts for roles such as Software Architect, Senior Developer, Security Auditor, and Technical Writer.
-- Local SQLite storage: All conversations and messages are stored on disk in SQLite (`~/Documents/tomsllama/tomsllama.db`). Switching or creating chats never loses history.
-- Four built-in themes:
-  - Claude: Warm ivory paper background with terracotta accents.
+- Local Streaming: Direct token-by-token streaming from your local Ollama daemon via HTTP.
+- Project Workspaces: Organize chats inside isolated workspaces with custom workspace system prompts, Git repository awareness, active branch tracking, and dedicated file pools.
+- Context & File Attachments: Attach files or whole project folders to the composer. Files are parsed, counted for token load, and injected directly into model context.
+- Mention Auto-Completion: Type `@` inside the input box to open a filtered file selector matching files from the active workspace.
+- Per-Model Hardware Calibration: Automatically benchmarks evaluation speed (eval tok/s) and generation speed (gen tok/s) on your hardware (CPU, Apple Silicon, or NVIDIA GPU). Displays estimated completion times before sending messages.
+- Expandable Telemetry Shelf: A collapsible drawer attached directly to the top edge of the input bar displaying active workspace details, Git branch, attached file token sizes, expected model duration, and daily versus lifetime token metrics.
+- Execution Modes: Switch between Schnell (fast, low-context), Optimal (balanced quality and performance), and Denken (extended reasoning budget for models like DeepSeek-R1 and Qwen2.5-Coder).
+- Reasoning Accordions: Dedicated thinking blocks for reasoning models, displaying elapsed calculation time and token counts with toggleable visibility.
+- Split-View Canvas: Side-by-side inspection canvas to view and edit code blocks, markdown artifacts, or generated documents while continuing conversations.
+- History Navigation: Use Arrow Up and Arrow Down in the text field to cycle through past prompts without losing current draft inputs.
+- Organic Dispatch Button: Circular send button with a smooth cloud-morphing animation featuring the animated mascot during dispatch.
+- Built-in Themes: Four high-contrast color palettes:
+  - Claude: Warm ivory paper canvas with terracotta accents.
   - Pond: Clean mineral light background with slate teal accents.
   - Dark: Low-contrast charcoal background with warm highlights.
   - Pond Dark: Deep mineral slate background with luminous teal accents.
-- Drag and drop: Drop code or text files into the input box to automatically format them into code blocks.
-- Offline fonts: Ships with local font files (Newsreader, Inter, Fira Code) so no fonts are loaded from Google servers.
-- Dual-language support: Automatically adapts to English or German based on system locale.
+- Local SQLite Storage: Robust persistence for chats, messages, personas, workspaces, and telemetry in `~/Documents/tomsllama/tomsllama.db`.
+- Local Typography: Bundles Inter, Newsreader, and Fira Code locally without external network requests.
+- Multi-Language: Automatic UI switching between English and German based on system locale.
 
 ## Keyboard Shortcuts
 
@@ -38,10 +43,13 @@ The user interface emphasizes typography and reading comfort, using serif typogr
 | `Ctrl + N` | Start a new chat |
 | `Ctrl + B` | Toggle sidebar visibility |
 | `Ctrl + K` | Open quick switcher / search |
-| `Esc` | Stop current generation |
+| `Esc` | Stop active generation / close autocompletion popup |
 | `F11` | Toggle fullscreen mode |
-| `Enter` | Send message |
+| `Enter` | Send message (when text or files are attached) |
 | `Shift + Enter` | Insert newline |
+| `Arrow Up` | Navigate to previous prompt in history (at first line) |
+| `Arrow Down` | Navigate to newer prompt in history / restore draft |
+| `@` | Trigger workspace file autocomplete |
 
 ## Prerequisites
 
@@ -50,21 +58,21 @@ The user interface emphasizes typography and reading comfort, using serif typogr
    ollama serve
    ```
 
-2. Pull one or more models:
+2. Pull desired models:
    ```bash
-   ollama pull qwen2.5:3b
    ollama pull qwen2.5-coder:7b
+   ollama pull deepseek-r1:14b
    ```
 
-3. Flutter SDK (version 3.19 or higher) with Linux desktop prerequisites installed:
+3. Flutter SDK (version 3.19 or higher) with Linux desktop prerequisites:
    ```bash
-   # On Fedora:
+   # Fedora:
    sudo dnf install clang cmake ninja-build gtk3-devel libayatana-appindicator-gtk3-devel
-   
-   # On Ubuntu / Debian:
+
+   # Ubuntu / Debian:
    sudo apt install clang cmake ninja-build pkg-config libgtk-3-dev libayatana-appindicator3-dev
-   
-   # On Arch Linux:
+
+   # Arch Linux:
    sudo pacman -S clang cmake ninja gtk3 libayatana-appindicator
    ```
 
@@ -76,33 +84,32 @@ git clone https://github.com/tomsliikee/tomsllama.git
 cd tomsllama
 ```
 
-Fetch dependencies:
+Install dependencies:
 ```bash
 flutter pub get
 ```
 
-Run in debug mode:
+Run in development mode:
 ```bash
 flutter run -d linux
 ```
 
-Build a standalone release bundle:
+Compile a standalone release bundle:
 ```bash
 flutter build linux --release
 ```
 
-The compiled binary will be located in:
+The resulting executable and bundled assets are placed in:
 `build/linux/x64/release/bundle/tomsllama`
 
-## Data and Configuration
+## Data Storage & Paths
 
-All chat histories, custom personas, and settings are saved locally:
+All persistent data remains strictly on your local disk:
 
-- Database: `~/Documents/tomsllama/tomsllama.db`
-- Desktop entry: `~/.local/share/applications/tomsllama.desktop`
-- Icons: `~/.local/share/icons/hicolor/`
-
-To back up your chats, simply copy the `~/Documents/tomsllama/` directory.
+- SQLite Database: `~/Documents/tomsllama/tomsllama.db`
+- Configuration & Hardware Profiles: `~/Documents/tomsllama/settings.json`
+- Linux Desktop Entry: `~/.local/share/applications/tomsllama.desktop`
+- Application Icons: `~/.local/share/icons/hicolor/`
 
 ## License
 
