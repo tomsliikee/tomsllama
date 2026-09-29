@@ -145,6 +145,14 @@ class _SidebarViewState extends State<SidebarView> {
   Widget _buildModeSlider(AppThemeExtension appColors) {
     const double tabHeight = 32.0;
     final bool isChats = widget.mode == SidebarMode.chats;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Darker selected pill to cleanly contrast against the track in both light and dark mode
+    final Color activeIndicatorColor = isDark
+        ? Color.alphaBlend(Colors.black.withValues(alpha: 0.55), appColors.surface)
+        : Color.alphaBlend(appColors.textPrimary.withValues(alpha: 0.12), appColors.surface);
+
+    final Color activeIndicatorBorder = isDark ? appColors.border : appColors.border;
 
     return Container(
       height: tabHeight,
@@ -168,9 +176,9 @@ class _SidebarViewState extends State<SidebarView> {
                 width: halfWidth,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: appColors.surface,
+                    color: activeIndicatorColor,
                     borderRadius: BorderRadius.circular(13.0),
-                    border: Border.all(color: appColors.borderSubtle, width: 1.0),
+                    border: Border.all(color: activeIndicatorBorder, width: 1.0),
                   ),
                 ),
               ),

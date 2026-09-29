@@ -41,10 +41,10 @@ void main() {
 
     test('large token contexts incur non-linear scaling penalty', () {
       final small = service.estimatePrompt(tokens: 500, mode: ChatExecutionMode.optimal);
-      final large = service.estimatePrompt(tokens: 4000, mode: ChatExecutionMode.optimal);
+      final large = service.estimatePrompt(tokens: 6000, mode: ChatExecutionMode.optimal);
 
-      // 4000 is 8x 500 tokens, but because of quadratic context scaling buffer, it takes more than 8x
-      expect(large.estimatedSeconds, greaterThan(small.estimatedSeconds * 8));
+      // 6000 is 12x 500 tokens, but because of quadratic context scaling buffer, it takes more than 12x
+      expect(large.estimatedSeconds, greaterThan(small.estimatedSeconds * 12));
     });
 
     test('recordMetrics updates EMA calibration and marks calibrated', () async {

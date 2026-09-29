@@ -701,15 +701,14 @@ class _AttachedFilePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appColors = context.appColors;
-    final isLarge = file.estimatedTokens > 1000;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
       decoration: BoxDecoration(
-        color: isLarge ? Colors.amber.withValues(alpha: 0.08) : appColors.hover,
+        color: appColors.hover,
         borderRadius: BorderRadius.circular(14.0),
         border: Border.all(
-          color: isLarge ? Colors.amber.withValues(alpha: 0.35) : appColors.borderSubtle,
+          color: appColors.borderSubtle,
           width: 1.0,
         ),
       ),
@@ -721,7 +720,7 @@ class _AttachedFilePill extends StatelessWidget {
             size: 13.0,
             color: file.extension == '.pdf'
                 ? Colors.redAccent.shade200
-                : (isLarge ? Colors.amber.shade700 : appColors.accent),
+                : appColors.textSecondary,
           ),
           const SizedBox(width: 5.0),
           ConstrainedBox(
@@ -744,10 +743,8 @@ class _AttachedFilePill extends StatelessWidget {
                 : '${file.estimatedTokens} tok',
             style: AppTypography.code.copyWith(
               fontSize: 10.0,
-              color: isLarge
-                  ? Colors.amber.shade800
-                  : appColors.textSecondary.withValues(alpha: 0.6),
-              fontWeight: isLarge ? FontWeight.w600 : FontWeight.w400,
+              color: appColors.textSecondary.withValues(alpha: 0.7),
+              fontWeight: FontWeight.w400,
             ),
           ),
           if (estimate != null) ...[
@@ -756,9 +753,7 @@ class _AttachedFilePill extends StatelessWidget {
               '• ${estimate!.speedDisplay} • ${estimate!.durationDisplay}',
               style: AppTypography.code.copyWith(
                 fontSize: 10.0,
-                color: isLarge
-                    ? Colors.amber.shade800
-                    : appColors.accent,
+                color: appColors.textSecondary,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -790,7 +785,6 @@ class _AttachedFilesSummaryPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appColors = context.appColors;
-    final isLarge = totalTokens > 1000;
     final tokenStr = totalTokens >= 1000
         ? '~${(totalTokens / 1000).toStringAsFixed(1)}k tok'
         : '$totalTokens tok';
@@ -798,10 +792,10 @@ class _AttachedFilesSummaryPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
       decoration: BoxDecoration(
-        color: isLarge ? Colors.amber.withValues(alpha: 0.08) : appColors.hover,
+        color: appColors.hover,
         borderRadius: BorderRadius.circular(14.0),
         border: Border.all(
-          color: isLarge ? Colors.amber.withValues(alpha: 0.35) : appColors.borderSubtle,
+          color: appColors.borderSubtle,
           width: 1.0,
         ),
       ),
@@ -811,15 +805,15 @@ class _AttachedFilesSummaryPill extends StatelessWidget {
           Icon(
             Icons.speed_rounded,
             size: 13.0,
-            color: isLarge ? Colors.amber.shade700 : appColors.accent,
+            color: appColors.textSecondary,
           ),
           const SizedBox(width: 5.0),
           Text(
             '${I18n.totalLabel}: $tokenStr • ${estimate.speedDisplay} • ${estimate.durationDisplay}',
             style: AppTypography.code.copyWith(
               fontSize: 10.0,
-              color: isLarge ? Colors.amber.shade800 : appColors.textSecondary,
-              fontWeight: isLarge ? FontWeight.w600 : FontWeight.w500,
+              color: appColors.textSecondary,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
