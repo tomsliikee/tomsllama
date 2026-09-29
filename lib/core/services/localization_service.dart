@@ -39,6 +39,8 @@ class I18n {
   static String get dropFilesToAttach => isGerman ? 'Dateien hier ablegen' : 'Drop files to attach';
   static String get willAttachToConversation =>
       isGerman ? 'Wird an diese Unterhaltung angehängt' : 'Will attach to this conversation';
+  static String get toggleSidebar =>
+      isGerman ? 'Seitenleiste umschalten (Strg+B)' : 'Toggle Sidebar (Ctrl+B)';
 
   static String get subtitle => isGerman
       ? 'Lokales, sicheres Interface für Ollama'

@@ -169,6 +169,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                   onOpenSettings: _openSettings,
                   onOpenQuickSwitcher: _openQuickSwitcher,
                   isZenMode: _isZenMode,
+                  isSidebarOpen: _isSidebarOpen,
                 ),
                 Expanded(
                   child: Row(

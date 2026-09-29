@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/services/localization_service.dart';
 import 'tomsllama_logo.dart';
 
 class CsdHeaderBar extends ConsumerStatefulWidget {
@@ -10,6 +11,7 @@ class CsdHeaderBar extends ConsumerStatefulWidget {
   final VoidCallback onOpenSettings;
   final VoidCallback onOpenQuickSwitcher;
   final bool isZenMode;
+  final bool isSidebarOpen;
 
   const CsdHeaderBar({
     super.key,
@@ -17,6 +19,7 @@ class CsdHeaderBar extends ConsumerStatefulWidget {
     required this.onOpenSettings,
     required this.onOpenQuickSwitcher,
     this.isZenMode = false,
+    this.isSidebarOpen = true,
   });
 
   @override
@@ -63,6 +66,16 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
                 ],
               ),
             ),
+          ),
+
+          const SizedBox(width: 6.0),
+
+          // Sidebar Toggle Button next to tomsllama
+          _SidebarToggleButton(
+            key: const Key('sidebar_toggle_button'),
+            isOpen: widget.isSidebarOpen,
+            onTap: widget.onToggleSidebar,
+            appColors: appColors,
           ),
           
           // Drag Window Area (Left)
@@ -240,6 +253,69 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
           icon,
           size: 14.0,
           color: isClose ? appColors.textSecondary : appColors.textSecondary,
+        ),
+      ),
+    );
+  }
+}
+
+class _SidebarToggleButton extends StatefulWidget {
+  final bool isOpen;
+  final VoidCallback onTap;
+  final AppThemeExtension appColors;
+
+  const _SidebarToggleButton({
+    super.key,
+    required this.isOpen,
+    required this.onTap,
+    required this.appColors,
+  });
+
+  @override
+  State<_SidebarToggleButton> createState() => _SidebarToggleButtonState();
+}
+
+class _SidebarToggleButtonState extends State<_SidebarToggleButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = widget.appColors;
+    return Tooltip(
+      message: I18n.toggleSidebar,
+      waitDuration: const Duration(milliseconds: 300),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            width: 28.0,
+            height: 28.0,
+            decoration: BoxDecoration(
+              color: _isHovered
+                  ? colors.accentSubtle
+                  : colors.surface.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(6.0),
+              border: Border.all(
+                color: _isHovered
+                    ? colors.accent.withValues(alpha: 0.3)
+                    : colors.borderSubtle,
+                width: 1.0,
+              ),
+            ),
+            child: Center(
+              child: Icon(
+                Icons.view_sidebar_outlined,
+                size: 15.0,
+                color: _isHovered
+                    ? colors.accent
+                    : (widget.isOpen ? colors.textSecondary : colors.accent),
+              ),
+            ),
+          ),
         ),
       ),
     );
