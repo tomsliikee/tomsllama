@@ -15,7 +15,9 @@ import '../../../../core/models/workspace_info.dart';
 import '../../../../core/services/repo_map_service.dart';
 import '../../../../core/services/workspace_search_service.dart';
 import '../../sidebar/controllers/sidebar_controller.dart';
-import 'workspace_controller.dart';
+import '../../chat/controllers/workspace_controller.dart';
+import '../../../../core/models/workspace.dart';
+import '../../../../core/models/workspace_context_file.dart';
 
 class ChatState {
   final String? conversationId;
@@ -265,34 +267,6 @@ class ChatNotifier extends StateNotifier<ChatState> {
     if (text.trim().isEmpty && effectiveFiles.isEmpty) return;
     if (state.isGenerating) return;
 
-    // Build the complete prompt payload
-    String promptPayload = text.trim();
-    if (effectiveFiles.isNotEmpty || effectiveWorkspace != null) {
-      final buffer = StringBuffer();
-      if (effectiveWorkspace != null) {
-        buffer.writeln('### Project Workspace: `${effectiveWorkspace.name}`${effectiveWorkspace.gitBranch != null ? ' (Git Branch: `${effectiveWorkspace.gitBranch}`)' : ''}');
-        if (effectiveWorkspace.files.isNotEmpty) {
-          buffer.writeln('#### Project File Structure:\n```\n${effectiveWorkspace.formattedFileTree}\n```');
-        }
-        if (repoMap != null && repoMap.isNotEmpty) {
-          buffer.writeln('#### Workspace Code Outline (Key Symbols):\n$repoMap');
-        }
-        buffer.writeln('#### Workspace Tools:\nYou have access to the `read_file(file_path)` function. When you need to read or verify code from any file in the workspace, call `read_file` with the relative file path.');
-      }
-      if (effectiveFiles.isNotEmpty) {
-        buffer.writeln('#### Attached Context Files (Full Content):');
-        for (final file in effectiveFiles) {
-          buffer.writeln(file.toMarkdownBlock());
-          buffer.writeln();
-        }
-      }
-      if (text.trim().isNotEmpty) {
-        buffer.writeln('#### User Request:');
-        buffer.writeln(text.trim());
-      }
-      promptPayload = buffer.toString().trim();
-    }
-
     // 1. Ensure active conversation exists
     String convId = state.conversationId ?? '';
     bool isFirstMessageInConv = false;
@@ -315,6 +289,57 @@ class ChatNotifier extends StateNotifier<ChatState> {
         final previewTitle = titleSeed.length > 25 ? '${titleSeed.substring(0, 25)}...' : titleSeed;
         await _ref.read(sidebarProvider.notifier).updateTitle(convId, previewTitle);
       }
+    }
+
+    // Check if conversation belongs to a Claude-style Workspace with active context
+    final allConvs = await _db.getConversations();
+    final currentConv = allConvs.where((c) => c.id == convId).firstOrNull;
+    final workspaceId = currentConv?.workspaceId;
+    final isWorkspaceContextEnabled = currentConv?.isWorkspaceContextEnabled ?? true;
+
+    Workspace? claudeWorkspace;
+    List<WorkspaceContextFile> claudeWorkspaceFiles = const [];
+
+    if (workspaceId != null && isWorkspaceContextEnabled) {
+      claudeWorkspace = await _db.getWorkspace(workspaceId);
+      if (claudeWorkspace != null) {
+        claudeWorkspaceFiles = await _db.getWorkspaceFiles(workspaceId);
+      }
+    }
+
+    // Build the complete prompt payload
+    String promptPayload = text.trim();
+    if (effectiveFiles.isNotEmpty || effectiveWorkspace != null || claudeWorkspaceFiles.isNotEmpty) {
+      final buffer = StringBuffer();
+      if (claudeWorkspace != null && claudeWorkspaceFiles.isNotEmpty) {
+        buffer.writeln('### Workspace Knowledge Base: `${claudeWorkspace.name}`');
+        for (final file in claudeWorkspaceFiles) {
+          buffer.writeln(file.toMarkdownBlock());
+          buffer.writeln();
+        }
+      }
+      if (effectiveWorkspace != null) {
+        buffer.writeln('### Project Workspace: `${effectiveWorkspace.name}`${effectiveWorkspace.gitBranch != null ? ' (Git Branch: `${effectiveWorkspace.gitBranch}`)' : ''}');
+        if (effectiveWorkspace.files.isNotEmpty) {
+          buffer.writeln('#### Project File Structure:\n```\n${effectiveWorkspace.formattedFileTree}\n```');
+        }
+        if (repoMap != null && repoMap.isNotEmpty) {
+          buffer.writeln('#### Workspace Code Outline (Key Symbols):\n$repoMap');
+        }
+        buffer.writeln('#### Workspace Tools:\nYou have access to the `read_file(file_path)` function. When you need to read or verify code from any file in the workspace, call `read_file` with the relative file path.');
+      }
+      if (effectiveFiles.isNotEmpty) {
+        buffer.writeln('#### Attached Context Files (Full Content):');
+        for (final file in effectiveFiles) {
+          buffer.writeln(file.toMarkdownBlock());
+          buffer.writeln();
+        }
+      }
+      if (text.trim().isNotEmpty) {
+        buffer.writeln('#### User Request:');
+        buffer.writeln(text.trim());
+      }
+      promptPayload = buffer.toString().trim();
     }
 
     // 2. Add user message with clean display content (only explicitly attached pills encoded)
@@ -346,7 +371,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
     );
 
     final updatedMessages = [...state.messages, userMsg, assistantMsg];
-    final hasPdf = effectiveFiles.any((f) => f.extension == '.pdf');
+    final hasPdf = effectiveFiles.any((f) => f.extension == '.pdf') ||
+        claudeWorkspaceFiles.any((f) => f.extension == '.pdf');
     state = state.copyWith(
       messages: updatedMessages,
       isGenerating: true,
@@ -358,7 +384,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     final totalTokens = ContextManager.estimateTokens(promptPayload);
     int dynamicNumCtx = 2048;
     if (totalTokens > 800) {
-      dynamicNumCtx = (totalTokens + 1024).clamp(2048, 4096);
+      dynamicNumCtx = (totalTokens + 1024).clamp(2048, 8192);
     }
 
     // Prepare message payload with sliding window bounded by dynamicNumCtx
@@ -376,15 +402,23 @@ class ChatNotifier extends StateNotifier<ChatState> {
       return <String, dynamic>{'role': m.role, 'content': m.content};
     }).toList();
 
-    // Add system persona if defined
+    // Add system persona and workspace prompt if defined
     final matchedPersona = Persona.defaultPersonas.firstWhere(
       (p) => p.name.toLowerCase() == state.activePersonaName.toLowerCase(),
       orElse: () => Persona.defaultPersonas.first,
     );
+    final systemPromptBuffer = StringBuffer();
     if (matchedPersona.systemPrompt.trim().isNotEmpty) {
+      systemPromptBuffer.writeln(matchedPersona.systemPrompt.trim());
+    }
+    if (claudeWorkspace != null && claudeWorkspace.prompt.trim().isNotEmpty) {
+      if (systemPromptBuffer.isNotEmpty) systemPromptBuffer.writeln('\n');
+      systemPromptBuffer.writeln('### Workspace Instructions & Rules (${claudeWorkspace.name}):\n${claudeWorkspace.prompt.trim()}');
+    }
+    if (systemPromptBuffer.isNotEmpty) {
       promptMessages.insert(0, {
         'role': 'system',
-        'content': matchedPersona.systemPrompt,
+        'content': systemPromptBuffer.toString().trim(),
       });
     }
 

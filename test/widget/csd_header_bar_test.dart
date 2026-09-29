@@ -7,8 +7,6 @@ import 'package:tomsllama/features/shell/widgets/csd_header_bar.dart';
 void main() {
   testWidgets('CsdHeaderBar renders logo, title, and sidebar toggle button', (WidgetTester tester) async {
     bool toggled = false;
-    bool openedSettings = false;
-    bool openedQuickSwitcher = false;
 
     await tester.pumpWidget(
       ProviderScope(
@@ -17,8 +15,8 @@ void main() {
           home: Scaffold(
             body: CsdHeaderBar(
               onToggleSidebar: () => toggled = true,
-              onOpenSettings: () => openedSettings = true,
-              onOpenQuickSwitcher: () => openedQuickSwitcher = true,
+              onOpenSettings: () {},
+              onOpenQuickSwitcher: () {},
               isSidebarOpen: true,
             ),
           ),

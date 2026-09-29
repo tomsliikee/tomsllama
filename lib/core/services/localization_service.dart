@@ -41,6 +41,23 @@ class I18n {
       isGerman ? 'Wird an diese Unterhaltung angehängt' : 'Will attach to this conversation';
   static String get toggleSidebar =>
       isGerman ? 'Seitenleiste umschalten (Strg+B)' : 'Toggle Sidebar (Ctrl+B)';
+  static String get workspaces => 'Workspaces';
+  static String get chats => 'Chats';
+  static String get newWorkspace => isGerman ? '+ Neuer Workspace' : '+ New Workspace';
+  static String get noWorkspaces => isGerman ? 'Keine Workspaces vorhanden' : 'No workspaces yet';
+  static String get deleteWorkspaceConfirm => isGerman ? 'Workspace löschen?' : 'Delete workspace?';
+  static String get workspacePromptTitle => isGerman ? 'WORKSPACE PROMPT (DAUERHAFT)' : 'WORKSPACE PROMPT (PERSISTENT)';
+  static String get workspaceContextTitle => isGerman ? 'WORKSPACE KNOWLEDGE / KONTEXT' : 'WORKSPACE KNOWLEDGE / CONTEXT';
+  static String get askInWorkspace =>
+      isGerman ? 'Frage stellen oder neuen Chat im Workspace starten...' : 'Ask a question or start a chat in this workspace...';
+  static String get workspaceChatsTitle => isGerman ? 'CHATS IN DIESEM WORKSPACE' : 'CHATS IN THIS WORKSPACE';
+  static String get contextActive => isGerman ? 'Workspace Context: Aktiv' : 'Workspace Context: Active';
+  static String get contextPaused => isGerman ? 'Workspace Context: Pausiert' : 'Workspace Context: Paused';
+  static String get workspaceNameLabel => isGerman ? 'Name des Workspaces' : 'Workspace Name';
+  static String get workspaceNameHint => isGerman ? 'z. B. Projekt Erlebnisplaner' : 'e.g. Project Mobile App';
+  static String get create => isGerman ? 'Erstellen' : 'Create';
+  static String get cancel => isGerman ? 'Abbrechen' : 'Cancel';
+  static String get backToHub => isGerman ? 'Workspace-Hub' : 'Workspace Hub';
 
   static String get subtitle => isGerman
       ? 'Lokales, sicheres Interface für Ollama'

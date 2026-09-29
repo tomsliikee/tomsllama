@@ -7,6 +7,8 @@ class Conversation {
   final bool isPinned;
   final int sortOrder;
   final String persona;
+  final String? workspaceId;
+  final bool isWorkspaceContextEnabled;
 
   const Conversation({
     required this.id,
@@ -17,6 +19,8 @@ class Conversation {
     this.isPinned = false,
     this.sortOrder = 0,
     this.persona = 'Standard',
+    this.workspaceId,
+    this.isWorkspaceContextEnabled = true,
   });
 
   Map<String, dynamic> toMap() {
@@ -29,6 +33,8 @@ class Conversation {
       'is_pinned': isPinned ? 1 : 0,
       'sort_order': sortOrder,
       'persona': persona,
+      'workspace_id': workspaceId,
+      'is_workspace_context_enabled': isWorkspaceContextEnabled ? 1 : 0,
     };
   }
 
@@ -42,6 +48,8 @@ class Conversation {
       isPinned: (map['is_pinned'] as int? ?? 0) == 1,
       sortOrder: map['sort_order'] as int? ?? 0,
       persona: (map['persona'] as String?) ?? 'Standard',
+      workspaceId: map['workspace_id'] as String?,
+      isWorkspaceContextEnabled: (map['is_workspace_context_enabled'] as int? ?? 1) == 1,
     );
   }
 
@@ -54,6 +62,8 @@ class Conversation {
     bool? isPinned,
     int? sortOrder,
     String? persona,
+    String? workspaceId,
+    bool? isWorkspaceContextEnabled,
   }) {
     return Conversation(
       id: id ?? this.id,
@@ -64,6 +74,9 @@ class Conversation {
       isPinned: isPinned ?? this.isPinned,
       sortOrder: sortOrder ?? this.sortOrder,
       persona: persona ?? this.persona,
+      workspaceId: workspaceId ?? this.workspaceId,
+      isWorkspaceContextEnabled:
+          isWorkspaceContextEnabled ?? this.isWorkspaceContextEnabled,
     );
   }
 }
