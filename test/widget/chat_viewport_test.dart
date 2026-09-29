@@ -19,23 +19,23 @@ void main() {
       ),
     );
 
-    // Verify logo with enlarged size 46.0 and idle animation enabled
+    // Verify logo with enlarged size 53.0 and idle animation enabled
     final logoFinder = find.byType(TomsllamaLogo);
     expect(logoFinder, findsOneWidget);
     final logoWidget = tester.widget<TomsllamaLogo>(logoFinder);
-    expect(logoWidget.size, 46.0);
+    expect(logoWidget.size, 53.0);
     expect(logoWidget.enableIdleAnimation, isTrue);
 
-    // Verify title 'tomsllama' with enlarged 26.4 font
+    // Verify title 'tomsllama' with enlarged 30.0 font
     final titleFinder = find.text('tomsllama');
     expect(titleFinder, findsOneWidget);
     final titleText = tester.widget<Text>(titleFinder);
-    expect(titleText.style?.fontSize, 26.4);
+    expect(titleText.style?.fontSize, 30.0);
 
-    // Verify subtitle with enlarged 15.6 font
+    // Verify subtitle with enlarged 17.0 font
     final subtitleFinder = find.text(I18n.subtitle);
     expect(subtitleFinder, findsOneWidget);
     final subtitleText = tester.widget<Text>(subtitleFinder);
-    expect(subtitleText.style?.fontSize, 15.6);
+    expect(subtitleText.style?.fontSize, 17.0);
   });
 }
