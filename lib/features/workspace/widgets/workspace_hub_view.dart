@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:desktop_drop/desktop_drop.dart';
@@ -10,6 +11,8 @@ import '../../../core/models/workspace_context_file.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../core/services/localization_service.dart';
+import '../../../core/services/hardware_calibration_service.dart';
+import '../../chat/controllers/chat_controller.dart';
 import '../../chat/widgets/persona_chip.dart';
 import '../../models/controllers/model_controller.dart';
 import '../controllers/workspace_hub_controller.dart';
@@ -40,6 +43,8 @@ class WorkspaceHubView extends ConsumerStatefulWidget {
 class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
   late final TextEditingController _promptController;
   late final TextEditingController _inputController;
+  late final FocusNode _inputFocusNode;
+  bool _isInputFocused = false;
   bool _isDraggingOverContext = false;
   String _selectedPersona = 'Standard';
 
@@ -48,6 +53,19 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
     super.initState();
     _promptController = TextEditingController(text: widget.workspace.prompt);
     _inputController = TextEditingController();
+    _inputFocusNode = FocusNode();
+    _inputFocusNode.addListener(() {
+      if (mounted) setState(() => _isInputFocused = _inputFocusNode.hasFocus);
+    });
+    _inputFocusNode.onKeyEvent = (node, event) {
+      if (event is KeyDownEvent &&
+          event.logicalKey == LogicalKeyboardKey.enter &&
+          !HardwareKeyboard.instance.isShiftPressed) {
+        _submit();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    };
   }
 
   @override
@@ -63,6 +81,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
   void dispose() {
     _promptController.dispose();
     _inputController.dispose();
+    _inputFocusNode.dispose();
     super.dispose();
   }
 
@@ -111,6 +130,12 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
     final appColors = context.appColors;
     final modelState = ref.watch(modelProvider);
     final activeWsState = ref.watch(activeWorkspaceProvider);
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Darkened background for all passive cards in light & dark mode
+    final Color cardBackground = isDark
+        ? appColors.sidebar
+        : Color.alphaBlend(appColors.textPrimary.withValues(alpha: 0.035), appColors.surface);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -128,7 +153,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                     Container(
                       padding: const EdgeInsets.all(8.0),
                       decoration: BoxDecoration(
-                        color: appColors.surface,
+                        color: cardBackground,
                         borderRadius: BorderRadius.circular(16.0),
                         border: Border.all(
                           color: appColors.borderSubtle,
@@ -173,27 +198,28 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
 
                 const SizedBox(height: 20.0),
 
-                // 2. Workspace Prompt Box (Persistent Instructions)
-                _buildPromptCard(appColors),
+                // 2. Workspace Prompt Box (Persistent Instructions) - Darkened & sans-serif font
+                _buildPromptCard(appColors, cardBackground, isDark),
 
                 const SizedBox(height: 16.0),
 
-                // 3. Workspace Knowledge / Context Box (with Cute Animated Llama Mascot)
-                _buildContextFilesCard(appColors),
+                // 3. Workspace Knowledge / Context Box (with Telemetry Footer)
+                _buildContextFilesCard(appColors, cardBackground, isDark),
 
                 const SizedBox(height: 26.0),
 
-                // 4. Central Composer Input Field
+                // 4. Central Composer Input Field - Strongly Highlighted
                 _buildComposerCard(
                   appColors,
                   modelState.selectedModel ??
                       (modelState.models.isNotEmpty ? modelState.models.first.name : 'qwen2.5:3b'),
+                  isDark,
                 ),
 
                 const SizedBox(height: 32.0),
 
                 // 5. Chats in this Workspace (with generous spacing below input)
-                _buildWorkspaceChatsList(appColors),
+                _buildWorkspaceChatsList(appColors, cardBackground, isDark),
               ],
             ),
           ),
@@ -202,11 +228,11 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
     );
   }
 
-  Widget _buildPromptCard(AppThemeExtension appColors) {
+  Widget _buildPromptCard(AppThemeExtension appColors, Color cardBackground, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
-        color: appColors.surface,
+        color: cardBackground,
         borderRadius: BorderRadius.circular(16.0),
         border: Border.all(color: appColors.borderSubtle, width: 1.0),
       ),
@@ -237,7 +263,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
                   decoration: BoxDecoration(
-                    color: appColors.background,
+                    color: isDark ? appColors.surface : appColors.background,
                     borderRadius: BorderRadius.circular(16.0),
                     border: Border.all(color: appColors.borderSubtle, width: 1.0),
                   ),
@@ -258,14 +284,17 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
             controller: _promptController,
             maxLines: 4,
             minLines: 2,
-            style: AppTypography.body.copyWith(
+            style: AppTypography.uiControl.copyWith(
               color: appColors.textPrimary,
               fontSize: 13.5,
               height: 1.45,
             ),
             decoration: InputDecoration(
               hintText: I18n.workspacePromptHint,
-              hintStyle: AppTypography.body.copyWith(color: appColors.textSecondary.withValues(alpha: 0.6), fontSize: 13.0),
+              hintStyle: AppTypography.uiControl.copyWith(
+                color: appColors.textSecondary.withValues(alpha: 0.6),
+                fontSize: 13.0,
+              ),
               border: InputBorder.none,
               isDense: true,
               contentPadding: EdgeInsets.zero,
@@ -277,7 +306,17 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
     );
   }
 
-  Widget _buildContextFilesCard(AppThemeExtension appColors) {
+  Widget _buildContextFilesCard(AppThemeExtension appColors, Color cardBackground, bool isDark) {
+    final totalFileTokens = widget.files.fold<int>(0, (sum, f) => sum + f.estimatedTokens);
+    final hwCalibration = ref.watch(hardwareCalibrationProvider);
+    final fileEstimate = hwCalibration.estimatePrompt(
+      tokens: totalFileTokens,
+      mode: ChatExecutionMode.optimal,
+    );
+    final tokenStr = totalFileTokens >= 1000
+        ? '~${(totalFileTokens / 1000).toStringAsFixed(1)}k tok'
+        : '$totalFileTokens tok';
+
     return DropTarget(
       onDragEntered: (_) => setState(() => _isDraggingOverContext = true),
       onDragExited: (_) => setState(() => _isDraggingOverContext = false),
@@ -288,154 +327,184 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
       child: Container(
         padding: const EdgeInsets.all(16.0),
         decoration: BoxDecoration(
-          color: appColors.surface,
+          color: cardBackground,
           borderRadius: BorderRadius.circular(16.0),
           border: Border.all(
             color: _isDraggingOverContext ? appColors.accent : appColors.borderSubtle,
             width: 1.0,
           ),
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Left Column: File Manager
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Left Column: File Manager
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Icon(Icons.inventory_2_outlined, size: 16.0, color: appColors.accent),
-                          const SizedBox(width: 6.0),
-                          Text(
-                            I18n.workspaceContextTitle,
-                            style: AppTypography.code.copyWith(
-                              color: appColors.textSecondary,
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.5,
+                          Row(
+                            children: [
+                              Icon(Icons.inventory_2_outlined, size: 16.0, color: appColors.accent),
+                              const SizedBox(width: 6.0),
+                              Text(
+                                I18n.workspaceContextTitle,
+                                style: AppTypography.code.copyWith(
+                                  color: appColors.textSecondary,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                          InkWell(
+                            onTap: _pickFiles,
+                            borderRadius: BorderRadius.circular(16.0),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
+                              decoration: BoxDecoration(
+                                color: isDark ? appColors.surface : appColors.background,
+                                borderRadius: BorderRadius.circular(16.0),
+                                border: Border.all(color: appColors.borderSubtle, width: 1.0),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.add, size: 13.0, color: appColors.textPrimary),
+                                  const SizedBox(width: 4.0),
+                                  Text(
+                                    I18n.addFile,
+                                    style: AppTypography.uiControl.copyWith(
+                                      color: appColors.textPrimary,
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      InkWell(
-                        onTap: _pickFiles,
-                        borderRadius: BorderRadius.circular(16.0),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
-                          decoration: BoxDecoration(
-                            color: appColors.background,
-                            borderRadius: BorderRadius.circular(16.0),
-                            border: Border.all(color: appColors.borderSubtle, width: 1.0),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.add, size: 13.0, color: appColors.textPrimary),
-                              const SizedBox(width: 4.0),
-                              Text(
-                                I18n.addFile,
-                                style: AppTypography.uiControl.copyWith(
-                                  color: appColors.textPrimary,
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
+                      const SizedBox(height: 6.0),
+                      Text(
+                        I18n.workspaceDropFilesHint,
+                        style: AppTypography.uiControl.copyWith(
+                          color: appColors.textSecondary,
+                          fontSize: 11.5,
                         ),
                       ),
+                      const SizedBox(height: 12.0),
+
+                      // Attached files pills
+                      if (widget.files.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14.0),
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            I18n.workspaceNoFilesHint,
+                            style: AppTypography.uiControl.copyWith(
+                              color: appColors.textSecondary.withValues(alpha: 0.7),
+                              fontSize: 12.0,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        )
+                      else
+                        Wrap(
+                          spacing: 8.0,
+                          runSpacing: 8.0,
+                          children: widget.files.map((file) {
+                            final isPdf = file.extension == '.pdf';
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
+                              decoration: BoxDecoration(
+                                color: isDark ? appColors.surface : appColors.background,
+                                borderRadius: BorderRadius.circular(16.0),
+                                border: Border.all(color: appColors.borderSubtle, width: 1.0),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isPdf ? Icons.picture_as_pdf_outlined : Icons.description_outlined,
+                                    size: 13.0,
+                                    color: isPdf ? Colors.redAccent.shade200 : appColors.textSecondary,
+                                  ),
+                                  const SizedBox(width: 6.0),
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: 160.0),
+                                    child: Text(
+                                      file.fileName,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppTypography.code.copyWith(
+                                        color: appColors.textPrimary,
+                                        fontSize: 11.5,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6.0),
+                                  Text(
+                                    '~${file.estimatedTokens}t',
+                                    style: AppTypography.code.copyWith(
+                                      color: appColors.textSecondary,
+                                      fontSize: 10.5,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6.0),
+                                  InkWell(
+                                    onTap: () => ref.read(activeWorkspaceProvider.notifier).removeFile(file.id),
+                                    borderRadius: BorderRadius.circular(10.0),
+                                    child: Icon(Icons.close_rounded, size: 13.0, color: appColors.textSecondary),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
                     ],
                   ),
-                  const SizedBox(height: 6.0),
-                  Text(
-                    I18n.workspaceDropFilesHint,
-                    style: AppTypography.uiControl.copyWith(
-                      color: appColors.textSecondary,
-                      fontSize: 11.5,
-                    ),
-                  ),
-                  const SizedBox(height: 12.0),
+                ),
 
-                  // Attached files pills
-                  if (widget.files.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(vertical: 14.0),
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        I18n.workspaceNoFilesHint,
-                        style: AppTypography.uiControl.copyWith(
-                          color: appColors.textSecondary.withValues(alpha: 0.7),
-                          fontSize: 12.0,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    )
-                  else
-                    Wrap(
-                      spacing: 8.0,
-                      runSpacing: 8.0,
-                      children: widget.files.map((file) {
-                        final isPdf = file.extension == '.pdf';
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
-                          decoration: BoxDecoration(
-                            color: appColors.background,
-                            borderRadius: BorderRadius.circular(16.0),
-                            border: Border.all(color: appColors.borderSubtle, width: 1.0),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                isPdf ? Icons.picture_as_pdf_outlined : Icons.description_outlined,
-                                size: 13.0,
-                                color: isPdf ? Colors.redAccent.shade200 : appColors.textSecondary,
-                              ),
-                              const SizedBox(width: 6.0),
-                              ConstrainedBox(
-                                constraints: const BoxConstraints(maxWidth: 160.0),
-                                child: Text(
-                                  file.fileName,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: AppTypography.code.copyWith(
-                                    color: appColors.textPrimary,
-                                    fontSize: 11.5,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 6.0),
-                              Text(
-                                '~${file.estimatedTokens}t',
-                                style: AppTypography.code.copyWith(
-                                  color: appColors.textSecondary,
-                                  fontSize: 10.5,
-                                ),
-                              ),
-                              const SizedBox(width: 6.0),
-                              InkWell(
-                                onTap: () => ref.read(activeWorkspaceProvider.notifier).removeFile(file.id),
-                                borderRadius: BorderRadius.circular(10.0),
-                                child: Icon(Icons.close_rounded, size: 13.0, color: appColors.textSecondary),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                ],
-              ),
+                const SizedBox(width: 14.0),
+
+                // Right Column: Cute Animated Llama Mascot
+                const Padding(
+                  padding: EdgeInsets.only(top: 4.0),
+                  child: CuteLlamaFileMascot(size: 80.0),
+                ),
+              ],
             ),
 
-            const SizedBox(width: 14.0),
-
-            // Right Column: Cute Animated Llama Mascot cycling files every 3s!
-            const Padding(
-              padding: EdgeInsets.only(top: 4.0),
-              child: CuteLlamaFileMascot(size: 80.0),
+            // Telemetry Footer: exact telemetry (token cost, speed, duration) as footer instead of pill
+            Container(
+              height: 1.0,
+              margin: const EdgeInsets.only(top: 14.0, bottom: 10.0),
+              color: appColors.borderSubtle,
+            ),
+            Row(
+              children: [
+                Icon(
+                  Icons.speed_rounded,
+                  size: 13.0,
+                  color: appColors.textSecondary,
+                ),
+                const SizedBox(width: 6.0),
+                Text(
+                  '${I18n.totalLabel}: $tokenStr • ${fileEstimate.speedDisplay} • ${fileEstimate.durationDisplay}',
+                  style: AppTypography.code.copyWith(
+                    fontSize: 11.0,
+                    color: appColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -443,54 +512,82 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
     );
   }
 
-  Widget _buildComposerCard(AppThemeExtension appColors, String activeModel) {
+  Widget _buildComposerCard(AppThemeExtension appColors, String activeModel, bool isDark) {
+    final canSend = _inputController.text.trim().isNotEmpty;
+    final Color composerBg = isDark
+        ? Color.alphaBlend(Colors.white.withValues(alpha: 0.04), appColors.surface)
+        : appColors.surface;
+
     return Container(
-      padding: const EdgeInsets.all(14.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
       decoration: BoxDecoration(
-        color: appColors.surface,
-        borderRadius: BorderRadius.circular(18.0),
-        border: Border.all(color: appColors.borderSubtle, width: 1.0),
+        color: composerBg,
+        borderRadius: BorderRadius.circular(20.0),
+        border: Border.all(
+          color: _isInputFocused ? appColors.accent : appColors.accent.withValues(alpha: 0.40),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.40 : 0.07),
+            blurRadius: 18.0,
+            offset: const Offset(0, 4),
+          ),
+          if (_isInputFocused)
+            BoxShadow(
+              color: appColors.accentSubtle,
+              spreadRadius: 2.0,
+              blurRadius: 0.0,
+            ),
+        ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           TextField(
             controller: _inputController,
-            maxLines: 3,
-            minLines: 1,
-            style: AppTypography.body.copyWith(
+            focusNode: _inputFocusNode,
+            maxLines: 8,
+            minLines: 2,
+            textInputAction: TextInputAction.send,
+            style: AppTypography.uiControl.copyWith(
               color: appColors.textPrimary,
-              fontSize: 14.0,
+              fontSize: 15.0,
+              height: 1.5,
             ),
             decoration: InputDecoration(
               hintText: I18n.askInWorkspace,
-              hintStyle: AppTypography.body.copyWith(
-                color: appColors.textSecondary.withValues(alpha: 0.65),
-                fontSize: 13.5,
+              hintStyle: AppTypography.uiControl.copyWith(
+                color: appColors.textSecondary.withValues(alpha: 0.6),
+                fontSize: 14.0,
               ),
               border: InputBorder.none,
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
+              contentPadding: const EdgeInsets.symmetric(vertical: 4.0),
             ),
             onSubmitted: (_) => _submit(),
+            onChanged: (_) => setState(() {}),
           ),
-          const SizedBox(height: 10.0),
+          const SizedBox(height: 12.0),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               // Chips for model and role
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
+                    padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
                     decoration: BoxDecoration(
-                      color: appColors.background,
+                      color: isDark ? appColors.surface : appColors.background,
                       borderRadius: BorderRadius.circular(16.0),
                       border: Border.all(color: appColors.borderSubtle, width: 1.0),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.bolt, size: 12.0, color: appColors.textSecondary),
+                        Icon(Icons.bolt, size: 12.5, color: appColors.textSecondary),
                         const SizedBox(width: 4.0),
                         Text(
                           activeModel,
@@ -511,15 +608,22 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                 ],
               ),
 
-              // Send button
+              // Highlighted Send button matching chat composer
               InkWell(
-                onTap: _submit,
+                onTap: canSend ? _submit : null,
                 borderRadius: BorderRadius.circular(16.0),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 6.0),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 7.0),
                   decoration: BoxDecoration(
-                    color: appColors.accent,
+                    color: canSend
+                        ? appColors.accent
+                        : (isDark ? appColors.surface : appColors.background),
                     borderRadius: BorderRadius.circular(16.0),
+                    border: Border.all(
+                      color: canSend ? appColors.accent : appColors.borderSubtle,
+                      width: 1.0,
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -527,13 +631,17 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                       Text(
                         I18n.send,
                         style: AppTypography.uiControl.copyWith(
-                          color: Colors.white,
+                          color: canSend ? Colors.white : appColors.textSecondary.withValues(alpha: 0.6),
                           fontSize: 12.0,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(width: 4.0),
-                      const Icon(Icons.arrow_upward, size: 13.0, color: Colors.white),
+                      Icon(
+                        Icons.arrow_upward_rounded,
+                        size: 13.0,
+                        color: canSend ? Colors.white : appColors.textSecondary.withValues(alpha: 0.6),
+                      ),
                     ],
                   ),
                 ),
@@ -545,7 +653,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
     );
   }
 
-  Widget _buildWorkspaceChatsList(AppThemeExtension appColors) {
+  Widget _buildWorkspaceChatsList(AppThemeExtension appColors, Color cardBackground, bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -577,7 +685,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
             padding: const EdgeInsets.symmetric(vertical: 24.0),
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: appColors.surface.withValues(alpha: 0.4),
+              color: cardBackground,
               borderRadius: BorderRadius.circular(14.0),
               border: Border.all(color: appColors.borderSubtle, width: 1.0),
             ),
@@ -607,7 +715,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
                   decoration: BoxDecoration(
-                    color: appColors.surface,
+                    color: cardBackground,
                     borderRadius: BorderRadius.circular(16.0),
                     border: Border.all(color: appColors.borderSubtle, width: 1.0),
                   ),
