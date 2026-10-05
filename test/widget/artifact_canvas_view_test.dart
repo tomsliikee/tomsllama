@@ -45,4 +45,30 @@ void main() {
     expect(find.text('Canvas Content'), findsOneWidget);
     expect(find.text('Canvas'), findsOneWidget); // Canvas header title
   });
+
+  testWidgets('ArtifactCanvasView renders SyntaxHighlightView in canvasPanel', (WidgetTester tester) async {
+    const code = 'const x = 42;';
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: claudeTheme,
+        home: const Scaffold(
+          body: ArtifactCanvasView(
+            chatPanel: Text('Chat Content'),
+            canvasPanel: SelectionArea(
+              child: SingleChildScrollView(
+                child: Text(code),
+              ),
+            ),
+            isCanvasOpen: true,
+            language: 'javascript',
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('javascript'), findsOneWidget);
+    expect(find.text(code), findsOneWidget);
+  });
 }

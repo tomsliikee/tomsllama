@@ -32,4 +32,26 @@ void main() {
     // Verify copy button exists
     expect(find.text(I18n.copy), findsOneWidget);
   });
+
+  testWidgets('CodeBlockView renders description icon for markdown and md language', (WidgetTester tester) async {
+    const mdSnippet = '# Title\n- Item';
+    
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: claudeTheme,
+          home: const Scaffold(
+            body: CodeBlockView(
+              code: mdSnippet,
+              language: 'md',
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('md'), findsOneWidget);
+    expect(find.byIcon(Icons.description_outlined), findsOneWidget);
+    expect(find.textContaining('Title'), findsOneWidget);
+  });
 }

@@ -186,7 +186,7 @@ class MessageBubble extends StatelessWidget {
                 if (displayText.isNotEmpty) const SizedBox(height: 8.0),
               ],
               if (displayText.isNotEmpty)
-                SelectableText(
+                Text(
                   displayText,
                   style: AppTypography.uiControl.copyWith(
                     color: appColors.textPrimary,

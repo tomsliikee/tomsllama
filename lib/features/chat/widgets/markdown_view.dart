@@ -35,7 +35,7 @@ class MarkdownView extends StatelessWidget {
 
     return MarkdownBody(
       data: data,
-      selectable: true,
+      selectable: false,
       styleSheet: MarkdownStyleSheet(
         p: baseTextStyle,
         strong: AppTypography.bodyItalic.copyWith(
@@ -110,20 +110,20 @@ class LatexInlineSyntax extends md.InlineSyntax {
 class CodeBlockBuilder extends MarkdownElementBuilder {
   @override
   Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
-    if (element.children != null &&
-        element.children!.isNotEmpty &&
-        element.children!.first is md.Text) {
-      final text = element.textContent;
-      if (text.contains('\n')) {
-        String language = '';
-        if (element.attributes.containsKey('class')) {
-          final className = element.attributes['class']!;
-          if (className.startsWith('language-')) {
-            language = className.substring(9);
-          }
-        }
-        return CodeBlockView(code: text.trim(), language: language);
+    final text = element.textContent;
+    String language = '';
+    if (element.attributes.containsKey('class')) {
+      final className = element.attributes['class']!;
+      if (className.startsWith('language-')) {
+        language = className.substring(9);
+      } else {
+        language = className;
       }
+    }
+
+    final bool isBlock = element.tag == 'pre' || language.isNotEmpty || text.contains('\n');
+    if (isBlock) {
+      return CodeBlockView(code: text.trimRight(), language: language);
     }
     return null;
   }

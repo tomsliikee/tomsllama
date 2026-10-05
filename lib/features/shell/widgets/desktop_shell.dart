@@ -18,6 +18,7 @@ import '../../chat/widgets/chat_viewport.dart';
 import '../../chat/widgets/composer_bar.dart';
 import '../../chat/widgets/file_drop_overlay.dart';
 import '../../chat/widgets/artifact_canvas_view.dart';
+import '../../chat/widgets/syntax_highlight_view.dart';
 import 'csd_header_bar.dart';
 import '../../models/widgets/quick_switcher_modal.dart';
 import '../../models/widgets/model_manager_dialog.dart';
@@ -429,16 +430,29 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                               Clipboard.setData(ClipboardData(text: chatState.canvasContent!));
                             }
                           },
-                          canvasPanel: Container(
-                            color: appColors.codeBackground,
-                            padding: const EdgeInsets.all(16.0),
-                            child: SingleChildScrollView(
-                              child: SelectableText(
-                                chatState.canvasContent ?? '',
-                                style: AppTypography.code.copyWith(
-                                  color: appColors.textPrimary,
-                                  fontSize: 13.0,
-                                  height: 1.5,
+                          canvasPanel: SelectionArea(
+                            child: Container(
+                              color: appColors.codeBackground,
+                              width: double.infinity,
+                              height: double.infinity,
+                              padding: const EdgeInsets.all(16.0),
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.vertical,
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: SyntaxHighlightView(
+                                    chatState.canvasContent ?? '',
+                                    language: chatState.canvasLanguage,
+                                    theme: getHighlightCodeTheme(
+                                      Theme.of(context).brightness == Brightness.dark,
+                                      appColors.textPrimary,
+                                    ),
+                                    textStyle: AppTypography.code.copyWith(
+                                      color: appColors.textPrimary,
+                                      fontSize: 13.0,
+                                      height: 1.5,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),

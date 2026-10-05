@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_highlight/flutter_highlight.dart';
-import 'package:flutter_highlight/themes/github.dart';
-import 'package:flutter_highlight/themes/darcula.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../core/services/localization_service.dart';
 import '../controllers/chat_controller.dart';
+import 'syntax_highlight_view.dart';
 
 class CodeBlockView extends ConsumerStatefulWidget {
   final String code;
@@ -39,16 +37,16 @@ class _CodeBlockViewState extends ConsumerState<CodeBlockView> {
     ref.read(chatProvider.notifier).openInCanvas(widget.code, widget.language);
   }
 
+  bool get _isMarkdown {
+    final lang = widget.language.toLowerCase().trim();
+    return lang == 'md' || lang == 'markdown' || lang == 'mkd';
+  }
+
   @override
   Widget build(BuildContext context) {
     final appColors = context.appColors;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    final Map<String, TextStyle> codeTheme = Map.from(isDark ? darculaTheme : githubTheme);
-    codeTheme['root'] = TextStyle(
-      backgroundColor: Colors.transparent,
-      color: appColors.textPrimary,
-    );
+    final codeTheme = getHighlightCodeTheme(isDark, appColors.textPrimary);
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 14.0),
@@ -69,7 +67,7 @@ class _CodeBlockViewState extends ConsumerState<CodeBlockView> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      Icons.code_rounded,
+                      _isMarkdown ? Icons.description_outlined : Icons.code_rounded,
                       size: 13.0,
                       color: appColors.accent,
                     ),
@@ -139,7 +137,7 @@ class _CodeBlockViewState extends ConsumerState<CodeBlockView> {
             padding: const EdgeInsets.all(14.0),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: HighlightView(
+              child: SyntaxHighlightView(
                 widget.code.trimRight(),
                 language: widget.language.isEmpty ? 'plaintext' : widget.language,
                 theme: codeTheme,

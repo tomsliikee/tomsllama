@@ -113,25 +113,27 @@ class _ChatViewportState extends State<ChatViewport> {
       );
     }
 
-    return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.only(bottom: 24.0, top: 20.0),
-      itemCount: widget.messages.length,
-      itemBuilder: (context, index) {
-        final message = widget.messages[index];
-        final isLast = index == widget.messages.length - 1;
-        
-        return MessageBubble(
-          message: message,
-          isThinking: isLast && widget.isGenerating,
-          statusMessage: isLast && widget.isGenerating ? widget.statusMessage : null,
-          statusTokens: isLast && widget.isGenerating ? widget.statusTokens : null,
-          modelName: widget.modelName,
-          branchIndex: 0,
-          totalBranches: 1,
-          onRegenerate: isLast ? widget.onRegenerate : null,
-        );
-      },
+    return SelectionArea(
+      child: ListView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.only(bottom: 24.0, top: 20.0),
+        itemCount: widget.messages.length,
+        itemBuilder: (context, index) {
+          final message = widget.messages[index];
+          final isLast = index == widget.messages.length - 1;
+          
+          return MessageBubble(
+            message: message,
+            isThinking: isLast && widget.isGenerating,
+            statusMessage: isLast && widget.isGenerating ? widget.statusMessage : null,
+            statusTokens: isLast && widget.isGenerating ? widget.statusTokens : null,
+            modelName: widget.modelName,
+            branchIndex: 0,
+            totalBranches: 1,
+            onRegenerate: isLast ? widget.onRegenerate : null,
+          );
+        },
+      ),
     );
   }
 }
