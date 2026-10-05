@@ -206,6 +206,42 @@ flutter pub get
   ```
   *Binary Location:* `build/windows/x64/runner/Release/tomsllama.exe`
 
+**5. Install to System App List & Launchpad:**
+
+- **macOS (Applications Folder, Launchpad & Spotlight):**
+  Install the compiled bundle directly into `/Applications` to automatically register **tomsllama** in the macOS **App List**, **Launchpad**, and **Spotlight (`Cmd + Space`)** with its high-resolution native icon:
+  ```bash
+  # Install into system Applications folder
+  cp -R build/macos/Build/Products/Release/tomsllama.app /Applications/
+
+  # Remove Gatekeeper quarantine flag for local unnotarized builds
+  xattr -cr /Applications/tomsllama.app
+  ```
+
+- **Linux (Desktop Launcher & GNOME App Grid):**
+  Register the binary with the system XDG application launcher:
+  ```bash
+  # Copy binary and icon assets
+  mkdir -p ~/.local/bin ~/.local/share/applications ~/.local/share/icons/hicolor/512x512/apps
+  cp build/linux/x64/release/bundle/tomsllama ~/.local/bin/
+  cp assets/app_icon.png ~/.local/share/icons/hicolor/512x512/apps/tomsllama.png
+
+  # Create desktop entry with proper window class matching
+  cat << 'EOF' > ~/.local/share/applications/tomsllama.desktop
+  [Desktop Entry]
+  Name=tomsllama
+  Comment=Local AI Client for Ollama
+  Exec=/home/$USER/.local/bin/tomsllama
+  Icon=tomsllama
+  Terminal=false
+  Type=Application
+  Categories=Utility;Development;
+  StartupWMClass=tomsllama
+  EOF
+
+  update-desktop-database ~/.local/share/applications/
+  ```
+
 ---
 
 ## Data Storage & Disk Paths
