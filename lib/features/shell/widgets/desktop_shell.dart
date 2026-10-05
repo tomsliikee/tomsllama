@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:tray_manager/tray_manager.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -34,7 +35,7 @@ class DesktopShell extends ConsumerStatefulWidget {
   ConsumerState<DesktopShell> createState() => _DesktopShellState();
 }
 
-class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener {
+class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener, TrayListener {
   bool _isSidebarOpen = true;
   bool _isZenMode = false;
   bool _isDraggingOverChat = false;
@@ -46,6 +47,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
     super.initState();
     _searchController = TextEditingController();
     windowManager.addListener(this);
+    trayManager.addListener(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final sidebarNotifier = ref.read(sidebarProvider.notifier);
       await sidebarNotifier.loadConversations();
@@ -72,7 +74,18 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
   void dispose() {
     _searchController.dispose();
     windowManager.removeListener(this);
+    trayManager.removeListener(this);
     super.dispose();
+  }
+
+  @override
+  void onTrayMenuItemClick(MenuItem menuItem) {
+    if (menuItem.key == 'show_window') {
+      windowManager.show();
+      windowManager.focus();
+    } else if (menuItem.key == 'exit_app') {
+      exit(0);
+    }
   }
 
   void _toggleSidebar() => setState(() => _isSidebarOpen = !_isSidebarOpen);
@@ -281,17 +294,35 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
 
     return Shortcuts(
       shortcuts: const <ShortcutActivator, Intent>{
+        // Sidebar toggle (Ctrl+B on Linux/Windows, Cmd+B on Mac)
         SingleActivator(LogicalKeyboardKey.keyB, control: true): _SidebarIntent(),
+        SingleActivator(LogicalKeyboardKey.keyB, meta: true): _SidebarIntent(),
+
+        // Quick Switcher / Search (Ctrl+K on Linux/Windows, Cmd+K on Mac)
         SingleActivator(LogicalKeyboardKey.keyK, control: true): _SearchIntent(),
+        SingleActivator(LogicalKeyboardKey.keyK, meta: true): _SearchIntent(),
+
+        // New Chat (Ctrl+N on Linux/Windows, Cmd+N on Mac)
         SingleActivator(LogicalKeyboardKey.keyN, control: true): _NewChatIntent(),
+        SingleActivator(LogicalKeyboardKey.keyN, meta: true): _NewChatIntent(),
+
+        // Settings (Cmd+, on Mac, Ctrl+, on Linux/Windows)
+        SingleActivator(LogicalKeyboardKey.comma, control: true): _SettingsIntent(),
+        SingleActivator(LogicalKeyboardKey.comma, meta: true): _SettingsIntent(),
+
+        // Stop generation
         SingleActivator(LogicalKeyboardKey.escape): _StopIntent(),
+
+        // Fullscreen / Zen Mode (F11 on Linux/Windows, Cmd+Ctrl+F on Mac)
         SingleActivator(LogicalKeyboardKey.f11): _ZenModeIntent(),
+        SingleActivator(LogicalKeyboardKey.keyF, control: true, meta: true): _ZenModeIntent(),
       },
       child: Actions(
         actions: <Type, Action<Intent>>{
           _SidebarIntent: CallbackAction<_SidebarIntent>(onInvoke: (_) => _toggleSidebar()),
           _SearchIntent: CallbackAction<_SearchIntent>(onInvoke: (_) => _openQuickSwitcher()),
           _NewChatIntent: CallbackAction<_NewChatIntent>(onInvoke: (_) => _newChat()),
+          _SettingsIntent: CallbackAction<_SettingsIntent>(onInvoke: (_) => _openSettings()),
           _StopIntent: CallbackAction<_StopIntent>(onInvoke: (_) => chatNotifier.stopGeneration()),
           _ZenModeIntent: CallbackAction<_ZenModeIntent>(onInvoke: (_) => _toggleZenMode()),
         },
@@ -583,5 +614,6 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
 class _SidebarIntent extends Intent { const _SidebarIntent(); }
 class _SearchIntent extends Intent { const _SearchIntent(); }
 class _NewChatIntent extends Intent { const _NewChatIntent(); }
+class _SettingsIntent extends Intent { const _SettingsIntent(); }
 class _StopIntent extends Intent { const _StopIntent(); }
 class _ZenModeIntent extends Intent { const _ZenModeIntent(); }

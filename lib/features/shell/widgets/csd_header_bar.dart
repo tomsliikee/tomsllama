@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
@@ -42,7 +43,7 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
       ),
       child: Row(
         children: [
-          const SizedBox(width: 14.0),
+          SizedBox(width: Platform.isMacOS ? 78.0 : 14.0),
           
           // Brand Logo & Title
           InkWell(
@@ -95,35 +96,37 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
             ),
           ),
 
-          // Window Controls (Minimize, Maximize, Close)
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildWinBtn(
-                icon: Icons.remove,
-                onTap: () => windowManager.minimize(),
-                appColors: appColors,
-              ),
-              _buildWinBtn(
-                icon: Icons.crop_square,
-                onTap: () async {
-                  if (await windowManager.isMaximized()) {
-                    windowManager.unmaximize();
-                  } else {
-                    windowManager.maximize();
-                  }
-                },
-                appColors: appColors,
-              ),
-              _buildWinBtn(
-                icon: Icons.close,
-                onTap: () => windowManager.close(),
-                appColors: appColors,
-                isClose: true,
-              ),
-            ],
-          ),
-          const SizedBox(width: 8.0),
+          // Window Controls (Minimize, Maximize, Close - hidden on macOS where native traffic lights are on top-left)
+          if (!Platform.isMacOS) ...[
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildWinBtn(
+                  icon: Icons.remove,
+                  onTap: () => windowManager.minimize(),
+                  appColors: appColors,
+                ),
+                _buildWinBtn(
+                  icon: Icons.crop_square,
+                  onTap: () async {
+                    if (await windowManager.isMaximized()) {
+                      windowManager.unmaximize();
+                    } else {
+                      windowManager.maximize();
+                    }
+                  },
+                  appColors: appColors,
+                ),
+                _buildWinBtn(
+                  icon: Icons.close,
+                  onTap: () => windowManager.close(),
+                  appColors: appColors,
+                  isClose: true,
+                ),
+              ],
+            ),
+            const SizedBox(width: 8.0),
+          ],
         ],
       ),
     );

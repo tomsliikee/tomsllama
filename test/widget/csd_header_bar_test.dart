@@ -58,4 +58,25 @@ void main() {
     expect(find.byKey(const Key('sidebar_toggle_button')), findsOneWidget);
     expect(find.byIcon(Icons.view_sidebar_outlined), findsOneWidget);
   });
+
+  testWidgets('CsdHeaderBar renders minimize, maximize, and close buttons on desktop platform', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: claudeTheme,
+          home: Scaffold(
+            body: CsdHeaderBar(
+              onToggleSidebar: () {},
+              onOpenSettings: () {},
+              onOpenQuickSwitcher: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byIcon(Icons.remove), findsOneWidget);
+    expect(find.byIcon(Icons.crop_square), findsOneWidget);
+    expect(find.byIcon(Icons.close), findsOneWidget);
+  });
 }
