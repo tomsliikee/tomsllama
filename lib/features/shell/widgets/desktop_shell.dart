@@ -334,8 +334,20 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
           child: Scaffold(
             backgroundColor: Colors.transparent,
             body: Container(
-              color: appColors.background.withValues(
-                alpha: isDark ? 0.60 : 0.68,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isDark
+                      ? [
+                          Color.alphaBlend(Colors.white.withValues(alpha: 0.05), appColors.background).withValues(alpha: 0.68),
+                          appColors.background.withValues(alpha: 0.52),
+                        ]
+                      : [
+                          Colors.white.withValues(alpha: 0.72),
+                          appColors.background.withValues(alpha: 0.58),
+                        ],
+                ),
               ),
               child: Column(
                 children: [

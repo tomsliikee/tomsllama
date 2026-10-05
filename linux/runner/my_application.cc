@@ -54,9 +54,11 @@ static void my_application_activate(GApplication* application) {
 
   gtk_window_set_default_size(window, 1280, 720);
 
-  // Set custom application icon for GNOME Shell / Wayland / X11
+  // Set custom application icon and WM_CLASS for GNOME Shell / Wayland / X11
   gtk_window_set_default_icon_name("tomsllama");
   gtk_window_set_icon_name(window, "tomsllama");
+  gtk_window_set_wmclass(window, "tomsllama", "tomsllama");
+  gtk_window_set_role(window, "tomsllama");
 
   // Enable transparent RGBA visual on GTK window for genuine desktop translucency
   GdkScreen* gdk_screen = gtk_widget_get_screen(GTK_WIDGET(window));
@@ -65,6 +67,43 @@ static void my_application_activate(GApplication* application) {
     gtk_widget_set_visual(GTK_WIDGET(window), rgba_visual);
   }
   gtk_widget_set_app_paintable(GTK_WIDGET(window), TRUE);
+
+  // If GNOME Shell blur-my-shell extension is installed, ensure tomsllama is in its applications whitelist
+  GSettingsSchemaSource* schema_source = g_settings_schema_source_get_default();
+  if (schema_source != NULL) {
+    GSettingsSchema* schema = g_settings_schema_source_lookup(
+        schema_source, "org.gnome.shell.extensions.blur-my-shell.applications", TRUE);
+    if (schema != NULL) {
+      GSettings* settings = g_settings_new("org.gnome.shell.extensions.blur-my-shell.applications");
+      gchar** whitelist = g_settings_get_strv(settings, "whitelist");
+      gboolean found = FALSE;
+      gsize len = 0;
+      if (whitelist != NULL) {
+        for (gsize i = 0; whitelist[i] != NULL; i++) {
+          len++;
+          if (g_strcmp0(whitelist[i], "tomsllama") == 0 ||
+              g_strcmp0(whitelist[i], "*tomsllama*") == 0 ||
+              g_strcmp0(whitelist[i], APPLICATION_ID) == 0) {
+            found = TRUE;
+            break;
+          }
+        }
+      }
+      if (!found) {
+        gchar** new_whitelist = g_new0(gchar*, len + 2);
+        for (gsize i = 0; i < len; i++) {
+          new_whitelist[i] = g_strdup(whitelist[i]);
+        }
+        new_whitelist[len] = g_strdup("tomsllama");
+        new_whitelist[len + 1] = NULL;
+        g_settings_set_strv(settings, "whitelist", (const gchar* const*)new_whitelist);
+        g_strfreev(new_whitelist);
+      }
+      g_strfreev(whitelist);
+      g_object_unref(settings);
+      g_settings_schema_unref(schema);
+    }
+  }
 
   g_autofree gchar* exe_path = g_file_read_link("/proc/self/exe", NULL);
   gboolean icon_loaded = FALSE;

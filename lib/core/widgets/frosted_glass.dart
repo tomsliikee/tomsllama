@@ -23,7 +23,7 @@ class FrostedGlass extends StatelessWidget {
     super.key,
     required this.child,
     this.borderRadius,
-    this.blur = 12.0,
+    this.blur = 24.0,
     this.backgroundColor,
     this.gradient,
     this.borderColor,
@@ -45,27 +45,32 @@ class FrostedGlass extends StatelessWidget {
 
     final baseColor = backgroundColor ?? appColors.surface;
 
-    // Specular Glass Gradient: top-left light sheen fading to crystal translucent glass body
+    // Specular Frosted Glass Gradient:
+    // Rich milky/frosty diffuse scattering with a crisp top-left specular sheen
     final effectiveGradient = gradient ??
         LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
+          stops: const [0.0, 0.40, 1.0],
           colors: isDark
               ? [
-                  baseColor.withValues(alpha: 0.28),
-                  baseColor.withValues(alpha: 0.12),
+                  Colors.white.withValues(alpha: 0.12),
+                  baseColor.withValues(alpha: 0.42),
+                  baseColor.withValues(alpha: 0.22),
                 ]
               : [
-                  Colors.white.withValues(alpha: 0.38),
-                  baseColor.withValues(alpha: 0.16),
+                  Colors.white.withValues(alpha: 0.68),
+                  Color.alphaBlend(Colors.white.withValues(alpha: 0.35), baseColor)
+                      .withValues(alpha: 0.46),
+                  baseColor.withValues(alpha: 0.32),
                 ],
         );
 
     // Crisp glass rim reflection
     final effectiveBorderColor = borderColor ??
         (isDark
-            ? Colors.white.withValues(alpha: 0.14)
-            : Colors.white.withValues(alpha: 0.55));
+            ? Colors.white.withValues(alpha: 0.18)
+            : Colors.white.withValues(alpha: 0.70));
 
     Widget content = Container(
       width: width,
