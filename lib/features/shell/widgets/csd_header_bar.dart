@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
@@ -32,6 +31,7 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
   Widget build(BuildContext context) {
     final appColors = context.appColors;
     final currentTheme = ref.watch(themeProvider);
+    final isMac = Theme.of(context).platform == TargetPlatform.macOS;
 
     if (widget.isZenMode) return const SizedBox.shrink();
 
@@ -43,7 +43,7 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
       ),
       child: Row(
         children: [
-          SizedBox(width: Platform.isMacOS ? 78.0 : 14.0),
+          SizedBox(width: isMac ? 78.0 : 14.0),
           
           // Brand Logo & Title
           InkWell(
@@ -97,7 +97,7 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
           ),
 
           // Window Controls (Minimize, Maximize, Close - hidden on macOS where native traffic lights are on top-left)
-          if (!Platform.isMacOS) ...[
+          if (!isMac) ...[
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
