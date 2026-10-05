@@ -58,6 +58,14 @@ static void my_application_activate(GApplication* application) {
   gtk_window_set_default_icon_name("tomsllama");
   gtk_window_set_icon_name(window, "tomsllama");
 
+  // Enable transparent RGBA visual on GTK window for genuine desktop translucency
+  GdkScreen* screen = gtk_widget_get_screen(GTK_WIDGET(window));
+  GdkVisual* rgba_visual = gdk_screen_get_rgba_visual(screen);
+  if (rgba_visual != NULL && gdk_screen_is_composited(screen)) {
+    gtk_widget_set_visual(GTK_WIDGET(window), rgba_visual);
+  }
+  gtk_widget_set_app_paintable(GTK_WIDGET(window), TRUE);
+
   g_autofree gchar* exe_path = g_file_read_link("/proc/self/exe", NULL);
   gboolean icon_loaded = FALSE;
   if (exe_path != NULL) {
@@ -77,9 +85,7 @@ static void my_application_activate(GApplication* application) {
 
   FlView* view = fl_view_new(project);
   GdkRGBA background_color;
-  // Background defaults to black, override it here if necessary, e.g. #00000000
-  // for transparent.
-  gdk_rgba_parse(&background_color, "#000000");
+  gdk_rgba_parse(&background_color, "#00000000");
   fl_view_set_background_color(view, &background_color);
   gtk_widget_show(GTK_WIDGET(view));
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));

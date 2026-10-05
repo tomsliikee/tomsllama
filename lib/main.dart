@@ -28,12 +28,14 @@ void main() async {
         size: Size(1200, 800),
         minimumSize: Size(850, 600),
         center: true,
+        backgroundColor: Colors.transparent,
         skipTaskbar: false,
         titleBarStyle: TitleBarStyle.hidden,
         title: 'tomsllama',
       );
       
       await windowManager.waitUntilReadyToShow(windowOptions, () async {
+        await windowManager.setBackgroundColor(Colors.transparent);
         await windowManager.show();
         await windowManager.focus();
       });

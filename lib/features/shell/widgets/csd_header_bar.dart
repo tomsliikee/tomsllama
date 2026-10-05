@@ -34,12 +34,10 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
     final currentTheme = ref.watch(themeProvider);
     final isMac = Theme.of(context).platform == TargetPlatform.macOS;
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return FrostedGlass(
       height: 46.0,
       borderRadius: BorderRadius.zero,
-      backgroundColor: appColors.background.withValues(alpha: isDark ? 0.82 : 0.86),
+      backgroundColor: appColors.background,
       borderColor: appColors.border,
       child: Row(
         children: [

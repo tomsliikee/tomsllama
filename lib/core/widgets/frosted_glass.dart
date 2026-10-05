@@ -43,27 +43,29 @@ class FrostedGlass extends StatelessWidget {
 
     final effectiveRadius = borderRadius ?? BorderRadius.circular(16.0);
 
-    // Specular Glass Gradient: top-left light sheen fading to translucent glass body
+    final baseColor = backgroundColor ?? appColors.surface;
+
+    // Specular Glass Gradient: top-left light sheen fading to crystal translucent glass body
     final effectiveGradient = gradient ??
         LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: isDark
               ? [
-                  (backgroundColor ?? appColors.surface).withValues(alpha: 0.65),
-                  (backgroundColor ?? appColors.surface).withValues(alpha: 0.38),
+                  baseColor.withValues(alpha: 0.28),
+                  baseColor.withValues(alpha: 0.12),
                 ]
               : [
-                  Colors.white.withValues(alpha: 0.65),
-                  (backgroundColor ?? appColors.surface).withValues(alpha: 0.38),
+                  Colors.white.withValues(alpha: 0.38),
+                  baseColor.withValues(alpha: 0.16),
                 ],
         );
 
     // Crisp glass rim reflection
     final effectiveBorderColor = borderColor ??
         (isDark
-            ? Colors.white.withValues(alpha: 0.16)
-            : Colors.white.withValues(alpha: 0.75));
+            ? Colors.white.withValues(alpha: 0.14)
+            : Colors.white.withValues(alpha: 0.55));
 
     Widget content = Container(
       width: width,

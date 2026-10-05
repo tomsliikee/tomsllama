@@ -42,7 +42,7 @@ class ModelSelectorDropdown extends StatelessWidget {
             child: Icon(Icons.keyboard_arrow_down, size: 15.0, color: appColors.textSecondary),
           ),
           dropdownColor: appColors.surface.withValues(
-            alpha: Theme.of(context).brightness == Brightness.dark ? 0.88 : 0.92,
+            alpha: Theme.of(context).brightness == Brightness.dark ? 0.45 : 0.55,
           ),
           style: AppTypography.code.copyWith(
             color: appColors.textPrimary,

@@ -105,9 +105,7 @@ class _SidebarViewState extends State<SidebarView> {
             child: FrostedGlass(
               padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
               borderRadius: BorderRadius.circular(18.0),
-              backgroundColor: appColors.sidebar.withValues(
-                alpha: Theme.of(context).brightness == Brightness.dark ? 0.80 : 0.84,
-              ),
+              backgroundColor: appColors.sidebar,
               borderColor: appColors.borderSubtle,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,

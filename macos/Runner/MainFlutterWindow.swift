@@ -9,6 +9,8 @@ class MainFlutterWindow: NSWindow {
     self.setFrame(windowFrame, display: true)
 
     RegisterGeneratedPlugins(registry: flutterViewController)
+    self.isOpaque = false
+    self.backgroundColor = .clear
 
     super.awakeFromNib()
   }

@@ -133,7 +133,7 @@ class _ComposerShelfState extends ConsumerState<ComposerShelf>
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(16.0),
                   ),
-                  backgroundColor: shelfBg.withValues(alpha: isDark ? 0.82 : 0.86),
+                  backgroundColor: shelfBg,
                   borderColor: appColors.borderSubtle,
                   boxShadow: [
                     BoxShadow(

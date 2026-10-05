@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/widgets/frosted_glass.dart';
 import '../../../core/services/localization_service.dart';
 
 class ArtifactCanvasView extends StatelessWidget {
@@ -79,13 +80,11 @@ class _CanvasWrapper extends StatelessWidget {
         // Canvas Header Row: single pill for "Canvas" in menu bar style + copy pill + close pill
         Row(
           children: [
-            Container(
+            FrostedGlass(
               padding: const EdgeInsets.symmetric(horizontal: 11.0, vertical: 5.0),
-              decoration: BoxDecoration(
-                color: appColors.surface,
-                border: Border.all(color: appColors.borderSubtle),
-                borderRadius: BorderRadius.circular(18.0),
-              ),
+              borderRadius: BorderRadius.circular(18.0),
+              borderColor: appColors.borderSubtle,
+              backgroundColor: appColors.surface,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -128,19 +127,18 @@ class _CanvasWrapper extends StatelessWidget {
               InkWell(
                 onTap: onClose,
                 borderRadius: BorderRadius.circular(18.0),
-                child: Container(
+                child: FrostedGlass(
                   height: 28.0,
                   width: 28.0,
-                  decoration: BoxDecoration(
-                    color: appColors.surface,
-                    border: Border.all(color: appColors.borderSubtle),
-                    borderRadius: BorderRadius.circular(18.0),
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(
-                    Icons.close,
-                    size: 14.0,
-                    color: appColors.textSecondary,
+                  borderRadius: BorderRadius.circular(18.0),
+                  borderColor: appColors.borderSubtle,
+                  backgroundColor: appColors.surface,
+                  child: Center(
+                    child: Icon(
+                      Icons.close,
+                      size: 14.0,
+                      color: appColors.textSecondary,
+                    ),
                   ),
                 ),
               ),
@@ -149,13 +147,10 @@ class _CanvasWrapper extends StatelessWidget {
         const SizedBox(height: 8.0),
         // Content area: in its own area with rounded corners indented with padding just like the main page
         Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: appColors.surface,
-              borderRadius: BorderRadius.circular(18.0),
-              border: Border.all(color: appColors.borderSubtle, width: 1.0),
-            ),
-            clipBehavior: Clip.antiAlias,
+          child: FrostedGlass(
+            borderRadius: BorderRadius.circular(18.0),
+            borderColor: appColors.borderSubtle,
+            backgroundColor: appColors.surface,
             child: child,
           ),
         ),
@@ -200,16 +195,11 @@ class _CanvasCopyPillState extends State<_CanvasCopyPill> {
       onTap: _handleCopy,
       borderRadius: BorderRadius.circular(18.0),
       onHover: (hovered) => setState(() => _isHovered = hovered),
-      child: Container(
+      child: FrostedGlass(
         padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
-        decoration: BoxDecoration(
-          color: _isHovered ? appColors.accentSubtle : appColors.surface,
-          border: Border.all(
-            color: _isHovered ? appColors.accent.withValues(alpha: 0.3) : appColors.borderSubtle,
-            width: 1.0,
-          ),
-          borderRadius: BorderRadius.circular(18.0),
-        ),
+        borderRadius: BorderRadius.circular(18.0),
+        backgroundColor: _isHovered ? appColors.accentSubtle : appColors.surface,
+        borderColor: _isHovered ? appColors.accent.withValues(alpha: 0.3) : appColors.borderSubtle,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

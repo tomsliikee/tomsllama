@@ -8,6 +8,7 @@ import 'package:desktop_drop/desktop_drop.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/widgets/frosted_glass.dart';
 import '../../../core/services/database_service.dart';
 import '../../sidebar/controllers/sidebar_controller.dart';
 import '../../models/controllers/model_controller.dart';
@@ -173,15 +174,14 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
     required VoidCallback onToggleContext,
     required VoidCallback onBackToHub,
   }) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16.0, 10.0, 16.0, 0.0),
-      padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 7.0),
-      decoration: BoxDecoration(
-        color: appColors.sidebar,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16.0, 10.0, 16.0, 0.0),
+      child: FrostedGlass(
+        padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 7.0),
         borderRadius: BorderRadius.circular(16.0),
-        border: Border.all(color: appColors.borderSubtle, width: 1.0),
-      ),
-      child: Row(
+        borderColor: appColors.borderSubtle,
+        backgroundColor: appColors.sidebar,
+        child: Row(
         children: [
           Icon(Icons.workspaces_outlined, size: 16.0, color: appColors.textSecondary),
           const SizedBox(width: 8.0),
@@ -264,12 +264,14 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
     final appColors = context.appColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final sidebarState = ref.watch(sidebarProvider);
     final modelState = ref.watch(modelProvider);
@@ -330,9 +332,13 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
         child: FocusScope(
           autofocus: true,
           child: Scaffold(
-            backgroundColor: appColors.background,
-            body: Column(
-              children: [
+            backgroundColor: Colors.transparent,
+            body: Container(
+              color: appColors.background.withValues(
+                alpha: isDark ? 0.60 : 0.68,
+              ),
+              child: Column(
+                children: [
                 CsdHeaderBar(
                   onToggleSidebar: _toggleSidebar,
                   onOpenSettings: _openSettings,
@@ -460,16 +466,10 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                           chatPanel: Padding(
                             padding: EdgeInsets.fromLTRB(4.0, 10.0, chatState.isCanvasOpen ? 5.0 : 10.0, 12.0),
                             child: _isViewingWorkspaceHub && activeWsState.workspace != null
-                                ? Container(
-                                    decoration: BoxDecoration(
-                                      color: appColors.surface,
-                                      borderRadius: BorderRadius.circular(18.0),
-                                      border: Border.all(
-                                        color: appColors.borderSubtle,
-                                        width: 1.0,
-                                      ),
-                                    ),
-                                    clipBehavior: Clip.antiAlias,
+                                ? FrostedGlass(
+                                    borderRadius: BorderRadius.circular(18.0),
+                                    borderColor: appColors.borderSubtle,
+                                    backgroundColor: appColors.surface,
                                     child: WorkspaceHubView(
                                       workspace: activeWsState.workspace!,
                                       files: activeWsState.files,
@@ -512,16 +512,10 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                                       setState(() => _isDraggingOverChat = false);
                                       _handleChatDrop(details);
                                     },
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: appColors.surface,
-                                        borderRadius: BorderRadius.circular(18.0),
-                                        border: Border.all(
-                                          color: _isDraggingOverChat ? appColors.accent : appColors.borderSubtle,
-                                          width: 1.0,
-                                        ),
-                                      ),
-                                      clipBehavior: Clip.antiAlias,
+                                    child: FrostedGlass(
+                                      borderRadius: BorderRadius.circular(18.0),
+                                      borderColor: _isDraggingOverChat ? appColors.accent : appColors.borderSubtle,
+                                      backgroundColor: appColors.surface,
                                       child: Stack(
                                         children: [
                                           Positioned.fill(
@@ -628,6 +622,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
             ),
           ),
         ),
+      ),
       ),
     );
   }
