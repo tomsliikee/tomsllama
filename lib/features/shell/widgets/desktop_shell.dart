@@ -272,6 +272,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
   Widget build(BuildContext context) {
     final appColors = context.appColors;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isWallpaperEnabled = ref.watch(wallpaperProvider);
 
     final sidebarState = ref.watch(sidebarProvider);
     final modelState = ref.watch(modelProvider);
@@ -332,25 +333,32 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
         child: FocusScope(
           autofocus: true,
           child: Scaffold(
-            backgroundColor: Colors.transparent,
-            body: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: isDark
-                      ? [
-                          Color.alphaBlend(Colors.white.withValues(alpha: 0.05), appColors.background).withValues(alpha: 0.68),
-                          appColors.background.withValues(alpha: 0.52),
-                        ]
-                      : [
-                          Colors.white.withValues(alpha: 0.72),
-                          appColors.background.withValues(alpha: 0.58),
-                        ],
-                ),
-              ),
-              child: Column(
-                children: [
+            backgroundColor: appColors.background,
+            body: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Wallpaper image background when toggle is ON
+                if (isWallpaperEnabled)
+                  Positioned.fill(
+                    child: Image.asset(
+                      'assets/pictures/wallpaper.webp',
+                      fit: BoxFit.cover,
+                      alignment: Alignment.center,
+                    ),
+                  ),
+                // Contrast overlay over wallpaper
+                if (isWallpaperEnabled)
+                  Positioned.fill(
+                    child: Container(
+                      color: isDark
+                          ? Colors.black.withValues(alpha: 0.32)
+                          : Colors.white.withValues(alpha: 0.22),
+                    ),
+                  ),
+                // Main app interface with frosted glass components
+                Positioned.fill(
+                  child: Column(
+                    children: [
                 CsdHeaderBar(
                   onToggleSidebar: _toggleSidebar,
                   onOpenSettings: _openSettings,
@@ -633,10 +641,12 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
               ],
             ),
           ),
-        ),
+        ],
       ),
-      ),
-    );
+    ),
+  ),
+),
+);
   }
 }
 

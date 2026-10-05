@@ -55,6 +55,34 @@ class SettingsService {
     } catch (_) {}
   }
 
+  Future<bool> loadWallpaperEnabled() async {
+    try {
+      final file = await _getFile();
+      if (await file.exists()) {
+        final content = await file.readAsString();
+        final map = jsonDecode(content) as Map<String, dynamic>;
+        if (map['wallpaper_enabled'] != null) {
+          return map['wallpaper_enabled'] as bool;
+        }
+      }
+    } catch (_) {}
+    return true;
+  }
+
+  Future<void> saveWallpaperEnabled(bool enabled) async {
+    try {
+      final file = await _getFile();
+      Map<String, dynamic> map = {};
+      if (await file.exists()) {
+        try {
+          map = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+        } catch (_) {}
+      }
+      map['wallpaper_enabled'] = enabled;
+      await file.writeAsString(jsonEncode(map));
+    } catch (_) {}
+  }
+
   Future<Map<String, dynamic>?> loadHardwareProfile() async {
     try {
       final file = await _getFile();

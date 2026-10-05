@@ -118,6 +118,32 @@ final themeProvider = NotifierProvider<ThemeNotifier, AppThemeType>(() {
   return ThemeNotifier();
 });
 
+class WallpaperNotifier extends Notifier<bool> {
+  @override
+  bool build() {
+    _init();
+    return true;
+  }
+
+  Future<void> _init() async {
+    final enabled = await SettingsService().loadWallpaperEnabled();
+    state = enabled;
+  }
+
+  void setWallpaper(bool enabled) {
+    state = enabled;
+    SettingsService().saveWallpaperEnabled(enabled);
+  }
+
+  void toggle() {
+    setWallpaper(!state);
+  }
+}
+
+final wallpaperProvider = NotifierProvider<WallpaperNotifier, bool>(() {
+  return WallpaperNotifier();
+});
+
 extension AppThemeExtensionProvider on BuildContext {
   AppThemeExtension get appColors => Theme.of(this).extension<AppThemeExtension>()!;
 }

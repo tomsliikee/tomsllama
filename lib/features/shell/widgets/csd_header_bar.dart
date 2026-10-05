@@ -32,6 +32,7 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
   Widget build(BuildContext context) {
     final appColors = context.appColors;
     final currentTheme = ref.watch(themeProvider);
+    final isWallpaper = ref.watch(wallpaperProvider);
     final isMac = Theme.of(context).platform == TargetPlatform.macOS;
 
     return FrostedGlass(
@@ -87,6 +88,11 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
           // Theme Selector (Sliding Segmented Control in center)
           _buildSlidingThemeSelector(context, currentTheme, appColors),
 
+          const SizedBox(width: 8.0),
+
+          // Wallpaper Toggle ("Wallpaper On / Off")
+          _buildWallpaperToggle(context, isWallpaper, appColors),
+
           // Drag Window Area (Right)
           Expanded(
             child: DragToMoveArea(
@@ -135,7 +141,7 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
     AppThemeType currentTheme,
     AppThemeExtension appColors,
   ) {
-    const double tabWidth = 72.0;
+    const double tabWidth = 56.0;
     final int activeIndex = switch (currentTheme) {
       AppThemeType.claude => 0,
       AppThemeType.pond => 1,
@@ -144,9 +150,9 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
     };
 
     return FrostedGlass(
-      width: tabWidth * 4 + 12.0,
+      width: tabWidth * 4 + 8.0,
       height: 32.0,
-      padding: const EdgeInsets.all(2.5),
+      padding: const EdgeInsets.all(2.0),
       borderRadius: BorderRadius.circular(18.0),
       borderColor: appColors.borderSubtle,
       child: Stack(
@@ -155,54 +161,51 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
           AnimatedPositioned(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
-            left: activeIndex * tabWidth + 1.0,
+            left: activeIndex * tabWidth,
             top: 0,
             bottom: 0,
             width: tabWidth,
             child: Container(
               decoration: BoxDecoration(
                 color: appColors.accentSubtle,
-                borderRadius: BorderRadius.circular(15.0),
+                borderRadius: BorderRadius.circular(14.0),
                 border: Border.all(color: appColors.accent.withValues(alpha: 0.25)),
               ),
             ),
           ),
           // Clickable labels
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 1.0),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildThemeTab(
-                  label: 'Claude',
-                  isActive: activeIndex == 0,
-                  width: tabWidth,
-                  onTap: () => ref.read(themeProvider.notifier).setTheme(AppThemeType.claude),
-                  appColors: appColors,
-                ),
-                _buildThemeTab(
-                  label: 'Pond',
-                  isActive: activeIndex == 1,
-                  width: tabWidth,
-                  onTap: () => ref.read(themeProvider.notifier).setTheme(AppThemeType.pond),
-                  appColors: appColors,
-                ),
-                _buildThemeTab(
-                  label: 'Dark',
-                  isActive: activeIndex == 2,
-                  width: tabWidth,
-                  onTap: () => ref.read(themeProvider.notifier).setTheme(AppThemeType.dark),
-                  appColors: appColors,
-                ),
-                _buildThemeTab(
-                  label: 'Pond Dark',
-                  isActive: activeIndex == 3,
-                  width: tabWidth,
-                  onTap: () => ref.read(themeProvider.notifier).setTheme(AppThemeType.pondDark),
-                  appColors: appColors,
-                ),
-              ],
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildThemeTab(
+                label: 'Claude',
+                isActive: activeIndex == 0,
+                width: tabWidth,
+                onTap: () => ref.read(themeProvider.notifier).setTheme(AppThemeType.claude),
+                appColors: appColors,
+              ),
+              _buildThemeTab(
+                label: 'Pond',
+                isActive: activeIndex == 1,
+                width: tabWidth,
+                onTap: () => ref.read(themeProvider.notifier).setTheme(AppThemeType.pond),
+                appColors: appColors,
+              ),
+              _buildThemeTab(
+                label: 'Dark',
+                isActive: activeIndex == 2,
+                width: tabWidth,
+                onTap: () => ref.read(themeProvider.notifier).setTheme(AppThemeType.dark),
+                appColors: appColors,
+              ),
+              _buildThemeTab(
+                label: 'Pond Dark',
+                isActive: activeIndex == 3,
+                width: tabWidth,
+                onTap: () => ref.read(themeProvider.notifier).setTheme(AppThemeType.pondDark),
+                appColors: appColors,
+              ),
+            ],
           ),
         ],
       ),
@@ -218,17 +221,127 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
   }) {
     return SizedBox(
       width: width,
-      height: 27.0,
+      height: 28.0,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(15.0),
+        borderRadius: BorderRadius.circular(14.0),
         child: Center(
           child: Text(
             label,
             style: AppTypography.uiControl.copyWith(
               color: isActive ? appColors.accent : appColors.textSecondary,
               fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-              fontSize: 12.0,
+              fontSize: 10.5,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWallpaperToggle(
+    BuildContext context,
+    bool isWallpaper,
+    AppThemeExtension appColors,
+  ) {
+    const double optionWidth = 28.0;
+
+    return FrostedGlass(
+      height: 32.0,
+      padding: const EdgeInsets.symmetric(horizontal: 3.0, vertical: 2.5),
+      borderRadius: BorderRadius.circular(18.0),
+      borderColor: appColors.borderSubtle,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 5.0, right: 4.0),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.image_outlined,
+                  size: 13.0,
+                  color: isWallpaper ? appColors.accent : appColors.textSecondary,
+                ),
+                const SizedBox(width: 4.0),
+                Text(
+                  'Wallpaper',
+                  style: AppTypography.uiControl.copyWith(
+                    color: appColors.textPrimary,
+                    fontSize: 11.0,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            width: optionWidth * 2,
+            height: 25.0,
+            child: Stack(
+              children: [
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutCubic,
+                  left: isWallpaper ? 0 : optionWidth,
+                  top: 0,
+                  bottom: 0,
+                  width: optionWidth,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: appColors.accentSubtle,
+                      borderRadius: BorderRadius.circular(13.0),
+                      border: Border.all(color: appColors.accent.withValues(alpha: 0.25)),
+                    ),
+                  ),
+                ),
+                Row(
+                  children: [
+                    _buildToggleOption(
+                      label: 'On',
+                      isActive: isWallpaper,
+                      width: optionWidth,
+                      onTap: () => ref.read(wallpaperProvider.notifier).setWallpaper(true),
+                      appColors: appColors,
+                    ),
+                    _buildToggleOption(
+                      label: 'Off',
+                      isActive: !isWallpaper,
+                      width: optionWidth,
+                      onTap: () => ref.read(wallpaperProvider.notifier).setWallpaper(false),
+                      appColors: appColors,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToggleOption({
+    required String label,
+    required bool isActive,
+    required double width,
+    required VoidCallback onTap,
+    required AppThemeExtension appColors,
+  }) {
+    return SizedBox(
+      width: width,
+      height: 25.0,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(13.0),
+        child: Center(
+          child: Text(
+            label,
+            style: AppTypography.uiControl.copyWith(
+              color: isActive ? appColors.accent : appColors.textSecondary,
+              fontSize: 11.0,
+              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
             ),
           ),
         ),

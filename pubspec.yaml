@@ -49,6 +49,7 @@ flutter:
   assets:
     - assets/fonts/
     - assets/app_icon.png
+    - assets/pictures/
   fonts:
     - family: Newsreader
       fonts:
