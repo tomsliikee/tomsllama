@@ -59,9 +59,9 @@ static void my_application_activate(GApplication* application) {
   gtk_window_set_icon_name(window, "tomsllama");
 
   // Enable transparent RGBA visual on GTK window for genuine desktop translucency
-  GdkScreen* screen = gtk_widget_get_screen(GTK_WIDGET(window));
-  GdkVisual* rgba_visual = gdk_screen_get_rgba_visual(screen);
-  if (rgba_visual != NULL && gdk_screen_is_composited(screen)) {
+  GdkScreen* gdk_screen = gtk_widget_get_screen(GTK_WIDGET(window));
+  GdkVisual* rgba_visual = gdk_screen_get_rgba_visual(gdk_screen);
+  if (rgba_visual != NULL && gdk_screen_is_composited(gdk_screen)) {
     gtk_widget_set_visual(GTK_WIDGET(window), rgba_visual);
   }
   gtk_widget_set_app_paintable(GTK_WIDGET(window), TRUE);
