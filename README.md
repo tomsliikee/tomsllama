@@ -1,116 +1,227 @@
 <div align="center">
   <img src="readmestuff/app_icon_512.png" width="96" height="96" alt="tomsllama logo" />
   <h1>tomsllama</h1>
-  <p>A native desktop interface for local Ollama language models with project workspaces, hardware calibration, and offline context management.</p>
+  <p><strong>A private, distraction-free native desktop client for local Ollama models with project workspaces, dynamic hardware calibration, and zero cloud telemetry.</strong></p>
+
+  <p>
+    <img src="https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-neutral?style=flat-square" alt="Platform Support" />
+    <img src="https://img.shields.io/badge/Engine-Flutter%203.19+-neutral?style=flat-square" alt="Flutter Version" />
+    <img src="https://img.shields.io/badge/Backend-Local%20Ollama-neutral?style=flat-square" alt="Ollama Backend" />
+    <img src="https://img.shields.io/badge/Storage-SQLite%20FFI-neutral?style=flat-square" alt="SQLite Storage" />
+    <img src="https://img.shields.io/badge/Telemetry-Zero%20Cloud-neutral?style=flat-square" alt="Zero Telemetry" />
+    <img src="https://img.shields.io/badge/License-MIT-neutral?style=flat-square" alt="MIT License" />
+  </p>
 </div>
 
 ---
 
-![tomsllama screenshot](readmestuff/screenshot.png)
+![tomsllama Desktop Interface](readmestuff/screenshot.png)
 
-## Overview
+---
 
-tomsllama is an offline, privacy-first desktop client for Ollama built with Flutter. It executes completely on your local workstation with zero telemetry, zero analytics, and zero external cloud connections.
+## Architecture Overview
 
-The interface adheres to an anti-slop, distraction-free aesthetic: 1px hairlines, floating neutral pills, monospaced code blocks with syntax highlighting, and dedicated workspace context injection designed for developer workflows.
+**tomsllama** is engineered from the ground up as a native desktop client with complete offline isolation. It connects directly to your local Ollama daemon without external proxies, analytics, or third-party servers.
 
-## Features
+```mermaid
+flowchart TD
+    subgraph UI ["Native Editorial UI Layer"]
+        CSD["CSD Header Bar<br/><b>Adaptive Traffic Lights & Themes</b>"]
+        Viewport["Chat Viewport<br/><b>Origami Think Accordions & Telemetry</b>"]
+        Composer["Composer Bar<br/><b>Expandable Shelf & @-Mention Search</b>"]
+        Canvas["Split-View Canvas<br/><b>Live Markdown & Code Inspection</b>"]
+    end
 
-- Local Streaming: Direct token-by-token streaming from your local Ollama daemon via HTTP.
-- Project Workspaces: Organize chats inside isolated workspaces with custom workspace system prompts, Git repository awareness, active branch tracking, and dedicated file pools.
-- Context & File Attachments: Attach files or whole project folders to the composer. Files are parsed, counted for token load, and injected directly into model context.
-- Mention Auto-Completion: Type `@` inside the input box to open a filtered file selector matching files from the active workspace.
-- Per-Model Hardware Calibration: Automatically benchmarks evaluation speed (eval tok/s) and generation speed (gen tok/s) on your hardware (CPU, Apple Silicon, or NVIDIA GPU). Displays estimated completion times before sending messages.
-- Expandable Telemetry Shelf: A collapsible drawer attached directly to the top edge of the input bar displaying active workspace details, Git branch, attached file token sizes, expected model duration, and daily versus lifetime token metrics.
-- Execution Modes: Switch between Schnell (fast, low-context), Optimal (balanced quality and performance), and Denken (extended reasoning budget for models like DeepSeek-R1 and Qwen2.5-Coder).
-- Reasoning Accordions: Dedicated thinking blocks for reasoning models, displaying elapsed calculation time and token counts with toggleable visibility.
-- Split-View Canvas: Side-by-side inspection canvas to view and edit code blocks, markdown artifacts, or generated documents while continuing conversations.
-- History Navigation: Use Arrow Up and Arrow Down in the text field to cycle through past prompts without losing current draft inputs.
-- Organic Dispatch Button: Circular send button with a smooth cloud-morphing animation featuring the animated mascot during dispatch.
-- Built-in Themes: Four high-contrast color palettes:
-  - Claude: Warm ivory paper canvas with terracotta accents.
-  - Pond: Clean mineral light background with slate teal accents.
-  - Dark: Low-contrast charcoal background with warm highlights.
-  - Pond Dark: Deep mineral slate background with luminous teal accents.
-- Local SQLite Storage: Robust persistence for chats, messages, personas, workspaces, and telemetry in `~/Documents/tomsllama/tomsllama.db`.
-- Local Typography: Bundles Inter, Newsreader, and Fira Code locally without external network requests.
-- Multi-Language: Automatic UI switching between English and German based on system locale.
+    subgraph Controllers ["State & Intelligence Layer"]
+        ChatCtrl["ChatController<br/><b>Streaming & History Management</b>"]
+        WsCtrl["WorkspaceController<br/><b>Git Branch Tracking & Context Injection</b>"]
+        CalibServ["HardwareCalibrationService<br/><b>EMA Eval & Gen Speed Tracking</b>"]
+        CtxMgr["ContextManager<br/><b>Sliding Window & Token Guards</b>"]
+    end
+
+    subgraph NativeCore ["Local Desktop & Execution Layer"]
+        OllamaDaemon["Local Ollama Server<br/><b>http://127.0.0.1:11434</b>"]
+        SQLite["SQLite Database<br/><b>tomsllama.db (Common FFI)</b>"]
+        Hardware["Hardware Acceleration<br/><b>Apple Silicon Metal MPS / NVIDIA CUDA / CPU</b>"]
+    end
+
+    CSD --> ChatCtrl
+    Viewport --> ChatCtrl
+    Composer --> WsCtrl
+    Composer --> CalibServ
+    Canvas --> ChatCtrl
+    ChatCtrl --> CtxMgr
+    CtxMgr --> OllamaDaemon
+    ChatCtrl --> SQLite
+    WsCtrl --> SQLite
+    CalibServ --> Hardware
+    OllamaDaemon --> Hardware
+```
+
+---
+
+## Core Capabilities
+
+- **Local Token Streaming:** Streams responses directly from your local **Ollama** daemon token-by-token over cleartext loopback sockets with sub-millisecond response latency.
+- **Claude-Style Workspaces:** Group chats inside dedicated project workspaces with custom **System Prompts**, automated **Git** repository detection, active **Branch Tracking**, and isolated context file sets.
+- **Multi-File & Directory Ingestion:** Attach individual files or full directory trees to the composer. Code files and documents are parsed, token-counted, and formatted into clean context blocks.
+- **Native PDF Text Extraction:** Parses PDF documentation directly on your workstation via **Syncfusion PDF** without headless browsers or external OCR dependencies.
+- **Keyboard Fuzzy `@`-Mentions:** Type **`@`** inside the composer text field to summon an instant fuzzy-filtered search popup to attach workspace files directly from the keyboard.
+- **Per-Model Hardware Calibration:** Continuously benchmarks your system's prompt evaluation speed (**eval tok/s**) and token generation rate (**gen tok/s**). Accurately forecasts expected response duration before dispatching queries.
+- **Expandable Telemetry Shelf:** Collapsible HUD mounted directly to the composer header displaying active **Git branch**, file token footprints, predicted CPU/GPU duration, and session metrics.
+- **Execution Mode Presets:** Three discrete inference profiles replacing clumsy temperature sliders:
+  - **Schnell (0.3):** Low temperature, tight context window, optimized for fast factual queries and deterministic code edits.
+  - **Optimal (0.7):** Balanced sampling parameters for everyday problem solving and natural dialogue.
+  - **Denken (0.6):** Extended thinking budget and reasoning headroom for deep reasoning models like **DeepSeek-R1** and **Qwen2.5-Coder**.
+- **Reasoning Blocks:** Collapsible **`<think>`** accordions displaying live evaluation countdowns, calculation times, and token counts.
+- **Split-View Canvas:** Side-by-side artifact canvas to inspect, review, and copy generated code, markdown documents, or math formulations without losing conversational context.
+- **Prompt History Recall:** Use **`Arrow Up`** and **`Arrow Down`** in the composer to navigate through prompt history while preserving unfinished drafts.
+- **Local Persistence:** Robust persistence for conversations, messages, personas, and workspaces stored in **SQLite** via **`sqflite_common_ffi`**.
+- **Editorial Typography & Themes:** Anti-AI-slop interface with 1px hairlines, floating pills, and typography (**Newsreader**, **Inter**, **Geist Mono**):
+  - **Claude:** Warm ivory paper canvas with terracotta accents.
+  - **Pond:** Clean mineral background with slate teal highlights.
+  - **Dark:** Low-contrast charcoal background with warm highlights.
+  - **Pond Dark:** Deep mineral slate background with luminous teal accents.
+
+---
+
+## Platform Support Matrix
+
+| Platform | Native Runner | Hardware Acceleration | Window & System Integration | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **macOS** | **Cocoa / AppKit** (`macos/`) | **Apple Silicon Metal (MPS)** (~160+ tok/s eval) | Native Traffic Lights (78px inset), App Sandbox, Menu Bar Tray, Dock Reopen | **Fully Supported** |
+| **Linux** | **GTK3** (`linux/`) | **NVIDIA CUDA / CPU AVX2** | CSD Header Bar, Wayland / X11, GNOME Shell Dock matching, Ayatana Tray | **Fully Supported** |
+| **Windows** | **C++ Win32** (`windows/`) | **DirectML / NVIDIA CUDA / CPU** | Frameless Win32 Window, Native Titlebar Snapping, Taskbar Tray | **Fully Supported** |
+
+---
+
+## Execution Profiles
+
+| Mode | Temperature | Top-P | Ideal Use Cases | Context Scaling |
+| :--- | :--- | :--- | :--- | :--- |
+| **Schnell** | **0.30** | **0.85** | Quick syntax lookups, JSON formatting, unit tests, fast summaries | Strict 2k-4k limit for minimal CPU prompt eval latency |
+| **Optimal** | **0.70** | **0.90** | Architectural discussions, feature drafting, general paired programming | Balanced 8k window with dynamic safety headroom |
+| **Denken** | **0.60** | **0.95** | Multi-file reasoning, algorithm verification, DeepSeek-R1 reflection | Deep context window with dedicated `<think>` parser |
+
+---
 
 ## Keyboard Shortcuts
 
-| Shortcut | Description |
-| :--- | :--- |
-| `Ctrl + N` | Start a new chat |
-| `Ctrl + B` | Toggle sidebar visibility |
-| `Ctrl + K` | Open quick switcher / search |
-| `Esc` | Stop active generation / close autocompletion popup |
-| `F11` | Toggle fullscreen mode |
-| `Enter` | Send message (when text or files are attached) |
-| `Shift + Enter` | Insert newline |
-| `Arrow Up` | Navigate to previous prompt in history (at first line) |
-| `Arrow Down` | Navigate to newer prompt in history / restore draft |
-| `@` | Trigger workspace file autocomplete |
+| Linux / Windows | macOS | Action | Scope |
+| :--- | :--- | :--- | :--- |
+| **`Ctrl + N`** | **`Cmd + N`** | **New Conversation** | Global Window |
+| **`Ctrl + B`** | **`Cmd + B`** | **Toggle Sidebar** | Global Window |
+| **`Ctrl + K`** | **`Cmd + K`** | **Quick Switcher / Search** | Global Window |
+| **`Ctrl + ,`** | **`Cmd + ,`** | **Open Application Settings** | Global Window |
+| **`F11`** | **`Cmd + Ctrl + F`** | **Toggle Zen / Fullscreen** | Global Window |
+| **`Esc`** | **`Esc`** | **Stop Generation / Close Modal** | Active Viewport |
+| **`Enter`** | **`Enter`** / **`Cmd + Enter`** | **Send Message** | Composer Input |
+| **`Shift + Enter`** | **`Shift + Enter`** | **Insert Newline** | Composer Input |
+| **`Arrow Up`** | **`Arrow Up`** | **Previous Prompt in History** | Composer (First Line) |
+| **`Arrow Down`** | **`Arrow Down`** | **Newer Prompt / Restore Draft** | Composer (Last Line) |
+| **`@`** | **`@`** | **Trigger File Autocompletion** | Composer Input |
 
-## Prerequisites
+---
 
-1. Install and start [Ollama](https://ollama.com):
-   ```bash
-   ollama serve
-   ```
+## Prerequisites & Installation
 
-2. Pull desired models:
-   ```bash
-   ollama pull qwen2.5-coder:7b
-   ollama pull deepseek-r1:14b
-   ```
+### 1. Install & Launch Ollama
 
-3. Flutter SDK (version 3.19 or higher) with Linux desktop prerequisites:
-   ```bash
-   # Fedora:
-   sudo dnf install clang cmake ninja-build gtk3-devel libayatana-appindicator-gtk3-devel
+Install **Ollama** from [ollama.com](https://ollama.com) and start the local daemon:
 
-   # Ubuntu / Debian:
-   sudo apt install clang cmake ninja-build pkg-config libgtk-3-dev libayatana-appindicator3-dev
+```bash
+ollama serve
+```
 
-   # Arch Linux:
-   sudo pacman -S clang cmake ninja gtk3 libayatana-appindicator
-   ```
+Pull your preferred local models:
+
+```bash
+ollama pull qwen2.5-coder:7b
+ollama pull deepseek-r1:14b
+ollama pull qwen2.5:3b
+```
+
+### 2. Development Toolchain
+
+Ensure **Flutter SDK (>= 3.19.0)** is installed:
+
+- **Linux (Fedora):**
+  ```bash
+  sudo dnf install clang cmake ninja-build gtk3-devel libayatana-appindicator-gtk3-devel
+  ```
+- **Linux (Ubuntu / Debian):**
+  ```bash
+  sudo apt install clang cmake ninja-build pkg-config libgtk-3-dev libayatana-appindicator3-dev
+  ```
+- **macOS:**
+  ```bash
+  xcode-select --install
+  ```
+
+---
 
 ## Building and Running
 
-Clone the repository:
+**1. Clone the repository:**
 ```bash
 git clone https://github.com/tomsliikee/tomsllama.git
 cd tomsllama
 ```
 
-Install dependencies:
+**2. Fetch dependencies:**
 ```bash
 flutter pub get
 ```
 
-Run in development mode:
-```bash
-flutter run -d linux
-```
+**3. Run in Development Mode:**
+- On **Linux**:
+  ```bash
+  flutter run -d linux
+  ```
+- On **macOS**:
+  ```bash
+  flutter run -d macos
+  ```
+- On **Windows**:
+  ```bash
+  flutter run -d windows
+  ```
 
-Compile a standalone release bundle:
-```bash
-flutter build linux --release
-```
+**4. Compile Standalone Release Bundles:**
+- **Linux Release:**
+  ```bash
+  flutter build linux --release
+  ```
+  *Binary Location:* `build/linux/x64/release/bundle/tomsllama`
 
-The resulting executable and bundled assets are placed in:
-`build/linux/x64/release/bundle/tomsllama`
+- **macOS Release:**
+  ```bash
+  flutter build macos --release
+  ```
+  *Bundle Location:* `build/macos/Build/Products/Release/tomsllama.app`
 
-## Data Storage & Paths
+- **Windows Release:**
+  ```bash
+  flutter build windows --release
+  ```
+  *Binary Location:* `build/windows/x64/runner/Release/tomsllama.exe`
 
-All persistent data remains strictly on your local disk:
+---
 
-- SQLite Database: `~/Documents/tomsllama/tomsllama.db`
-- Configuration & Hardware Profiles: `~/Documents/tomsllama/settings.json`
-- Linux Desktop Entry: `~/.local/share/applications/tomsllama.desktop`
-- Application Icons: `~/.local/share/icons/hicolor/`
+## Data Storage & Disk Paths
+
+**tomsllama** stores all application state in transparent, user-accessible locations without hidden registry entries:
+
+| File / Directory | Platform | Description |
+| :--- | :--- | :--- |
+| **`~/Documents/tomsllama/tomsllama.db`** | **Linux / Windows / macOS** | Primary **SQLite Database** storing conversations, messages, workspaces, and personas |
+| **`~/Documents/tomsllama/settings.json`** | **Linux / Windows / macOS** | Hardware benchmark statistics, custom speed profiles, and active UI preferences |
+| **`~/.local/share/applications/tomsllama.desktop`** | **Linux** | XDG Desktop Entry with `StartupWMClass` matching for GNOME Shell and Wayland docks |
+| **`~/.local/share/icons/hicolor/`** | **Linux** | Scalable application icon assets (16px to 512px) |
+| **`~/Library/Containers/com.haiden.tomsllama/`** | **macOS** | Sandboxed container root when distributed with App Sandbox enabled |
+
+---
 
 ## License
 
-MIT License. See LICENSE for details.
+Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for complete terms.
