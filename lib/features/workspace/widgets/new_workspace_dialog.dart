@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/widgets/frosted_glass.dart';
 import '../../../core/services/localization_service.dart';
 
 class NewWorkspaceDialog extends StatefulWidget {
@@ -42,14 +43,14 @@ class _NewWorkspaceDialogState extends State<NewWorkspaceDialog> {
     final appColors = context.appColors;
 
     return Dialog(
-      backgroundColor: appColors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16.0),
-        side: BorderSide(color: appColors.borderSubtle, width: 1.0),
-      ),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 40.0, vertical: 24.0),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 480.0),
-        child: Padding(
+        child: FrostedGlass(
+          borderRadius: BorderRadius.circular(16.0),
+          borderColor: appColors.borderSubtle,
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisSize: MainAxisSize.min,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/widgets/frosted_glass.dart';
 import '../../../core/services/localization_service.dart';
 // For now, we mock the UI.
 
@@ -31,11 +32,14 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     final appColors = context.appColors;
 
     return Dialog(
-      backgroundColor: appColors.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-      child: Container(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 40.0, vertical: 24.0),
+      child: FrostedGlass(
         width: 600,
         height: 500,
+        borderRadius: BorderRadius.circular(16.0),
+        borderColor: appColors.borderSubtle,
         padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

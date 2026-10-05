@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/ollama_model.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/widgets/frosted_glass.dart';
 import '../../../core/services/localization_service.dart';
 
 class ModelSelectorDropdown extends StatelessWidget {
@@ -27,14 +28,11 @@ class ModelSelectorDropdown extends StatelessWidget {
         ? selectedModel
         : (models.isNotEmpty ? models.first.name : null);
 
-    return Container(
+    return FrostedGlass(
       height: 36.0,
       padding: const EdgeInsets.symmetric(horizontal: 14.0),
-      decoration: BoxDecoration(
-        color: appColors.surface,
-        borderRadius: BorderRadius.circular(18.0),
-        border: Border.all(color: appColors.borderSubtle),
-      ),
+      borderRadius: BorderRadius.circular(18.0),
+      borderColor: appColors.borderSubtle,
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: safeValue,
@@ -43,7 +41,9 @@ class ModelSelectorDropdown extends StatelessWidget {
             padding: const EdgeInsets.only(left: 6.0),
             child: Icon(Icons.keyboard_arrow_down, size: 15.0, color: appColors.textSecondary),
           ),
-          dropdownColor: appColors.surface,
+          dropdownColor: appColors.surface.withValues(
+            alpha: Theme.of(context).brightness == Brightness.dark ? 0.88 : 0.92,
+          ),
           style: AppTypography.code.copyWith(
             color: appColors.textPrimary,
             fontSize: 12.0,

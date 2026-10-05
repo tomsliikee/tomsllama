@@ -524,81 +524,89 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                                       clipBehavior: Clip.antiAlias,
                                       child: Stack(
                                         children: [
-                                          Column(
-                                            children: [
-                                              // Workspace Context Pill Banner if this chat belongs to a workspace
-                                              if (isWorkspaceChat && currentConvWs != null)
-                                                _buildWorkspaceHeaderBar(
-                                                  context: context,
-                                                  appColors: appColors,
-                                                  workspace: currentConvWs,
-                                                  isContextEnabled: currentConv!.isWorkspaceContextEnabled,
-                                                  onToggleContext: () {
-                                                    sidebarNotifier.toggleWorkspaceContext(
-                                                      currentConv.id,
-                                                      !currentConv.isWorkspaceContextEnabled,
-                                                    );
-                                                  },
-                                                  onBackToHub: () async {
-                                                    ref.read(workspaceListProvider.notifier).setActiveWorkspace(currentConvWs.id);
-                                                    await ref.read(activeWorkspaceProvider.notifier).loadWorkspace(currentConvWs.id);
-                                                    setState(() => _isViewingWorkspaceHub = true);
-                                                  },
-                                                ),
-                                              Expanded(
-                                                child: AnimatedSwitcher(
-                                                  duration: const Duration(milliseconds: 240),
-                                                  switchInCurve: Curves.easeOutCubic,
-                                                  switchOutCurve: Curves.easeInCubic,
-                                                  transitionBuilder: (child, animation) {
-                                                    return SlideTransition(
-                                                      position: Tween<Offset>(
-                                                        begin: const Offset(0.04, 0.0),
-                                                        end: Offset.zero,
-                                                      ).animate(animation),
-                                                      child: FadeTransition(
-                                                        opacity: animation,
-                                                        child: child,
+                                          Positioned.fill(
+                                            child: Column(
+                                              children: [
+                                                // Workspace Context Pill Banner if this chat belongs to a workspace
+                                                if (isWorkspaceChat && currentConvWs != null)
+                                                  _buildWorkspaceHeaderBar(
+                                                    context: context,
+                                                    appColors: appColors,
+                                                    workspace: currentConvWs,
+                                                    isContextEnabled: currentConv!.isWorkspaceContextEnabled,
+                                                    onToggleContext: () {
+                                                      sidebarNotifier.toggleWorkspaceContext(
+                                                        currentConv.id,
+                                                        !currentConv.isWorkspaceContextEnabled,
+                                                      );
+                                                    },
+                                                    onBackToHub: () async {
+                                                      ref.read(workspaceListProvider.notifier).setActiveWorkspace(currentConvWs.id);
+                                                      await ref.read(activeWorkspaceProvider.notifier).loadWorkspace(currentConvWs.id);
+                                                      setState(() => _isViewingWorkspaceHub = true);
+                                                    },
+                                                  ),
+                                                Expanded(
+                                                  child: AnimatedSwitcher(
+                                                    duration: const Duration(milliseconds: 240),
+                                                    switchInCurve: Curves.easeOutCubic,
+                                                    switchOutCurve: Curves.easeInCubic,
+                                                    transitionBuilder: (child, animation) {
+                                                      return SlideTransition(
+                                                        position: Tween<Offset>(
+                                                          begin: const Offset(0.04, 0.0),
+                                                          end: Offset.zero,
+                                                        ).animate(animation),
+                                                        child: FadeTransition(
+                                                          opacity: animation,
+                                                          child: child,
+                                                        ),
+                                                      );
+                                                    },
+                                                    child: KeyedSubtree(
+                                                      key: ValueKey(chatState.conversationId ?? 'empty_chat'),
+                                                      child: ChatViewport(
+                                                        messages: chatState.messages,
+                                                        isGenerating: chatState.isGenerating,
+                                                        modelName: selectedModel,
+                                                        statusMessage: chatState.statusMessage,
+                                                        statusTokens: chatState.statusTokens,
+                                                        bottomPadding: 120.0,
+                                                        onRegenerate: () {
+                                                          // Regenerate last user turn safely
+                                                          final lastUser = chatState.messages.where((m) => m.role == 'user').lastOrNull;
+                                                          if (lastUser != null) {
+                                                            chatNotifier.sendMessage(lastUser.content, selectedModel);
+                                                          }
+                                                        },
                                                       ),
-                                                    );
-                                                  },
-                                                  child: KeyedSubtree(
-                                                    key: ValueKey(chatState.conversationId ?? 'empty_chat'),
-                                                    child: ChatViewport(
-                                                      messages: chatState.messages,
-                                                      isGenerating: chatState.isGenerating,
-                                                      modelName: selectedModel,
-                                                      statusMessage: chatState.statusMessage,
-                                                      statusTokens: chatState.statusTokens,
-                                                      onRegenerate: () {
-                                                        // Regenerate last user turn safely
-                                                        final lastUser = chatState.messages.where((m) => m.role == 'user').lastOrNull;
-                                                        if (lastUser != null) {
-                                                          chatNotifier.sendMessage(lastUser.content, selectedModel);
-                                                        }
-                                                      },
                                                     ),
                                                   ),
                                                 ),
-                                              ),
-                                              ComposerBar(
-                                                isGenerating: chatState.isGenerating,
-                                                activePersonaName: chatState.activePersonaName,
-                                                modelName: selectedModel,
-                                                models: modelState.models,
-                                                selectedModel: selectedModel,
-                                                onModelChanged: (m) {
-                                                  if (m != null) modelNotifier.selectModel(m);
-                                                },
-                                                onManageModels: _openModelManager,
-                                                mode: chatState.mode,
-                                                onModeChanged: (m) => chatNotifier.setMode(m),
-                                                onPersonaTap: () {},
-                                                onSelectPersona: (persona) => chatNotifier.setPersona(persona),
-                                                onSend: (text) => chatNotifier.sendMessage(text, selectedModel),
-                                                onStop: () => chatNotifier.stopGeneration(),
-                                              ),
-                                            ],
+                                              ],
+                                            ),
+                                          ),
+                                          Positioned(
+                                            left: 0,
+                                            right: 0,
+                                            bottom: 0,
+                                            child: ComposerBar(
+                                              isGenerating: chatState.isGenerating,
+                                              activePersonaName: chatState.activePersonaName,
+                                              modelName: selectedModel,
+                                              models: modelState.models,
+                                              selectedModel: selectedModel,
+                                              onModelChanged: (m) {
+                                                if (m != null) modelNotifier.selectModel(m);
+                                              },
+                                              onManageModels: _openModelManager,
+                                              mode: chatState.mode,
+                                              onModeChanged: (m) => chatNotifier.setMode(m),
+                                              onPersonaTap: () {},
+                                              onSelectPersona: (persona) => chatNotifier.setPersona(persona),
+                                              onSend: (text) => chatNotifier.sendMessage(text, selectedModel),
+                                              onStop: () => chatNotifier.stopGeneration(),
+                                            ),
                                           ),
                                           if (_isDraggingOverChat)
                                             const Positioned.fill(

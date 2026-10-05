@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/conversation.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/widgets/frosted_glass.dart';
 import '../../../core/services/localization_service.dart';
 import '../../../core/models/workspace.dart';
 import '../../workspace/controllers/workspace_hub_controller.dart';
@@ -101,13 +102,13 @@ class _SidebarViewState extends State<SidebarView> {
 
           // Content Floating Pill Panel (Chats OR Workspaces)
           Expanded(
-            child: Container(
+            child: FrostedGlass(
               padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
-              decoration: BoxDecoration(
-                color: appColors.sidebar,
-                borderRadius: BorderRadius.circular(18.0),
-                border: Border.all(color: appColors.borderSubtle, width: 1.0),
+              borderRadius: BorderRadius.circular(18.0),
+              backgroundColor: appColors.sidebar.withValues(
+                alpha: Theme.of(context).brightness == Brightness.dark ? 0.80 : 0.84,
               ),
+              borderColor: appColors.borderSubtle,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -154,14 +155,11 @@ class _SidebarViewState extends State<SidebarView> {
 
     final Color activeIndicatorBorder = isDark ? appColors.border : appColors.border;
 
-    return Container(
+    return FrostedGlass(
       height: tabHeight,
       padding: const EdgeInsets.all(2.5),
-      decoration: BoxDecoration(
-        color: appColors.surface,
-        borderRadius: BorderRadius.circular(16.0),
-        border: Border.all(color: appColors.borderSubtle, width: 1.0),
-      ),
+      borderRadius: BorderRadius.circular(16.0),
+      borderColor: appColors.borderSubtle,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final double halfWidth = (constraints.maxWidth) / 2;
@@ -392,13 +390,10 @@ class _LogoFloatingPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final appColors = context.appColors;
 
-    return Container(
+    return FrostedGlass(
       padding: const EdgeInsets.all(8.5),
-      decoration: BoxDecoration(
-        color: appColors.surface,
-        borderRadius: BorderRadius.circular(16.0),
-        border: Border.all(color: appColors.borderSubtle, width: 1.0),
-      ),
+      borderRadius: BorderRadius.circular(16.0),
+      borderColor: appColors.borderSubtle,
       child: const TomsllamaLogo(size: 24.0, animate: false),
     );
   }
@@ -439,17 +434,10 @@ class _NewActionButtonState extends State<_NewActionButton> {
           scale: _isPressed ? 0.96 : 1.0,
           duration: const Duration(milliseconds: 100),
           curve: const Cubic(0.34, 1.56, 0.64, 1),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
+          child: FrostedGlass(
+            borderRadius: BorderRadius.circular(16.0),
+            borderColor: _isHovered ? appColors.accent : appColors.borderSubtle,
             padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 9.0),
-            decoration: BoxDecoration(
-              color: appColors.surface,
-              border: Border.all(
-                color: _isHovered ? appColors.accent : appColors.borderSubtle,
-                width: 1.0,
-              ),
-              borderRadius: BorderRadius.circular(16.0),
-            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [

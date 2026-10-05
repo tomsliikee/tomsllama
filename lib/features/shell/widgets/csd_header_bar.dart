@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/widgets/frosted_glass.dart';
 import '../../../core/services/localization_service.dart';
 import 'tomsllama_logo.dart';
 
@@ -33,14 +34,13 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
     final currentTheme = ref.watch(themeProvider);
     final isMac = Theme.of(context).platform == TargetPlatform.macOS;
 
-    if (widget.isZenMode) return const SizedBox.shrink();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Container(
+    return FrostedGlass(
       height: 46.0,
-      decoration: BoxDecoration(
-        color: appColors.background,
-        border: Border(bottom: BorderSide(color: appColors.border, width: 1.0)),
-      ),
+      borderRadius: BorderRadius.zero,
+      backgroundColor: appColors.background.withValues(alpha: isDark ? 0.82 : 0.86),
+      borderColor: appColors.border,
       child: Row(
         children: [
           SizedBox(width: isMac ? 78.0 : 14.0),
@@ -145,15 +145,12 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
       AppThemeType.pondDark => 3,
     };
 
-    return Container(
+    return FrostedGlass(
       width: tabWidth * 4 + 12.0,
       height: 32.0,
       padding: const EdgeInsets.all(2.5),
-      decoration: BoxDecoration(
-        color: appColors.surface,
-        border: Border.all(color: appColors.borderSubtle),
-        borderRadius: BorderRadius.circular(18.0),
-      ),
+      borderRadius: BorderRadius.circular(18.0),
+      borderColor: appColors.borderSubtle,
       child: Stack(
         children: [
           // Animated sliding background pill

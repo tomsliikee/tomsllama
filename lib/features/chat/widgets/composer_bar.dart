@@ -9,6 +9,7 @@ import '../../../core/models/workspace_info.dart';
 import '../../../core/models/attached_file.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/widgets/frosted_glass.dart';
 import '../../../core/services/localization_service.dart';
 import '../../../core/services/hardware_calibration_service.dart';
 import '../../../core/services/settings_service.dart';
@@ -380,17 +381,12 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
                 onToggle: _toggleShelf,
               ),
 
-              Container(
+              FrostedGlass(
                 padding: const EdgeInsets.all(12.0),
-                decoration: BoxDecoration(
-                  color: appColors.surface, // #FFFFFF in Claude and Pond
-                  borderRadius: _isShelfExpanded
-                      ? const BorderRadius.vertical(bottom: Radius.circular(20.0))
-                      : BorderRadius.circular(20.0),
-                  border: Border.all(
-                    color: _isFocused ? appColors.accent : appColors.borderSubtle,
-                    width: 1.0,
-                  ),
+                borderRadius: _isShelfExpanded
+                    ? const BorderRadius.vertical(bottom: Radius.circular(20.0))
+                    : BorderRadius.circular(20.0),
+                borderColor: _isFocused ? appColors.accent : appColors.borderSubtle,
                 boxShadow: [
                   BoxShadow(
                     color: isDark
@@ -413,8 +409,7 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
                       blurRadius: 0.0,
                     ),
                 ],
-              ),
-              child: Column(
+                child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -472,20 +467,17 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
 
                   // Autocomplete popup for '@' mention
                   if (_showAtPopup && _atMatches.isNotEmpty) ...[
-                    Container(
+                    FrostedGlass(
                       margin: const EdgeInsets.only(bottom: 8.0),
-                      decoration: BoxDecoration(
-                        color: appColors.surface,
-                        borderRadius: BorderRadius.circular(12.0),
-                        border: Border.all(color: appColors.borderSubtle, width: 1.0),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: isDark ? 0.30 : 0.06),
-                            blurRadius: 10.0,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
+                      borderRadius: BorderRadius.circular(12.0),
+                      borderColor: appColors.borderSubtle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: isDark ? 0.30 : 0.06),
+                          blurRadius: 10.0,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         mainAxisSize: MainAxisSize.min,
@@ -949,19 +941,16 @@ class _AttachChipState extends State<_AttachChip> {
               offset: const Offset(0, -6),
               child: Material(
                 color: Colors.transparent,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: appColors.surface,
-                    borderRadius: BorderRadius.circular(14.0),
-                    border: Border.all(color: appColors.borderSubtle, width: 1.0),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
-                        blurRadius: 12.0,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
+                child: FrostedGlass(
+                  borderRadius: BorderRadius.circular(14.0),
+                  borderColor: appColors.borderSubtle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
+                      blurRadius: 12.0,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -1119,6 +1108,7 @@ class _ModelChipState extends State<_ModelChip> {
   bool _isHovered = false;
 
   void _showModelMenu(BuildContext context, AppThemeExtension appColors) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final renderBox = _chipKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
     final overlay = Overlay.maybeOf(context)?.context.findRenderObject() as RenderBox?;
@@ -1149,21 +1139,18 @@ class _ModelChipState extends State<_ModelChip> {
               bottom: overlay.size.height - targetOffset.dy + 8.0,
               child: Material(
                 color: Colors.transparent,
-                child: Container(
+                child: FrostedGlass(
                   width: 230.0,
                   padding: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 4.0),
-                  decoration: BoxDecoration(
-                    color: appColors.surface,
-                    borderRadius: BorderRadius.circular(16.0),
-                    border: Border.all(color: appColors.borderSubtle),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.10),
-                        blurRadius: 18.0,
-                        offset: const Offset(0, -6),
-                      ),
-                    ],
-                  ),
+                  borderRadius: BorderRadius.circular(16.0),
+                  borderColor: appColors.borderSubtle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.10),
+                      blurRadius: 18.0,
+                      offset: const Offset(0, -6),
+                    ),
+                  ],
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -1318,6 +1305,7 @@ class _ModeChipState extends State<_ModeChip> {
   bool _isHovered = false;
 
   void _showModeMenu(BuildContext context, AppThemeExtension appColors) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final renderBox = _chipKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
     final overlay = Overlay.maybeOf(context)?.context.findRenderObject() as RenderBox?;
@@ -1372,21 +1360,18 @@ class _ModeChipState extends State<_ModeChip> {
               bottom: overlay.size.height - targetOffset.dy + 8.0,
               child: Material(
                 color: Colors.transparent,
-                child: Container(
+                child: FrostedGlass(
                   width: 250.0,
                   padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 6.0),
-                  decoration: BoxDecoration(
-                    color: appColors.surface,
-                    borderRadius: BorderRadius.circular(16.0),
-                    border: Border.all(color: appColors.borderSubtle),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.12),
-                        blurRadius: 18.0,
-                        offset: const Offset(0, -6),
-                      ),
-                    ],
-                  ),
+                  borderRadius: BorderRadius.circular(16.0),
+                  borderColor: appColors.borderSubtle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+                      blurRadius: 18.0,
+                      offset: const Offset(0, -6),
+                    ),
+                  ],
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,

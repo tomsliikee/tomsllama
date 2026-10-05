@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/widgets/frosted_glass.dart';
 import '../../../core/services/localization_service.dart';
 
 class SearchBarView extends StatelessWidget {
@@ -19,14 +20,11 @@ class SearchBarView extends StatelessWidget {
   Widget build(BuildContext context) {
     final appColors = context.appColors;
 
-    return Container(
+    return FrostedGlass(
       margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       padding: const EdgeInsets.symmetric(horizontal: 12.0),
-      decoration: BoxDecoration(
-        color: appColors.surface,
-        borderRadius: BorderRadius.circular(8.0),
-        border: Border.all(color: appColors.border),
-      ),
+      borderRadius: BorderRadius.circular(10.0),
+      borderColor: appColors.borderSubtle,
       child: Row(
         children: [
           Icon(Icons.search, size: 16.0, color: appColors.textSecondary),

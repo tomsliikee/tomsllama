@@ -9,6 +9,7 @@ import '../../../core/services/hardware_calibration_service.dart';
 import '../../../core/services/localization_service.dart';
 import '../../../core/services/token_stats_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/frosted_glass.dart';
 import '../controllers/chat_controller.dart';
 
 /// An animated extended shelf that slides up from the top edge of the composer
@@ -125,27 +126,22 @@ class _ComposerShelfState extends ConsumerState<ComposerShelf>
               position: _slideAnim,
               child: FadeTransition(
                 opacity: _fadeAnim,
-                child: Container(
+                child: FrostedGlass(
                   width: double.infinity,
                   margin: const EdgeInsets.only(bottom: 0.0),
                   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                  decoration: BoxDecoration(
-                    color: shelfBg,
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16.0),
-                    ),
-                    border: Border.all(
-                      color: appColors.borderSubtle,
-                      width: 1.0,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.03),
-                        blurRadius: 8.0,
-                        offset: const Offset(0, -3),
-                      ),
-                    ],
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16.0),
                   ),
+                  backgroundColor: shelfBg.withValues(alpha: isDark ? 0.82 : 0.86),
+                  borderColor: appColors.borderSubtle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.03),
+                      blurRadius: 8.0,
+                      offset: const Offset(0, -3),
+                    ),
+                  ],
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [

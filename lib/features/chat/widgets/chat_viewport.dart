@@ -14,6 +14,7 @@ class ChatViewport extends StatefulWidget {
   final String? statusMessage;
   final int? statusTokens;
   final VoidCallback? onRegenerate;
+  final double bottomPadding;
 
   const ChatViewport({
     super.key,
@@ -23,6 +24,7 @@ class ChatViewport extends StatefulWidget {
     this.statusMessage,
     this.statusTokens,
     this.onRegenerate,
+    this.bottomPadding = 24.0,
   });
 
   @override
@@ -116,7 +118,7 @@ class _ChatViewportState extends State<ChatViewport> {
     return SelectionArea(
       child: ListView.builder(
         controller: _scrollController,
-        padding: const EdgeInsets.only(bottom: 24.0, top: 20.0),
+        padding: EdgeInsets.only(bottom: widget.bottomPadding, top: 20.0),
         itemCount: widget.messages.length,
         itemBuilder: (context, index) {
           final message = widget.messages[index];
