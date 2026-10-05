@@ -2,13 +2,14 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
-/// A reusable, performance-optimized frosted glass container (Glassmorphism)
-/// with Gaussian backdrop blur, translucent tonal tinting, and 1px hairline border.
+/// A high-fidelity, performance-optimized frosted glass container (Glassmorphism)
+/// with Gaussian backdrop blur, specular gradient sheen, and translucent refraction rim.
 class FrostedGlass extends StatelessWidget {
   final Widget child;
   final BorderRadius? borderRadius;
   final double blur;
   final Color? backgroundColor;
+  final Gradient? gradient;
   final Color? borderColor;
   final double borderWidth;
   final EdgeInsetsGeometry? padding;
@@ -22,8 +23,9 @@ class FrostedGlass extends StatelessWidget {
     super.key,
     required this.child,
     this.borderRadius,
-    this.blur = 16.0,
+    this.blur = 12.0,
     this.backgroundColor,
+    this.gradient,
     this.borderColor,
     this.borderWidth = 1.0,
     this.padding,
@@ -40,18 +42,36 @@ class FrostedGlass extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final effectiveRadius = borderRadius ?? BorderRadius.circular(16.0);
-    final effectiveBg = backgroundColor ??
-        appColors.surface.withValues(alpha: isDark ? 0.80 : 0.84);
+
+    // Specular Glass Gradient: top-left light sheen fading to translucent glass body
+    final effectiveGradient = gradient ??
+        LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isDark
+              ? [
+                  (backgroundColor ?? appColors.surface).withValues(alpha: 0.65),
+                  (backgroundColor ?? appColors.surface).withValues(alpha: 0.38),
+                ]
+              : [
+                  Colors.white.withValues(alpha: 0.65),
+                  (backgroundColor ?? appColors.surface).withValues(alpha: 0.38),
+                ],
+        );
+
+    // Crisp glass rim reflection
     final effectiveBorderColor = borderColor ??
-        appColors.borderSubtle.withValues(alpha: isDark ? 0.50 : 0.40);
+        (isDark
+            ? Colors.white.withValues(alpha: 0.16)
+            : Colors.white.withValues(alpha: 0.75));
 
     Widget content = Container(
       width: width,
       height: height,
       padding: padding,
       decoration: BoxDecoration(
-        color: effectiveBg,
         borderRadius: effectiveRadius,
+        gradient: effectiveGradient,
         border: Border.all(
           color: effectiveBorderColor,
           width: borderWidth,
@@ -60,24 +80,35 @@ class FrostedGlass extends StatelessWidget {
       child: child,
     );
 
+    // ClipRRect with BackdropFilter in a Stack so the blur filters the backdrop,
+    // and the translucent glass gradient renders over it with genuine transparency.
+    Widget glass = ClipRRect(
+      borderRadius: effectiveRadius,
+      clipBehavior: clipBehavior,
+      child: Stack(
+        fit: StackFit.passthrough,
+        children: [
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+              child: const SizedBox.expand(),
+            ),
+          ),
+          content,
+        ],
+      ),
+    );
+
+    // Outer shadow: placed outside the ClipRRect so it is not clipped away
     if (boxShadow != null && boxShadow!.isNotEmpty) {
-      content = DecoratedBox(
+      glass = DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: effectiveRadius,
           boxShadow: boxShadow,
         ),
-        child: content,
+        child: glass,
       );
     }
-
-    Widget glass = ClipRRect(
-      borderRadius: effectiveRadius,
-      clipBehavior: clipBehavior,
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-        child: content,
-      ),
-    );
 
     if (margin != null) {
       glass = Padding(padding: margin!, child: glass);

@@ -1,8 +1,6 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tomsllama/core/widgets/frosted_glass.dart';
-import 'package:tomsllama/core/theme/app_theme.dart';
 import 'package:tomsllama/core/theme/claude_theme.dart';
 
 void main() {
