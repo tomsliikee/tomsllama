@@ -92,12 +92,10 @@ class _NewWorkspaceDialogState extends State<NewWorkspaceDialog> {
                 ),
               ),
               const SizedBox(height: 6.0),
-              Container(
-                decoration: BoxDecoration(
-                  color: appColors.background,
-                  borderRadius: BorderRadius.circular(12.0),
-                  border: Border.all(color: appColors.borderSubtle, width: 1.0),
-                ),
+              FrostedGlass(
+                borderRadius: BorderRadius.circular(12.0),
+                backgroundColor: appColors.background,
+                borderColor: appColors.borderSubtle,
                 padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 2.0),
                 child: TextField(
                   controller: _nameController,
@@ -125,12 +123,10 @@ class _NewWorkspaceDialogState extends State<NewWorkspaceDialog> {
                 ),
               ),
               const SizedBox(height: 6.0),
-              Container(
-                decoration: BoxDecoration(
-                  color: appColors.background,
-                  borderRadius: BorderRadius.circular(12.0),
-                  border: Border.all(color: appColors.borderSubtle, width: 1.0),
-                ),
+              FrostedGlass(
+                borderRadius: BorderRadius.circular(12.0),
+                backgroundColor: appColors.background,
+                borderColor: appColors.borderSubtle,
                 padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
                 child: TextField(
                   controller: _promptController,

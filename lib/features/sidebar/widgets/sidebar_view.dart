@@ -174,7 +174,9 @@ class _SidebarViewState extends State<SidebarView> {
                   decoration: BoxDecoration(
                     color: activeIndicatorColor,
                     borderRadius: BorderRadius.circular(13.0),
-                    border: Border.all(color: activeIndicatorBorder, width: 1.0),
+                    border: appColors.isWallpaper
+                        ? null
+                        : Border.all(color: activeIndicatorBorder, width: 1.0),
                   ),
                 ),
               ),

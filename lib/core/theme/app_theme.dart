@@ -26,6 +26,7 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
   final Color accentSubtle;
   final Color codeBackground;
   final Color hover;
+  final bool isWallpaper;
 
   const AppThemeExtension({
     required this.background,
@@ -39,6 +40,7 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
     required this.accentSubtle,
     required this.codeBackground,
     required this.hover,
+    this.isWallpaper = false,
   });
 
   @override
@@ -54,6 +56,7 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
     Color? accentSubtle,
     Color? codeBackground,
     Color? hover,
+    bool? isWallpaper,
   }) {
     return AppThemeExtension(
       background: background ?? this.background,
@@ -67,6 +70,7 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
       accentSubtle: accentSubtle ?? this.accentSubtle,
       codeBackground: codeBackground ?? this.codeBackground,
       hover: hover ?? this.hover,
+      isWallpaper: isWallpaper ?? this.isWallpaper,
     );
   }
 
@@ -88,6 +92,7 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
       accentSubtle: Color.lerp(accentSubtle, other.accentSubtle, t)!,
       codeBackground: Color.lerp(codeBackground, other.codeBackground, t)!,
       hover: Color.lerp(hover, other.hover, t)!,
+      isWallpaper: t < 0.5 ? isWallpaper : other.isWallpaper,
     );
   }
 }
@@ -148,15 +153,31 @@ extension AppThemeExtensionProvider on BuildContext {
   AppThemeExtension get appColors => Theme.of(this).extension<AppThemeExtension>()!;
 }
 
-ThemeData getThemeData(AppThemeType type) {
+ThemeData getThemeData(AppThemeType type, {bool isWallpaper = false}) {
+  ThemeData base;
   switch (type) {
     case AppThemeType.claude:
-      return claudeTheme;
+      base = claudeTheme;
+      break;
     case AppThemeType.pond:
-      return pondTheme;
+      base = pondTheme;
+      break;
     case AppThemeType.dark:
-      return darkTheme;
+      base = darkTheme;
+      break;
     case AppThemeType.pondDark:
-      return pondDarkTheme;
+      base = pondDarkTheme;
+      break;
   }
+
+  final appColors = base.extension<AppThemeExtension>()!;
+  final updatedColors = appColors.copyWith(
+    isWallpaper: isWallpaper,
+    border: isWallpaper ? Colors.transparent : appColors.border,
+    borderSubtle: isWallpaper ? Colors.transparent : appColors.borderSubtle,
+  );
+
+  return base.copyWith(
+    extensions: [updatedColors],
+  );
 }

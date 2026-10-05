@@ -23,7 +23,7 @@ class FrostedGlass extends StatelessWidget {
     super.key,
     required this.child,
     this.borderRadius,
-    this.blur = 24.0,
+    this.blur = 22.8,
     this.backgroundColor,
     this.gradient,
     this.borderColor,
@@ -66,11 +66,16 @@ class FrostedGlass extends StatelessWidget {
                 ],
         );
 
-    // Crisp glass rim reflection
-    final effectiveBorderColor = borderColor ??
-        (isDark
-            ? Colors.white.withValues(alpha: 0.18)
-            : Colors.white.withValues(alpha: 0.70));
+    // Crisp glass rim reflection (suppressed when wallpaper is active)
+    final effectiveBorder = appColors.isWallpaper
+        ? null
+        : Border.all(
+            color: borderColor ??
+                (isDark
+                    ? Colors.white.withValues(alpha: 0.18)
+                    : Colors.white.withValues(alpha: 0.70)),
+            width: borderWidth,
+          );
 
     Widget content = Container(
       width: width,
@@ -79,10 +84,7 @@ class FrostedGlass extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: effectiveRadius,
         gradient: effectiveGradient,
-        border: Border.all(
-          color: effectiveBorderColor,
-          width: borderWidth,
-        ),
+        border: effectiveBorder,
       ),
       child: child,
     );

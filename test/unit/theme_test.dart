@@ -23,5 +23,18 @@ void main() {
       expect(ext.background, isNotNull);
       expect(ext.accent, isNotNull);
     });
+
+    test('getThemeData removes borders when isWallpaper is true', () {
+      final themeWithWallpaper = getThemeData(AppThemeType.claude, isWallpaper: true);
+      final ext = themeWithWallpaper.extension<AppThemeExtension>()!;
+      expect(ext.isWallpaper, isTrue);
+      expect(ext.border, Colors.transparent);
+      expect(ext.borderSubtle, Colors.transparent);
+
+      final themeWithoutWallpaper = getThemeData(AppThemeType.claude, isWallpaper: false);
+      final extNoWp = themeWithoutWallpaper.extension<AppThemeExtension>()!;
+      expect(extNoWp.isWallpaper, isFalse);
+      expect(extNoWp.border, isNot(Colors.transparent));
+    });
   });
 }

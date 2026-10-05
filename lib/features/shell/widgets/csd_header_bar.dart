@@ -169,7 +169,9 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
               decoration: BoxDecoration(
                 color: appColors.accentSubtle,
                 borderRadius: BorderRadius.circular(14.0),
-                border: Border.all(color: appColors.accent.withValues(alpha: 0.25)),
+                border: appColors.isWallpaper
+                    ? null
+                    : Border.all(color: appColors.accent.withValues(alpha: 0.25)),
               ),
             ),
           ),
@@ -292,7 +294,9 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
                     decoration: BoxDecoration(
                       color: appColors.accentSubtle,
                       borderRadius: BorderRadius.circular(13.0),
-                      border: Border.all(color: appColors.accent.withValues(alpha: 0.25)),
+                      border: appColors.isWallpaper
+                          ? null
+                          : Border.all(color: appColors.accent.withValues(alpha: 0.25)),
                     ),
                   ),
                 ),
@@ -410,12 +414,14 @@ class _SidebarToggleButtonState extends State<_SidebarToggleButton> {
                   ? colors.accentSubtle
                   : colors.surface.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(6.0),
-              border: Border.all(
-                color: _isHovered
-                    ? colors.accent.withValues(alpha: 0.3)
-                    : colors.borderSubtle,
-                width: 1.0,
-              ),
+              border: colors.isWallpaper
+                  ? null
+                  : Border.all(
+                      color: _isHovered
+                          ? colors.accent.withValues(alpha: 0.3)
+                          : colors.borderSubtle,
+                      width: 1.0,
+                    ),
             ),
             child: Center(
               child: Icon(

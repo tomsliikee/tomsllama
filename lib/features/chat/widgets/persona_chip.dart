@@ -93,7 +93,9 @@ class _PersonaChipState extends State<PersonaChip> {
                   decoration: BoxDecoration(
                     color: appColors.surface,
                     borderRadius: BorderRadius.circular(16.0),
-                    border: Border.all(color: appColors.borderSubtle, width: 1.0),
+                    border: appColors.isWallpaper
+                        ? null
+                        : Border.all(color: appColors.borderSubtle, width: 1.0),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.10),
@@ -245,10 +247,12 @@ class _PersonaChipState extends State<PersonaChip> {
           padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
           decoration: BoxDecoration(
             color: appColors.background,
-            border: Border.all(
-              color: _isHovered ? appColors.accent : appColors.borderSubtle,
-              width: 1.0,
-            ),
+            border: appColors.isWallpaper
+                ? null
+                : Border.all(
+                    color: _isHovered ? appColors.accent : appColors.borderSubtle,
+                    width: 1.0,
+                  ),
             borderRadius: BorderRadius.circular(16.0),
           ),
           child: Row(

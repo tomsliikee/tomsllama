@@ -676,10 +676,12 @@ class _WorkspacePill extends StatelessWidget {
       decoration: BoxDecoration(
         color: appColors.hover,
         borderRadius: BorderRadius.circular(14.0),
-        border: Border.all(
-          color: appColors.accent.withValues(alpha: 0.4),
-          width: 1.0,
-        ),
+        border: appColors.isWallpaper
+            ? null
+            : Border.all(
+                color: appColors.accent.withValues(alpha: 0.4),
+                width: 1.0,
+              ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -748,10 +750,12 @@ class _AttachedFilePill extends StatelessWidget {
       decoration: BoxDecoration(
         color: appColors.hover,
         borderRadius: BorderRadius.circular(14.0),
-        border: Border.all(
-          color: appColors.borderSubtle,
-          width: 1.0,
-        ),
+        border: appColors.isWallpaper
+            ? null
+            : Border.all(
+                color: appColors.borderSubtle,
+                width: 1.0,
+              ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -842,10 +846,12 @@ class _AttachedFilesSummaryPill extends StatelessWidget {
       decoration: BoxDecoration(
         color: appColors.hover,
         borderRadius: BorderRadius.circular(14.0),
-        border: Border.all(
-          color: appColors.borderSubtle,
-          width: 1.0,
-        ),
+        border: appColors.isWallpaper
+            ? null
+            : Border.all(
+                color: appColors.borderSubtle,
+                width: 1.0,
+              ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1055,10 +1061,12 @@ class _AttachChipState extends State<_AttachChip> {
             decoration: BoxDecoration(
               color: _isOpen ? appColors.hover : Colors.transparent,
               borderRadius: BorderRadius.circular(16.0),
-              border: Border.all(
-                color: _isOpen ? appColors.accent : appColors.borderSubtle,
-                width: 1.0,
-              ),
+              border: appColors.isWallpaper
+                  ? null
+                  : Border.all(
+                      color: _isOpen ? appColors.accent : appColors.borderSubtle,
+                      width: 1.0,
+                    ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -1257,9 +1265,11 @@ class _ModelChipState extends State<_ModelChip> {
           padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
           decoration: BoxDecoration(
             color: appColors.background,
-            border: Border.all(
-              color: _isHovered ? appColors.accent : appColors.borderSubtle,
-            ),
+            border: appColors.isWallpaper
+                ? null
+                : Border.all(
+                    color: _isHovered ? appColors.accent : appColors.borderSubtle,
+                  ),
             borderRadius: BorderRadius.circular(16.0),
           ),
           child: Row(
@@ -1487,9 +1497,11 @@ class _ModeChipState extends State<_ModeChip> {
           padding: const EdgeInsets.symmetric(horizontal: 9.0, vertical: 4.5),
           decoration: BoxDecoration(
             color: appColors.background,
-            border: Border.all(
-              color: _isHovered ? appColors.accent : appColors.borderSubtle,
-            ),
+            border: appColors.isWallpaper
+                ? null
+                : Border.all(
+                    color: _isHovered ? appColors.accent : appColors.borderSubtle,
+                  ),
             borderRadius: BorderRadius.circular(16.0),
           ),
           child: Row(

@@ -70,7 +70,8 @@ class TomsllamaApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeType = ref.watch(themeProvider);
-    final themeData = getThemeData(themeType);
+    final isWallpaper = ref.watch(wallpaperProvider);
+    final themeData = getThemeData(themeType, isWallpaper: isWallpaper);
 
     return MaterialApp(
       title: 'tomsllama',

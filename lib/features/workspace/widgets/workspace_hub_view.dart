@@ -18,6 +18,7 @@ import '../../models/controllers/model_controller.dart';
 import '../controllers/workspace_hub_controller.dart';
 import 'cute_llama_file_mascot.dart';
 import '../../chat/widgets/cute_send_button.dart';
+import '../../../core/widgets/frosted_glass.dart';
 
 class WorkspaceHubView extends ConsumerStatefulWidget {
   final Workspace workspace;
@@ -156,10 +157,12 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                       decoration: BoxDecoration(
                         color: cardBackground,
                         borderRadius: BorderRadius.circular(16.0),
-                        border: Border.all(
-                          color: appColors.borderSubtle,
-                          width: 1.0,
-                        ),
+                        border: appColors.isWallpaper
+                            ? null
+                            : Border.all(
+                                color: appColors.borderSubtle,
+                                width: 1.0,
+                              ),
                       ),
                       child: Icon(Icons.folder_special_outlined, size: 22.0, color: appColors.textSecondary),
                     ),
@@ -230,13 +233,11 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
   }
 
   Widget _buildPromptCard(AppThemeExtension appColors, Color cardBackground, bool isDark) {
-    return Container(
+    return FrostedGlass(
       padding: const EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: cardBackground,
-        borderRadius: BorderRadius.circular(16.0),
-        border: Border.all(color: appColors.borderSubtle, width: 1.0),
-      ),
+      borderRadius: BorderRadius.circular(16.0),
+      backgroundColor: cardBackground,
+      borderColor: appColors.borderSubtle,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -266,7 +267,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                   decoration: BoxDecoration(
                     color: isDark ? appColors.surface : appColors.background,
                     borderRadius: BorderRadius.circular(16.0),
-                    border: Border.all(color: appColors.borderSubtle, width: 1.0),
+                    border: appColors.isWallpaper ? null : Border.all(color: appColors.borderSubtle, width: 1.0),
                   ),
                   child: Text(
                     I18n.save,
@@ -281,26 +282,34 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
             ],
           ),
           const SizedBox(height: 10.0),
-          TextField(
-            controller: _promptController,
-            maxLines: 4,
-            minLines: 2,
-            style: AppTypography.uiControl.copyWith(
-              color: appColors.textPrimary,
-              fontSize: 13.5,
-              height: 1.45,
-            ),
-            decoration: InputDecoration(
-              hintText: I18n.workspacePromptHint,
-              hintStyle: AppTypography.uiControl.copyWith(
-                color: appColors.textSecondary.withValues(alpha: 0.6),
-                fontSize: 13.0,
+          FrostedGlass(
+            borderRadius: BorderRadius.circular(12.0),
+            backgroundColor: isDark
+                ? Color.alphaBlend(Colors.white.withValues(alpha: 0.04), appColors.surface)
+                : appColors.background,
+            borderColor: appColors.borderSubtle,
+            padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
+            child: TextField(
+              controller: _promptController,
+              maxLines: 4,
+              minLines: 2,
+              style: AppTypography.uiControl.copyWith(
+                color: appColors.textPrimary,
+                fontSize: 13.5,
+                height: 1.45,
               ),
-              border: InputBorder.none,
-              isDense: true,
-              contentPadding: EdgeInsets.zero,
+              decoration: InputDecoration(
+                hintText: I18n.workspacePromptHint,
+                hintStyle: AppTypography.uiControl.copyWith(
+                  color: appColors.textSecondary.withValues(alpha: 0.6),
+                  fontSize: 13.0,
+                ),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+              onChanged: (_) => _savePrompt(),
             ),
-            onChanged: (_) => _savePrompt(),
           ),
         ],
       ),
@@ -328,16 +337,13 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
         setState(() => _isDraggingOverContext = false);
         _handleDrop(details);
       },
-      child: Container(
+      child: FrostedGlass(
         padding: const EdgeInsets.all(16.0),
-        decoration: BoxDecoration(
-          color: cardBackground,
-          borderRadius: BorderRadius.circular(16.0),
-          border: Border.all(
-            color: _isDraggingOverContext ? appColors.accent : appColors.borderSubtle,
-            width: 1.0,
-          ),
-        ),
+        borderRadius: BorderRadius.circular(16.0),
+        backgroundColor: cardBackground,
+        borderColor: _isDraggingOverContext
+            ? appColors.accent
+            : (appColors.isWallpaper ? Colors.transparent : appColors.borderSubtle),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -375,7 +381,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                               decoration: BoxDecoration(
                                 color: isDark ? appColors.surface : appColors.background,
                                 borderRadius: BorderRadius.circular(16.0),
-                                border: Border.all(color: appColors.borderSubtle, width: 1.0),
+                                border: appColors.isWallpaper ? null : Border.all(color: appColors.borderSubtle, width: 1.0),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -431,7 +437,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                               decoration: BoxDecoration(
                                 color: isDark ? appColors.surface : appColors.background,
                                 borderRadius: BorderRadius.circular(16.0),
-                                border: Border.all(color: appColors.borderSubtle, width: 1.0),
+                                border: appColors.isWallpaper ? null : Border.all(color: appColors.borderSubtle, width: 1.0),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -524,29 +530,27 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
         ? Color.alphaBlend(Colors.white.withValues(alpha: 0.04), appColors.surface)
         : appColors.surface;
 
-    return Container(
+    return FrostedGlass(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-      decoration: BoxDecoration(
-        color: composerBg,
-        borderRadius: BorderRadius.circular(20.0),
-        border: Border.all(
-          color: _isInputFocused ? appColors.accent : appColors.accent.withValues(alpha: 0.40),
-          width: 1.2,
+      borderRadius: BorderRadius.circular(20.0),
+      backgroundColor: composerBg,
+      borderColor: appColors.isWallpaper
+          ? Colors.transparent
+          : (_isInputFocused ? appColors.accent : appColors.accent.withValues(alpha: 0.40)),
+      borderWidth: 1.2,
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.06),
+          blurRadius: 18.0,
+          offset: const Offset(0, 4),
         ),
-        boxShadow: [
+        if (_isInputFocused && !appColors.isWallpaper)
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.40 : 0.07),
-            blurRadius: 18.0,
-            offset: const Offset(0, 4),
+            color: appColors.accentSubtle,
+            spreadRadius: 2.0,
+            blurRadius: 0.0,
           ),
-          if (_isInputFocused)
-            BoxShadow(
-              color: appColors.accentSubtle,
-              spreadRadius: 2.0,
-              blurRadius: 0.0,
-            ),
-        ],
-      ),
+      ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -593,7 +597,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                         decoration: BoxDecoration(
                           color: isDark ? appColors.surface : appColors.background,
                           borderRadius: BorderRadius.circular(16.0),
-                          border: Border.all(color: appColors.borderSubtle, width: 1.0),
+                          border: appColors.isWallpaper ? null : Border.all(color: appColors.borderSubtle, width: 1.0),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -667,7 +671,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
             decoration: BoxDecoration(
               color: cardBackground,
               borderRadius: BorderRadius.circular(14.0),
-              border: Border.all(color: appColors.borderSubtle, width: 1.0),
+              border: appColors.isWallpaper ? null : Border.all(color: appColors.borderSubtle, width: 1.0),
             ),
             child: Text(
               I18n.workspaceNoChatsHint,
@@ -697,7 +701,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                   decoration: BoxDecoration(
                     color: cardBackground,
                     borderRadius: BorderRadius.circular(16.0),
-                    border: Border.all(color: appColors.borderSubtle, width: 1.0),
+                    border: appColors.isWallpaper ? null : Border.all(color: appColors.borderSubtle, width: 1.0),
                   ),
                   child: Row(
                     children: [
