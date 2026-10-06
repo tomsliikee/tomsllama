@@ -1,8 +1,11 @@
+export '../../../../core/models/chat_execution_mode.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/models/chat_execution_mode.dart';
 import '../../../../core/models/message.dart';
 import '../../../../core/models/persona.dart';
 import '../../../../core/services/database_service.dart';
@@ -24,11 +27,6 @@ import '../../chat/controllers/workspace_controller.dart';
 import '../../../../core/models/workspace.dart';
 import '../../../../core/models/workspace_context_file.dart';
 
-enum ChatExecutionMode {
-  schnell,
-  optimal,
-  thinking,
-}
 
 class ChatState {
   final String? conversationId;

@@ -48,3 +48,6 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Created by tests that point the documents directory at the repo root
+/tomsllama/

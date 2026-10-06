@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../features/chat/controllers/chat_controller.dart';
+import '../models/chat_execution_mode.dart';
 import 'localization_service.dart';
 import 'settings_service.dart';
 

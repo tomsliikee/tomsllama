@@ -150,12 +150,6 @@ class I18n {
   static String attachedFilePrefix(String filename) =>
       isGerman ? 'Datei: $filename' : 'File: $filename';
 
-  static String cpuEvaluatingContext(String tokenStr, String remainingStr) => isGerman
-      ? 'CPU evaluiert Kontext ($tokenStr Tokens • noch ~$remainingStr)...'
-      : 'CPU evaluating context ($tokenStr tokens • ~$remainingStr left)...';
-  static String cpuFinalizingContext(String tokenStr, int seconds) => isGerman
-      ? 'CPU finalisiert Kontext ($tokenStr Tokens, ${seconds}s)...'
-      : 'CPU finalizing context ($tokenStr tokens, ${seconds}s)...';
 
   // Errors
   static String ollamaUnreachable(String url) => isGerman
