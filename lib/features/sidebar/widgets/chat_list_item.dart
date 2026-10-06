@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import '../../../core/constants/app_icons.dart';
 import '../../../core/models/conversation.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/constants/app_tokens.dart';
+import '../../../core/widgets/ink_fade_in.dart';
+import '../../../core/widgets/breathing_tint.dart';
 import '../../../core/services/localization_service.dart';
 
 /// Tactile wobble / jiggle animation wrapper for items during drag-and-drop
@@ -53,7 +57,7 @@ class _WobbleItemState extends State<WobbleItem> with SingleTickerProviderStateM
       if (widget.isWobbling) {
         _controller.repeat(reverse: true);
       } else {
-        _controller.animateTo(0.5, duration: const Duration(milliseconds: 60)).then((_) {
+        _controller.animateTo(0.5, duration: AppMotion.fast).then((_) {
           if (mounted && !widget.isWobbling) {
             _controller.stop();
             _controller.value = 0.5;
@@ -90,6 +94,7 @@ class _WobbleItemState extends State<WobbleItem> with SingleTickerProviderStateM
 class ChatListItem extends StatefulWidget {
   final Conversation conversation;
   final bool isSelected;
+  final bool isGenerating;
   final VoidCallback onTap;
   final VoidCallback? onDelete;
   final VoidCallback? onTogglePin;
@@ -101,6 +106,7 @@ class ChatListItem extends StatefulWidget {
     super.key,
     required this.conversation,
     required this.isSelected,
+    this.isGenerating = false,
     required this.onTap,
     this.onDelete,
     this.onTogglePin,
@@ -133,49 +139,49 @@ class _ChatListItemState extends State<ChatListItem> {
           cursor: SystemMouseCursors.click,
           child: GestureDetector(
             onTap: widget.onTap,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              curve: Curves.easeOut,
-              margin: const EdgeInsets.only(bottom: 2.0),
-              padding: EdgeInsets.only(
-                left: widget.isSelected ? 10.0 : (_isHovered ? 11.0 : 10.0),
-                right: 8.0,
-                top: 7.0,
-                bottom: 7.0,
-              ),
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 2.0),
+              // A chat with an answer in progress breathes, whether or not it is the open one.
+              child: BreathingTint(
+                active: widget.isGenerating,
+                color: appColors.textPrimary,
+                child: AnimatedContainer(
+              duration: AppMotion.fast,
+              curve: AppMotion.standard,
+              padding: const EdgeInsets.only(left: 10.0, right: 6.0, top: 7.0, bottom: 7.0),
+              // The open chat is marked by a soft tint of the text colour and a
+              // firmer title, nothing drawn on top of it.
               decoration: BoxDecoration(
                 color: widget.isSelected
-                    ? appColors.surface
+                    ? appColors.textPrimary.withValues(alpha: 0.07)
                     : (_isHovered ? appColors.hover : Colors.transparent),
-                borderRadius: BorderRadius.circular(10.0),
-                border: Border.all(
-                  color: widget.isSelected ? appColors.borderSubtle : Colors.transparent,
-                  width: 1.0,
-                ),
+                borderRadius: BorderRadius.circular(AppRadii.control),
               ),
               child: Row(
                 children: [
                   // Title text
                   Expanded(
-                    child: Text(
-                      widget.conversation.title.isEmpty ? I18n.newChatTitle : widget.conversation.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.uiControl.copyWith(
-                        color: widget.isSelected
-                            ? appColors.textPrimary
-                            : (isPinned ? appColors.textPrimary : appColors.textSecondary),
-                        fontWeight: (widget.isSelected || isPinned)
-                            ? FontWeight.w500
-                            : FontWeight.w400,
-                        fontSize: 13.0,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2.0),
+                      child: Text(
+                        widget.conversation.title.isEmpty ? I18n.newChatTitle : widget.conversation.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.small.copyWith(
+                          color: (widget.isSelected || isPinned || _isHovered)
+                              ? appColors.textPrimary
+                              : appColors.textSecondary,
+                          fontWeight: widget.isSelected ? FontWeight.w500 : FontWeight.w400,
+                          height: 1.2,
+                        ),
                       ),
                     ),
                   ),
 
                   // Actions row: Pin button next to Delete ('X') button + Drag handle
                   if (showActions)
-                    Row(
+                    InkFadeIn(
+                      child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         // Pin button
@@ -184,13 +190,35 @@ class _ChatListItemState extends State<ChatListItem> {
                             padding: const EdgeInsets.only(left: 3.0),
                             child: InkWell(
                               onTap: widget.onTogglePin,
-                              borderRadius: BorderRadius.circular(6.0),
+                              borderRadius: BorderRadius.circular(AppRadii.control),
                               child: Padding(
                                 padding: const EdgeInsets.all(3.0),
                                 child: Icon(
-                                  isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
-                                  size: 13.0,
+                                  isPinned ? AppIcons.pinned : AppIcons.pin,
+                                  size: 14.0,
                                   color: isPinned ? appColors.accent : appColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                        // Export button
+                        if (widget.onExport != null && _isHovered)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 3.0),
+                            child: Tooltip(
+                              message: I18n.exportChat,
+                              waitDuration: const Duration(milliseconds: 400),
+                              child: InkWell(
+                                onTap: widget.onExport,
+                                borderRadius: BorderRadius.circular(AppRadii.control),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(3.0),
+                                  child: Icon(
+                                    AppIcons.export,
+                                    size: 14.0,
+                                    color: appColors.textSecondary,
+                                  ),
                                 ),
                               ),
                             ),
@@ -202,12 +230,12 @@ class _ChatListItemState extends State<ChatListItem> {
                             padding: const EdgeInsets.only(left: 3.0),
                             child: InkWell(
                               onTap: widget.onDelete,
-                              borderRadius: BorderRadius.circular(6.0),
+                              borderRadius: BorderRadius.circular(AppRadii.control),
                               child: Padding(
                                 padding: const EdgeInsets.all(3.0),
                                 child: Icon(
-                                  Icons.close_rounded,
-                                  size: 13.0,
+                                  AppIcons.close,
+                                  size: 14.0,
                                   color: appColors.textSecondary,
                                 ),
                               ),
@@ -225,8 +253,8 @@ class _ChatListItemState extends State<ChatListItem> {
                                 child: Padding(
                                   padding: const EdgeInsets.all(3.0),
                                   child: Icon(
-                                    Icons.drag_indicator_rounded,
-                                    size: 13.0,
+                                    AppIcons.dragHandle,
+                                    size: 14.0,
                                     color: appColors.textSecondary.withValues(alpha: 0.5),
                                   ),
                                 ),
@@ -235,7 +263,10 @@ class _ChatListItemState extends State<ChatListItem> {
                           ),
                       ],
                     ),
+                    ),
                 ],
+              ),
+            ),
               ),
             ),
           ),

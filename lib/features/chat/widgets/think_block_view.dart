@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/constants/app_tokens.dart';
+import '../../../core/constants/app_icons.dart';
 import '../../../core/services/localization_service.dart';
 import 'markdown_view.dart';
 
@@ -35,11 +37,11 @@ class _ThinkBlockViewState extends State<ThinkBlockView> with SingleTickerProvid
     
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 250),
+      duration: AppMotion.slow,
     );
     _expandAnimation = CurvedAnimation(
       parent: _animController,
-      curve: Curves.easeOutCubic,
+      curve: AppMotion.standard,
     );
     
     if (_isExpanded) {
@@ -75,10 +77,10 @@ class _ThinkBlockViewState extends State<ThinkBlockView> with SingleTickerProvid
   Widget build(BuildContext context) {
     final appColors = context.appColors;
     final seconds = (widget.durationMs / 1000).toStringAsFixed(1);
-    final tokenPart = widget.tokens > 0 ? ' · ${widget.tokens} Tokens' : '';
+    final tokenPart = widget.tokens > 0 ? ' · ${widget.tokens} tok' : '';
     final headerLabel = widget.isThinking 
-        ? '${I18n.thinkingOngoing} ($seconds s$tokenPart)' 
-        : '${I18n.thinkingProcess} ($seconds s$tokenPart)';
+        ? '${I18n.thinkingOngoing} · ${seconds}s$tokenPart' 
+        : '${I18n.thinkingProcess} · ${seconds}s$tokenPart';
 
     final textColor = _isHovered ? appColors.accent : appColors.textSecondary;
 
@@ -87,7 +89,7 @@ class _ThinkBlockViewState extends State<ThinkBlockView> with SingleTickerProvid
       decoration: BoxDecoration(
         color: appColors.hover,
         border: Border.all(color: appColors.borderSubtle, width: 1.0),
-        borderRadius: BorderRadius.circular(12.0),
+        borderRadius: BorderRadius.circular(AppRadii.card),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -107,24 +109,14 @@ class _ThinkBlockViewState extends State<ThinkBlockView> with SingleTickerProvid
                   children: [
                     AnimatedRotation(
                       turns: _isExpanded ? 0.25 : 0.0,
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeOutCubic,
-                      child: Text(
-                        '▸',
-                        style: TextStyle(
-                          color: textColor,
-                          fontSize: 12.0,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      duration: AppMotion.base,
+                      curve: AppMotion.standard,
+                      child: Icon(AppIcons.caretRight, size: 11.0, color: textColor),
                     ),
                     const SizedBox(width: 8.0),
                     Text(
                       headerLabel,
-                      style: AppTypography.code.copyWith(
-                        color: textColor,
-                        fontSize: 11.0,
-                      ),
+                      style: AppTypography.telemetry.copyWith(color: textColor, fontSize: 11.0),
                     ),
                   ],
                 ),
@@ -139,9 +131,8 @@ class _ThinkBlockViewState extends State<ThinkBlockView> with SingleTickerProvid
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
               decoration: BoxDecoration(
-                color: appColors.surface, // #FFFFFF in Claude and Pond
                 border: Border(
-                  top: BorderSide(color: appColors.border, width: 1.0),
+                  top: BorderSide(color: appColors.borderSubtle, width: 1.0),
                 ),
               ),
               child: MarkdownView(

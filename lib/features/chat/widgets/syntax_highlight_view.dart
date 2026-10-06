@@ -1,16 +1,41 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_highlight/themes/darcula.dart';
-import 'package:flutter_highlight/themes/github.dart';
 import 'package:highlight/highlight.dart' show highlight, Node;
 import '../../../core/constants/app_typography.dart';
+import '../../../core/theme/app_theme.dart';
 
-Map<String, TextStyle> getHighlightCodeTheme(bool isDark, Color textColor) {
-  final Map<String, TextStyle> codeTheme = Map.from(isDark ? darculaTheme : githubTheme);
-  codeTheme['root'] = TextStyle(
-    backgroundColor: Colors.transparent,
-    color: textColor,
-  );
-  return codeTheme;
+/// Syntax colours drawn from the theme: weight for structure, the accent for
+/// literal values, grey italics for comments. Two inks, like a printed listing.
+Map<String, TextStyle> highlightCodeTheme(AppThemeExtension colors) {
+  final strong = TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600);
+  final value = TextStyle(color: colors.accent);
+  final quiet = TextStyle(color: colors.textSecondary);
+  return {
+    'root': TextStyle(backgroundColor: Colors.transparent, color: colors.textPrimary),
+    'keyword': strong,
+    'selector-tag': strong,
+    'section': strong,
+    'name': strong,
+    'tag': quiet,
+    'built_in': TextStyle(color: colors.textPrimary),
+    'type': TextStyle(color: colors.textPrimary),
+    'title': TextStyle(color: colors.textPrimary),
+    'string': value,
+    'number': value,
+    'literal': value,
+    'symbol': value,
+    'regexp': value,
+    'bullet': value,
+    'attr': quiet,
+    'attribute': quiet,
+    'meta': quiet,
+    'params': TextStyle(color: colors.textPrimary),
+    'comment': TextStyle(color: colors.textSecondary, fontStyle: FontStyle.italic),
+    'quote': TextStyle(color: colors.textSecondary, fontStyle: FontStyle.italic),
+    'deletion': quiet,
+    'addition': value,
+    'emphasis': const TextStyle(fontStyle: FontStyle.italic),
+    'strong': const TextStyle(fontWeight: FontWeight.w600),
+  };
 }
 
 class SyntaxHighlightView extends StatelessWidget {

@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:syncfusion_flutter_pdf/pdf.dart';
-import '../services/context_manager.dart';
+import 'context_manager.dart';
 
 class PdfExtractionResult {
   final String text;

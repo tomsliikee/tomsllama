@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_theme.dart';
+import '../theme/app_theme.dart';
 
 class TomsllamaLogoPainter extends CustomPainter {
   final Color accentColor;
@@ -126,7 +126,7 @@ class TomsllamaLogoPainter extends CustomPainter {
       final double blushAlpha = (math.sin(t * math.pi)).clamp(0.0, 1.0) * 0.65;
       if (blushAlpha > 0.05) {
         final Paint blushPaint = Paint()
-          ..color = Colors.pinkAccent.shade100.withValues(alpha: blushAlpha)
+          ..color = accentColor.withValues(alpha: (blushAlpha) * 0.45)
           ..style = PaintingStyle.fill;
         canvas.drawCircle(
           Offset(14.0 * scaleX, 12.8 * scaleY),
@@ -149,7 +149,7 @@ class TomsllamaLogoPainter extends CustomPainter {
         } else {
           // Tiny star near snout
           final Offset starPos = Offset(w * 0.82, h * 0.36 - t * 4.0 * scaleY);
-          _draw4PointStar(canvas, starPos, 2.0 * scaleX * particleAlpha, Colors.amber.withValues(alpha: particleAlpha * 0.85));
+          _draw4PointStar(canvas, starPos, 2.0 * scaleX * particleAlpha, accentColor.withValues(alpha: particleAlpha * 0.85));
         }
       }
     }
@@ -186,19 +186,25 @@ class TomsllamaLogo extends StatefulWidget {
   final bool animate;
   final bool enableIdleAnimation;
 
+  /// Slow 3.5s breath (scale 1.0 to 1.06) while a model is generating.
+  /// Off at rest: the mark stays completely still when nothing is happening.
+  final bool breathing;
+
   const TomsllamaLogo({
     super.key,
     this.size = 20.0,
     this.animate = true,
     this.enableIdleAnimation = false,
+    this.breathing = false,
   });
 
   @override
   State<TomsllamaLogo> createState() => _TomsllamaLogoState();
 }
 
-class _TomsllamaLogoState extends State<TomsllamaLogo> with SingleTickerProviderStateMixin {
+class _TomsllamaLogoState extends State<TomsllamaLogo> with TickerProviderStateMixin {
   AnimationController? _idleController;
+  AnimationController? _breathController;
   Timer? _idleTimer;
   int _idleAnimIndex = 0;
 
@@ -207,6 +213,20 @@ class _TomsllamaLogoState extends State<TomsllamaLogo> with SingleTickerProvider
     super.initState();
     if (widget.enableIdleAnimation) {
       _initIdleAnimation();
+    }
+    _syncBreathing();
+  }
+
+  void _syncBreathing() {
+    if (widget.breathing) {
+      _breathController ??= AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 1750),
+      );
+      _breathController!.repeat(reverse: true);
+    } else {
+      // Exhale back to rest instead of snapping.
+      _breathController?.animateTo(0.0, duration: const Duration(milliseconds: 400), curve: Curves.easeOut);
     }
   }
 
@@ -229,6 +249,9 @@ class _TomsllamaLogoState extends State<TomsllamaLogo> with SingleTickerProvider
   @override
   void didUpdateWidget(TomsllamaLogo oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.breathing != oldWidget.breathing) {
+      _syncBreathing();
+    }
     if (widget.enableIdleAnimation != oldWidget.enableIdleAnimation) {
       if (widget.enableIdleAnimation) {
         _initIdleAnimation();
@@ -245,11 +268,23 @@ class _TomsllamaLogoState extends State<TomsllamaLogo> with SingleTickerProvider
   void dispose() {
     _idleTimer?.cancel();
     _idleController?.dispose();
+    _breathController?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final breath = _breathController;
+    if (breath == null) return _buildMark(context);
+    return ScaleTransition(
+      scale: Tween<double>(begin: 1.0, end: 1.06).animate(
+        CurvedAnimation(parent: breath, curve: Curves.easeInOutSine),
+      ),
+      child: _buildMark(context),
+    );
+  }
+
+  Widget _buildMark(BuildContext context) {
     final appColors = context.appColors;
 
     if (widget.enableIdleAnimation && _idleController != null) {
@@ -284,5 +319,3 @@ class _TomsllamaLogoState extends State<TomsllamaLogo> with SingleTickerProvider
     );
   }
 }
-
-typedef GemlamaLogo = TomsllamaLogo;

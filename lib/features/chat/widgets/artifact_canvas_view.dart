@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../core/constants/app_tokens.dart';
+import '../../../core/constants/app_icons.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../core/services/localization_service.dart';
@@ -21,37 +23,53 @@ class ArtifactCanvasView extends StatelessWidget {
     this.language,
   });
 
+  static const double _minChatWidth = 340.0;
+
   @override
   Widget build(BuildContext context) {
     final appColors = context.appColors;
 
-    return Row(
-      children: [
-        // Left: Chat Panel (takes full width if canvas is closed, 50% if open)
-        Expanded(
-          flex: 1,
-          child: chatPanel,
-        ),
-          
-        // Right: Canvas Panel (takes 50% width if open, 0 if closed)
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOutCubic,
-          width: isCanvasOpen ? MediaQuery.of(context).size.width * 0.5 : 0.0,
-          child: isCanvasOpen
-              ? Padding(
-                  padding: const EdgeInsets.fromLTRB(5.0, 10.0, 10.0, 12.0),
-                  child: _CanvasWrapper(
-                    onClose: onCloseCanvas,
-                    onCopy: onCopy,
-                    appColors: appColors,
-                    language: language,
-                    child: canvasPanel ?? const SizedBox.shrink(),
-                  ),
-                )
-              : const SizedBox.shrink(),
-        ),
-      ],
+    // Half of the space this view actually has (the sidebar is not part of it),
+    // and never so much that the chat can no longer lay out its composer.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final available = constraints.maxWidth;
+        final canvasWidth = isCanvasOpen
+            ? (available * 0.5).clamp(0.0, (available - _minChatWidth).clamp(0.0, available)).toDouble()
+            : 0.0;
+
+        return Row(
+          children: [
+            Expanded(child: chatPanel),
+            AnimatedContainer(
+              duration: AppMotion.slow,
+              curve: AppMotion.standard,
+              width: canvasWidth,
+              child: isCanvasOpen
+                  ? ClipRect(
+                      // The panel keeps its final width while the container
+                      // animates open, so its content does not reflow mid-animation.
+                      child: OverflowBox(
+                        alignment: Alignment.centerLeft,
+                        minWidth: canvasWidth,
+                        maxWidth: canvasWidth,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(5.0, 10.0, 10.0, 12.0),
+                          child: _CanvasWrapper(
+                            onClose: onCloseCanvas,
+                            onCopy: onCopy,
+                            appColors: appColors,
+                            language: language,
+                            child: canvasPanel ?? const SizedBox.shrink(),
+                          ),
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -84,20 +102,20 @@ class _CanvasWrapper extends StatelessWidget {
               decoration: BoxDecoration(
                 color: appColors.surface,
                 border: Border.all(color: appColors.borderSubtle),
-                borderRadius: BorderRadius.circular(18.0),
+                borderRadius: BorderRadius.circular(AppRadii.panel),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    Icons.terminal,
+                    AppIcons.terminal,
                     size: 14.0,
                     color: appColors.accent,
                   ),
                   const SizedBox(width: 6.0),
                   Text(
                     I18n.canvas,
-                    style: AppTypography.uiControl.copyWith(
+                    style: AppTypography.label.copyWith(
                       color: appColors.textPrimary,
                       fontWeight: FontWeight.w600,
                       fontSize: 12.0,
@@ -109,7 +127,7 @@ class _CanvasWrapper extends StatelessWidget {
                       language!,
                       style: AppTypography.code.copyWith(
                         color: appColors.textSecondary,
-                        fontSize: 11.0,
+                        fontSize: 10.5,
                       ),
                     ),
                   ],
@@ -127,18 +145,18 @@ class _CanvasWrapper extends StatelessWidget {
             if (onClose != null)
               InkWell(
                 onTap: onClose,
-                borderRadius: BorderRadius.circular(18.0),
+                borderRadius: BorderRadius.circular(AppRadii.panel),
                 child: Container(
                   height: 28.0,
                   width: 28.0,
                   decoration: BoxDecoration(
                     color: appColors.surface,
                     border: Border.all(color: appColors.borderSubtle),
-                    borderRadius: BorderRadius.circular(18.0),
+                    borderRadius: BorderRadius.circular(AppRadii.panel),
                   ),
                   alignment: Alignment.center,
                   child: Icon(
-                    Icons.close,
+                    AppIcons.close,
                     size: 14.0,
                     color: appColors.textSecondary,
                   ),
@@ -152,7 +170,7 @@ class _CanvasWrapper extends StatelessWidget {
           child: Container(
             decoration: BoxDecoration(
               color: appColors.surface,
-              borderRadius: BorderRadius.circular(18.0),
+              borderRadius: BorderRadius.circular(AppRadii.panel),
               border: Border.all(color: appColors.borderSubtle, width: 1.0),
             ),
             clipBehavior: Clip.antiAlias,
@@ -193,12 +211,12 @@ class _CanvasCopyPillState extends State<_CanvasCopyPill> {
   Widget build(BuildContext context) {
     final appColors = widget.appColors;
     final color = _copied
-        ? Colors.green
+        ? appColors.accent
         : (_isHovered ? appColors.accent : appColors.textSecondary);
 
     return InkWell(
       onTap: _handleCopy,
-      borderRadius: BorderRadius.circular(18.0),
+      borderRadius: BorderRadius.circular(AppRadii.panel),
       onHover: (hovered) => setState(() => _isHovered = hovered),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
@@ -208,22 +226,22 @@ class _CanvasCopyPillState extends State<_CanvasCopyPill> {
             color: _isHovered ? appColors.accent.withValues(alpha: 0.3) : appColors.borderSubtle,
             width: 1.0,
           ),
-          borderRadius: BorderRadius.circular(18.0),
+          borderRadius: BorderRadius.circular(AppRadii.panel),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              _copied ? Icons.check_rounded : Icons.copy_rounded,
+              _copied ? AppIcons.check : AppIcons.copy,
               size: 13.0,
               color: color,
             ),
             const SizedBox(width: 4.5),
             Text(
               _copied ? I18n.copied : I18n.copy,
-              style: AppTypography.uiControl.copyWith(
+              style: AppTypography.label.copyWith(
                 color: color,
-                fontSize: 11.5,
+                fontSize: 12.0,
                 fontWeight: FontWeight.w500,
               ),
             ),

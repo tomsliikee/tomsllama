@@ -1,3 +1,4 @@
+import 'package:tomsllama/core/constants/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -32,9 +33,9 @@ void main() {
 
       // Verify that on macOS, custom minimize, maximize, and close buttons are HIDDEN
       // because native Cocoa/AppKit traffic lights occupy the top-left area.
-      expect(find.byIcon(Icons.remove), findsNothing);
-      expect(find.byIcon(Icons.crop_square), findsNothing);
-      expect(find.byIcon(Icons.close), findsNothing);
+      expect(find.byIcon(AppIcons.windowMinimize), findsNothing);
+      expect(find.byIcon(AppIcons.windowMaximize), findsNothing);
+      expect(find.byIcon(AppIcons.close), findsNothing);
 
       // Verify leading inset is 78.0 px on macOS
       final sizedBoxes = tester.widgetList<SizedBox>(find.byType(SizedBox));
@@ -62,9 +63,9 @@ void main() {
       );
 
       // Verify window controls ARE present on Linux
-      expect(find.byIcon(Icons.remove), findsOneWidget);
-      expect(find.byIcon(Icons.crop_square), findsOneWidget);
-      expect(find.byIcon(Icons.close), findsOneWidget);
+      expect(find.byIcon(AppIcons.windowMinimize), findsOneWidget);
+      expect(find.byIcon(AppIcons.windowMaximize), findsOneWidget);
+      expect(find.byIcon(AppIcons.close), findsOneWidget);
 
       // Verify leading inset is 14.0 px on Linux
       final sizedBoxes = tester.widgetList<SizedBox>(find.byType(SizedBox));

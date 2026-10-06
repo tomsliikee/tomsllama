@@ -5,13 +5,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:tomsllama/features/workspace/controllers/workspace_hub_controller.dart';
 
+// Each test file gets its own documents directory, and with it its own database.
+final String _documentsDir = Directory.systemTemp.createTempSync('tomsllama_test').path;
+
 void main() {
   setUpAll(() {
     TestWidgetsFlutterBinding.ensureInitialized();
     const channel = MethodChannel('plugins.flutter.io/path_provider');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-      return '.';
+      return _documentsDir;
     });
     if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
       sqfliteFfiInit();

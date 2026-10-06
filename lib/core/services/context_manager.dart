@@ -1,5 +1,15 @@
 import '../models/message.dart';
 
+class ContextBudget {
+  /// `num_ctx` to send to Ollama, or null to leave the model's default untouched.
+  final int? numCtx;
+
+  /// Token budget for [ContextManager.applySlidingWindow].
+  final int historyTokens;
+
+  const ContextBudget({required this.numCtx, required this.historyTokens});
+}
+
 class ContextManager {
   /// Default sliding window limit suited for Intel i5-8350U (CPU inference)
   static const int defaultTokenLimit = 4096;
@@ -11,6 +21,94 @@ class ContextManager {
   static int estimateTokens(String text) {
     if (text.isEmpty) return 0;
     return (text.length / 3).ceil();
+  }
+
+  /// Picks the `num_ctx` tier for a turn and the token budget left for chat history.
+  ///
+  /// Tiers are discrete so Ollama does not reload the runner on every small change.
+  /// The lowest tier sends no `num_ctx` and budgets for Ollama's 2048 default.
+  ///
+  /// The history budget is what remains after the system prompt, the part of the
+  /// current prompt that [applySlidingWindow] cannot see (attached file bodies are
+  /// in the payload, not in the stored message), and a reserve for the reply.
+  /// Without subtracting those, system prompt plus history can exceed `num_ctx`
+  /// and Ollama silently cuts the front of the prompt, where workspace files sit.
+  static ContextBudget planBudget({
+    required int systemTokens,
+    required int promptTokens,
+    required int latestMessageTokens,
+    int? maxContext,
+  }) {
+    final fixedTokens = systemTokens + promptTokens;
+
+    int? numCtx;
+    int window;
+    final int replyReserve;
+    if (fixedTokens > 3600) {
+      numCtx = 8192;
+      window = 8192;
+      replyReserve = 600;
+    } else if (fixedTokens > 1800) {
+      numCtx = 4096;
+      window = 4096;
+      replyReserve = 500;
+    } else {
+      numCtx = null;
+      window = 2048;
+      replyReserve = 400;
+    }
+
+    // Never ask for more context than the model was trained for.
+    if (maxContext != null && maxContext > 0 && window > maxContext) {
+      window = maxContext;
+      if (numCtx != null) numCtx = maxContext;
+    }
+
+    final hiddenPromptTokens = promptTokens > latestMessageTokens ? promptTokens - latestMessageTokens : 0;
+    final historyTokens = window - replyReserve - systemTokens - hiddenPromptTokens;
+
+    return ContextBudget(
+      numCtx: numCtx,
+      historyTokens: historyTokens > 0 ? historyTokens : 0,
+    );
+  }
+
+  /// Tokens a stored message costs when it is sent back as history.
+  ///
+  /// Only `content` is resent. For a message with a think block the stored
+  /// token count includes the reasoning, which would charge the history budget
+  /// for text that never goes back to the model, so the content is re-estimated.
+  static int historyTokens(Message msg) {
+    if (msg.thinkContent != null || msg.tokens <= 0) return estimateTokens(msg.content);
+    return msg.tokens;
+  }
+
+  /// Decides how many leading turns of [history] to fold into a summary.
+  ///
+  /// Returns 0 while the history is below three quarters of [budgetTokens].
+  /// Past that it keeps the newest turns up to half the budget and returns the
+  /// number of older messages to summarise. Cutting in one larger step, rather
+  /// than sliding a little every turn, keeps the prompt prefix stable between
+  /// compactions so Ollama's prompt cache keeps hitting.
+  static int planCompaction({required List<Message> history, required int budgetTokens}) {
+    if (history.length <= 2 || budgetTokens <= 0) return 0;
+
+    final total = history.fold<int>(0, (sum, m) => sum + historyTokens(m));
+    if (total <= budgetTokens * 3 ~/ 4) return 0;
+
+    // Always keep the exchange that just finished.
+    int cut = history.length - 2;
+    int kept = historyTokens(history[cut]) + historyTokens(history[cut + 1]);
+    while (cut > 0 && kept + historyTokens(history[cut - 1]) <= budgetTokens ~/ 2) {
+      cut--;
+      kept += historyTokens(history[cut]);
+    }
+
+    // The kept part must start with a user turn, or the model sees an answer without its question.
+    while (cut < history.length && history[cut].role != 'user') {
+      cut++;
+    }
+    return cut >= history.length ? 0 : cut;
   }
 
   /// Trims the message history to fit within the [maxTokens] limit.
@@ -42,10 +140,7 @@ class ContextManager {
 
     for (int i = nonSystemMessages.length - 1; i >= 0; i--) {
       final msg = nonSystemMessages[i];
-      // Estimate tokens including thinkContent if it exists
-      final contentTokens = msg.tokens > 0 ? msg.tokens : estimateTokens(msg.content);
-      final thinkTokens = msg.thinkContent != null ? estimateTokens(msg.thinkContent!) : 0;
-      final msgTokens = contentTokens + thinkTokens;
+      final msgTokens = historyTokens(msg);
 
       // The latest user message must NEVER be dropped
       final isLatestMessage = (i == nonSystemMessages.length - 1);

@@ -128,6 +128,20 @@ class I18n {
     return isGerman ? '• CPU-Vorlauf: ca. $timeStr' : '• CPU lead time: ~$timeStr';
   }
 
+  static String approxDuration(int seconds) {
+    if (seconds < 60) return isGerman ? 'ca. ${seconds}s' : '~${seconds}s';
+    final minutes = (seconds / 60.0).toStringAsFixed(1);
+    return isGerman ? 'ca. $minutes Min' : '~$minutes min';
+  }
+
+  static String loadingModel(String model) => isGerman ? 'Lade $model...' : 'Loading $model...';
+  static String evaluatingContext(String tokenStr, String remainingStr) => isGerman
+      ? 'Kontext wird gelesen ($tokenStr Tokens • noch ~$remainingStr)...'
+      : 'Reading context ($tokenStr tokens • ~$remainingStr left)...';
+  static String finalizingContext(String tokenStr, int seconds) => isGerman
+      ? 'Kontext wird gelesen ($tokenStr Tokens, ${seconds}s)...'
+      : 'Reading context ($tokenStr tokens, ${seconds}s)...';
+
   static String get readingPdf =>
       isGerman ? 'Lese PDF-Dokument ein...' : 'Analyzing PDF document...';
   static String cpuEvaluatingPrompt(int tokens) => isGerman
@@ -136,12 +150,16 @@ class I18n {
   static String attachedFilePrefix(String filename) =>
       isGerman ? 'Datei: $filename' : 'File: $filename';
 
-  static String cpuEvaluatingContext(String tokenStr, String remainingStr) => isGerman
-      ? 'CPU evaluiert Kontext ($tokenStr Tokens • noch ~$remainingStr)...'
-      : 'CPU evaluating context ($tokenStr tokens • ~$remainingStr left)...';
-  static String cpuFinalizingContext(String tokenStr, int seconds) => isGerman
-      ? 'CPU finalisiert Kontext ($tokenStr Tokens, ${seconds}s)...'
-      : 'CPU finalizing context ($tokenStr tokens, ${seconds}s)...';
+
+  // Errors
+  static String ollamaUnreachable(String url) => isGerman
+      ? 'Ollama ist unter $url nicht erreichbar. Läuft "ollama serve"?'
+      : 'Ollama is not reachable at $url. Is "ollama serve" running?';
+  static String generationFailed(String detail) => isGerman
+      ? 'Antwort fehlgeschlagen: $detail'
+      : 'Response failed: $detail';
+  static String get retry => isGerman ? 'Erneut versuchen' : 'Retry';
+  static String readingFile(String path) => isGerman ? 'Lese $path...' : 'Reading $path...';
 
   static String get subtitle => isGerman
       ? 'Lokales, sicheres Interface für Ollama'
@@ -177,6 +195,19 @@ class I18n {
   static String get themePondDarkMineral => 'Pond Dark (Mineral)';
   static String get ollamaApiUrl => 'Ollama API URL';
   static String get defaultPersona => isGerman ? 'Standard-Persona' : 'Default Persona';
+  static String get defaultModel => isGerman ? 'Standard-Modell' : 'Default model';
+  static String get defaultModelAutomatic => isGerman ? 'Automatisch' : 'Automatic';
+  static String get customInstructions => isGerman ? 'Eigene Anweisungen' : 'Custom instructions';
+  static String get customInstructionsHint => isGerman
+      ? 'Wird in jedem Chat an den Systemprompt angehängt, nach der Rolle.'
+      : 'Added to the system prompt of every chat, after the role.';
+  static String get closeToTray => isGerman
+      ? 'Beim Schließen in den System-Tray minimieren'
+      : 'Minimize to the system tray when closing';
+  static String get settingsTooltip => isGerman ? 'Einstellungen' : 'Settings';
+  static String get exportChat => isGerman ? 'Chat exportieren' : 'Export chat';
+  static String get exportDialogTitle =>
+      isGerman ? 'Chat exportieren (.md, .json oder .html)' : 'Export chat (.md, .json or .html)';
   static String get saveAndClose => isGerman ? 'Speichern & Schließen' : 'Save & Close';
 
   // Model Manager

@@ -12,10 +12,10 @@ void main() {
         theme: claudeTheme,
         home: Scaffold(
           body: SelectionArea(
-            child: SyntaxHighlightView(
+            child: const SyntaxHighlightView(
               mdCode,
               language: 'md',
-              theme: getHighlightCodeTheme(false, Colors.black),
+              theme: {},
             ),
           ),
         ),

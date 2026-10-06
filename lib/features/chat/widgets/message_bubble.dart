@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import '../../../core/constants/app_icons.dart';
 import '../../../core/models/message.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/constants/app_tokens.dart';
+import '../../../core/widgets/ink_fade_in.dart';
+import '../../../core/widgets/tomsllama_logo.dart';
 import 'claude_thinking_indicator.dart';
 import 'think_block_view.dart';
 import 'telemetry_footer.dart';
@@ -12,6 +16,7 @@ class MessageBubble extends StatelessWidget {
   final bool isThinking;
   final String? statusMessage;
   final int? statusTokens;
+  final int? statusEtaSeconds;
   final int branchIndex;
   final int totalBranches;
   final String modelName;
@@ -26,6 +31,7 @@ class MessageBubble extends StatelessWidget {
     this.isThinking = false,
     this.statusMessage,
     this.statusTokens,
+    this.statusEtaSeconds,
     this.branchIndex = 0,
     this.totalBranches = 1,
     this.modelName = 'qwen2.5:3b',
@@ -45,16 +51,24 @@ class MessageBubble extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 680),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 24.0),
-          child: isUser ? _buildUserMessage(context, appColors) : _buildAssistantMessage(),
+          // Only a message that was just written settles in; scrolling an old one
+          // back into view must not replay the entrance.
+          child: InkFadeIn(
+            enabled: DateTime.now().difference(message.createdAt) < const Duration(seconds: 3),
+            // Full column width, so a short line (the waiting indicator, a one-word
+            // answer) starts at the left edge instead of being centred.
+            child: SizedBox(
+              width: double.infinity,
+              child: isUser ? _buildUserMessage(context, appColors) : _buildAssistantMessage(),
+            ),
+          ),
         ),
       ),
     );
   }
 
   Widget _buildUserMessage(BuildContext context, AppThemeExtension appColors) {
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-
-    // Parse clean display text and any attached files / workspace
+        // Parse clean display text and any attached files / workspace
     String displayText = message.content;
     final List<String> attachedFiles = [];
     String? workspaceName;
@@ -91,27 +105,12 @@ class MessageBubble extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 580),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+          // Set apart by a warm fill rather than a shadow: it sits on the page, it does not float.
           decoration: BoxDecoration(
-            color: appColors.surface,
+            color: appColors.sidebar,
             border: Border.all(color: appColors.borderSubtle),
-            borderRadius: BorderRadius.circular(16.0),
-            boxShadow: [
-              BoxShadow(
-                color: isDark
-                    ? Colors.black.withValues(alpha: 0.35)
-                    : Colors.black.withValues(alpha: 0.06),
-                blurRadius: isDark ? 16.0 : 12.0,
-                offset: const Offset(0, 4),
-              ),
-              BoxShadow(
-                color: isDark
-                    ? Colors.black.withValues(alpha: 0.20)
-                    : Colors.black.withValues(alpha: 0.03),
-                blurRadius: 4.0,
-                offset: const Offset(0, 1),
-              ),
-            ],
+            borderRadius: BorderRadius.circular(AppRadii.panel),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -124,21 +123,21 @@ class MessageBubble extends StatelessWidget {
                   children: [
                     if (workspaceName != null)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7.0, vertical: 2.5),
+                        padding: const EdgeInsets.symmetric(horizontal: 9.0, vertical: 3.0),
                         decoration: BoxDecoration(
-                          color: appColors.hover,
-                          borderRadius: BorderRadius.circular(10.0),
+                          color: appColors.background,
+                          borderRadius: BorderRadius.circular(AppRadii.pill),
                           border: Border.all(color: appColors.accent.withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.folder_outlined, size: 12.0, color: appColors.accent),
+                            Icon(AppIcons.folder, size: 12.0, color: appColors.accent),
                             const SizedBox(width: 4.0),
                             Text(
                               workspaceName,
                               style: AppTypography.code.copyWith(
-                                fontSize: 11.0,
+                                fontSize: 10.5,
                                 fontWeight: FontWeight.w600,
                                 color: appColors.textPrimary,
                               ),
@@ -152,10 +151,10 @@ class MessageBubble extends StatelessWidget {
                       ),
                     for (final file in attachedFiles)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7.0, vertical: 2.5),
+                        padding: const EdgeInsets.symmetric(horizontal: 9.0, vertical: 3.0),
                         decoration: BoxDecoration(
-                          color: appColors.hover,
-                          borderRadius: BorderRadius.circular(10.0),
+                          color: appColors.background,
+                          borderRadius: BorderRadius.circular(AppRadii.pill),
                           border: Border.all(color: appColors.borderSubtle),
                         ),
                         child: Row(
@@ -163,18 +162,18 @@ class MessageBubble extends StatelessWidget {
                           children: [
                             Icon(
                               file.toLowerCase().endsWith('.pdf')
-                                  ? Icons.picture_as_pdf_outlined
-                                  : Icons.insert_drive_file_outlined,
+                                  ? AppIcons.pdf
+                                  : AppIcons.file,
                               size: 12.0,
                               color: file.toLowerCase().endsWith('.pdf')
-                                  ? Colors.redAccent.shade200
+                                  ? appColors.accent
                                   : appColors.accent,
                             ),
                             const SizedBox(width: 4.0),
                             Text(
                               file,
                               style: AppTypography.code.copyWith(
-                                fontSize: 11.0,
+                                fontSize: 10.5,
                                 color: appColors.textPrimary,
                               ),
                             ),
@@ -188,9 +187,8 @@ class MessageBubble extends StatelessWidget {
               if (displayText.isNotEmpty)
                 Text(
                   displayText,
-                  style: AppTypography.uiControl.copyWith(
+                  style: AppTypography.body.copyWith(
                     color: appColors.textPrimary,
-                    fontSize: 15.0,
                     height: 1.5,
                   ),
                 ),
@@ -219,6 +217,7 @@ class MessageBubble extends StatelessWidget {
           ClaudeThinkingIndicator(
             statusMessage: statusMessage,
             totalTokens: statusTokens,
+            etaSeconds: statusEtaSeconds,
           ),
 
         // Main Answer Markdown
@@ -227,6 +226,13 @@ class MessageBubble extends StatelessWidget {
             data: message.content,
           ),
         
+        // While the answer is still being written, a breathing mark holds the place of the next word
+        if (isThinking && message.content.isNotEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: 10.0),
+            child: TomsllamaLogo(size: 14.0, breathing: true),
+          ),
+
         // Telemetry & Actions
         if (!isUser && !isThinking && message.content.isNotEmpty)
           TelemetryFooter(

@@ -1,3 +1,4 @@
+import 'package:tomsllama/core/constants/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tomsllama/core/theme/claude_theme.dart';
@@ -69,6 +70,6 @@ And another with md alias:
     expect(find.byType(CodeBlockView), findsNWidgets(2));
     expect(find.text('markdown'), findsOneWidget);
     expect(find.text('md'), findsOneWidget);
-    expect(find.byIcon(Icons.description_outlined), findsNWidgets(2));
+    expect(find.byIcon(AppIcons.file), findsNWidgets(2));
   });
 }

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants/app_typography.dart';
-import '../../../core/models/persona.dart';
-import '../../../core/services/localization_service.dart';
-import '../../../core/theme/app_theme.dart';
+import '../constants/app_tokens.dart';
+import '../constants/app_icons.dart';
+import '../constants/app_typography.dart';
+import '../models/persona.dart';
+import '../services/localization_service.dart';
+import '../theme/app_theme.dart';
 
 class PersonaChip extends StatefulWidget {
   final String personaName;
@@ -68,13 +70,13 @@ class _PersonaChipState extends State<PersonaChip> {
       barrierDismissible: true,
       barrierLabel: 'DismissPersonaDialog',
       barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 180),
+      transitionDuration: AppMotion.base,
       transitionBuilder: (context, anim1, anim2, child) {
         return SlideTransition(
           position: Tween<Offset>(
             begin: Offset(0.0, openUpwards ? 0.05 : -0.05),
             end: Offset.zero,
-          ).animate(CurvedAnimation(parent: anim1, curve: Curves.easeOutCubic)),
+          ).animate(CurvedAnimation(parent: anim1, curve: AppMotion.standard)),
           child: FadeTransition(opacity: anim1, child: child),
         );
       },
@@ -92,15 +94,9 @@ class _PersonaChipState extends State<PersonaChip> {
                   padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 6.0),
                   decoration: BoxDecoration(
                     color: appColors.surface,
-                    borderRadius: BorderRadius.circular(16.0),
+                    borderRadius: BorderRadius.circular(AppRadii.card),
                     border: Border.all(color: appColors.borderSubtle, width: 1.0),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.10),
-                        blurRadius: 18.0,
-                        offset: Offset(0, openUpwards ? -4 : 4),
-                      ),
-                    ],
+                    boxShadow: AppElevation.floating(Theme.of(context).brightness),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -110,7 +106,7 @@ class _PersonaChipState extends State<PersonaChip> {
                         padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
                         child: Text(
                           I18n.roleAndPrompt,
-                          style: AppTypography.uiControl.copyWith(
+                          style: AppTypography.label.copyWith(
                             color: appColors.textSecondary,
                             fontSize: 10.5,
                             fontWeight: FontWeight.w600,
@@ -125,7 +121,7 @@ class _PersonaChipState extends State<PersonaChip> {
                           controller: scrollController,
                           thumbVisibility: true,
                           thickness: 3.5,
-                          radius: const Radius.circular(4.0),
+                          radius: const Radius.circular(AppRadii.control),
                           child: ListView(
                             controller: scrollController,
                             padding: const EdgeInsets.only(right: 6.0),
@@ -137,9 +133,9 @@ class _PersonaChipState extends State<PersonaChip> {
                                   children: [
                                     Text(
                                       I18n.additionalRoles,
-                                      style: AppTypography.uiControl.copyWith(
+                                      style: AppTypography.label.copyWith(
                                         color: appColors.textSecondary.withValues(alpha: 0.65),
-                                        fontSize: 10.0,
+                                        fontSize: 10.5,
                                         fontWeight: FontWeight.w600,
                                         letterSpacing: 0.6,
                                       ),
@@ -178,17 +174,17 @@ class _PersonaChipState extends State<PersonaChip> {
         widget.onSelectPersona?.call(p.name);
         widget.onTap();
       },
-      borderRadius: BorderRadius.circular(10.0),
+      borderRadius: BorderRadius.circular(AppRadii.control),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.5),
         decoration: BoxDecoration(
           color: isCurrent ? appColors.accentSubtle : Colors.transparent,
-          borderRadius: BorderRadius.circular(10.0),
+          borderRadius: BorderRadius.circular(AppRadii.control),
         ),
         child: Row(
           children: [
             if (isCurrent)
-              Icon(Icons.check, size: 14.0, color: appColors.accent)
+              Icon(AppIcons.check, size: 14.0, color: appColors.accent)
             else
               const SizedBox(width: 14.0),
             const SizedBox(width: 8.0),
@@ -198,7 +194,7 @@ class _PersonaChipState extends State<PersonaChip> {
                 children: [
                   Text(
                     p.name,
-                    style: AppTypography.uiControl.copyWith(
+                    style: AppTypography.label.copyWith(
                       color: isCurrent ? appColors.accent : appColors.textPrimary,
                       fontSize: 12.0,
                       fontWeight: isCurrent ? FontWeight.w600 : FontWeight.w500,
@@ -209,7 +205,7 @@ class _PersonaChipState extends State<PersonaChip> {
                       p.description,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTypography.uiControl.copyWith(
+                      style: AppTypography.label.copyWith(
                         color: appColors.textSecondary,
                         fontSize: 10.5,
                       ),
@@ -241,7 +237,7 @@ class _PersonaChipState extends State<PersonaChip> {
           }
         },
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: AppMotion.fast,
           padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
           decoration: BoxDecoration(
             color: appColors.background,
@@ -249,30 +245,30 @@ class _PersonaChipState extends State<PersonaChip> {
               color: _isHovered ? appColors.accent : appColors.borderSubtle,
               width: 1.0,
             ),
-            borderRadius: BorderRadius.circular(16.0),
+            borderRadius: BorderRadius.circular(AppRadii.pill),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 I18n.roleLabel,
-                style: AppTypography.uiControl.copyWith(
+                style: AppTypography.label.copyWith(
                   color: _isHovered ? appColors.accent : appColors.textSecondary,
-                  fontSize: 11.0,
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w500,
                 ),
               ),
               Text(
                 widget.personaName,
-                style: AppTypography.uiControl.copyWith(
+                style: AppTypography.label.copyWith(
                   color: _isHovered ? appColors.accent : appColors.textPrimary,
-                  fontSize: 11.0,
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(width: 4.0),
               Icon(
-                Icons.arrow_drop_down,
+                AppIcons.caretDown,
                 size: 14.0,
                 color: _isHovered ? appColors.accent : appColors.textSecondary,
               ),

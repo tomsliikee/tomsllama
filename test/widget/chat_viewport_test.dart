@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tomsllama/core/constants/app_typography.dart';
 import 'package:tomsllama/core/theme/claude_theme.dart';
 import 'package:tomsllama/core/services/localization_service.dart';
 import 'package:tomsllama/core/models/message.dart';
 import 'package:tomsllama/features/chat/widgets/chat_viewport.dart';
-import 'package:tomsllama/features/shell/widgets/tomsllama_logo.dart';
+import 'package:tomsllama/core/widgets/tomsllama_logo.dart';
 
 void main() {
   testWidgets('ChatViewport renders enlarged logo, title and subtitle in empty state', (WidgetTester tester) async {
@@ -33,11 +34,11 @@ void main() {
     final titleText = tester.widget<Text>(titleFinder);
     expect(titleText.style?.fontSize, 30.0);
 
-    // Verify subtitle with enlarged 17.0 font
+    // Verify subtitle uses the reading size of the type scale
     final subtitleFinder = find.text(I18n.subtitle);
     expect(subtitleFinder, findsOneWidget);
     final subtitleText = tester.widget<Text>(subtitleFinder);
-    expect(subtitleText.style?.fontSize, 17.0);
+    expect(subtitleText.style?.fontSize, AppTypography.body.fontSize);
   });
 
   testWidgets('ChatViewport renders SelectionArea with messages', (WidgetTester tester) async {

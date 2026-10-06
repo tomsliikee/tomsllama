@@ -7,13 +7,16 @@ import 'package:tomsllama/core/models/workspace.dart';
 import 'package:tomsllama/core/models/workspace_context_file.dart';
 import 'package:tomsllama/core/services/database_service.dart';
 
+// Each test file gets its own documents directory, and with it its own database.
+final String _documentsDir = Directory.systemTemp.createTempSync('tomsllama_test').path;
+
 void main() {
   setUpAll(() {
     TestWidgetsFlutterBinding.ensureInitialized();
     const channel = MethodChannel('plugins.flutter.io/path_provider');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-      return '.';
+      return _documentsDir;
     });
     if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
       sqfliteFfiInit();

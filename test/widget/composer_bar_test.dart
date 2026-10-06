@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tomsllama/core/constants/app_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:tomsllama/core/theme/claude_theme.dart';
@@ -44,7 +45,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify Send button appears (hasText logic)
-    expect(find.byIcon(Icons.arrow_upward_rounded), findsOneWidget);
+    expect(find.byIcon(AppIcons.send), findsOneWidget);
 
     // Simulate Enter key
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
@@ -127,7 +128,7 @@ void main() {
     expect(find.text('llama3:latest'), findsOneWidget);
     expect(find.text(I18n.modeOptimal), findsOneWidget);
     expect(find.text(I18n.attach), findsOneWidget);
-    expect(find.byIcon(Icons.attach_file_rounded), findsOneWidget);
+    expect(find.byIcon(AppIcons.attach), findsOneWidget);
 
     // Open mode menu
     await tester.tap(find.text(I18n.modeOptimal));
@@ -199,15 +200,15 @@ void main() {
     // Verify workspace pill renders name and branch
     expect(find.text('tomsllama'), findsOneWidget);
     expect(find.text('exp'), findsOneWidget);
-    expect(find.byIcon(Icons.folder_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.call_split_rounded), findsOneWidget);
+    expect(find.byIcon(AppIcons.folder), findsOneWidget);
+    expect(find.byIcon(AppIcons.branch), findsOneWidget);
 
     // Verify attached file pill renders file name and token estimate
     expect(find.text('main.dart'), findsOneWidget);
     expect(find.text('256 tok'), findsOneWidget);
 
     // Verify remove button on file pill removes file
-    final closeButtons = find.byIcon(Icons.close_rounded);
+    final closeButtons = find.byIcon(AppIcons.close);
     expect(closeButtons, findsNWidgets(2)); // 1 for workspace, 1 for file
 
     await tester.tap(closeButtons.last);
@@ -333,7 +334,8 @@ void main() {
 
     // Verify summary pill is rendered next to them with total tokens (300+600=900 tok) and speed
     expect(find.textContaining('${I18n.totalLabel}: 900 tok'), findsOneWidget);
-    expect(find.textContaining('tok/s'), findsOneWidget);
+    // The summary states the added wait once a speed is known, never a raw tok/s figure.
+    expect(find.textContaining('tok/s'), findsNothing);
   });
 
   testWidgets('ComposerBar expands and collapses ComposerShelf on toggle', (WidgetTester tester) async {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tomsllama/core/constants/app_icons.dart';
 import 'package:tomsllama/core/theme/claude_theme.dart';
 import 'package:tomsllama/features/shell/widgets/csd_header_bar.dart';
 
@@ -30,7 +31,7 @@ void main() {
     // Verify sidebar toggle button
     final toggleBtn = find.byKey(const Key('sidebar_toggle_button'));
     expect(toggleBtn, findsOneWidget);
-    expect(find.byIcon(Icons.view_sidebar_outlined), findsOneWidget);
+    expect(find.byIcon(AppIcons.sidebar), findsOneWidget);
 
     // Tap sidebar toggle button
     await tester.tap(toggleBtn);
@@ -56,7 +57,7 @@ void main() {
     );
 
     expect(find.byKey(const Key('sidebar_toggle_button')), findsOneWidget);
-    expect(find.byIcon(Icons.view_sidebar_outlined), findsOneWidget);
+    expect(find.byIcon(AppIcons.sidebar), findsOneWidget);
   });
 
   testWidgets('CsdHeaderBar renders minimize, maximize, and close buttons on desktop platform', (WidgetTester tester) async {
@@ -75,8 +76,8 @@ void main() {
       ),
     );
 
-    expect(find.byIcon(Icons.remove), findsOneWidget);
-    expect(find.byIcon(Icons.crop_square), findsOneWidget);
-    expect(find.byIcon(Icons.close), findsOneWidget);
+    expect(find.byIcon(AppIcons.windowMinimize), findsOneWidget);
+    expect(find.byIcon(AppIcons.windowMaximize), findsOneWidget);
+    expect(find.byIcon(AppIcons.close), findsOneWidget);
   });
 }

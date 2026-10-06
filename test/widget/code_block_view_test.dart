@@ -1,3 +1,4 @@
+import 'package:tomsllama/core/constants/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -51,7 +52,7 @@ void main() {
     );
 
     expect(find.text('md'), findsOneWidget);
-    expect(find.byIcon(Icons.description_outlined), findsOneWidget);
+    expect(find.byIcon(AppIcons.file), findsOneWidget);
     expect(find.textContaining('Title'), findsOneWidget);
   });
 }

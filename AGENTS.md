@@ -21,16 +21,25 @@
   - Position: Top-left in CSD header bar (`20x20px`).
   - Form: Geometrical vector fusion of Gemini's four-pointed star and faceted diamond cut lines.
   - Style: Clean 1.6px geometric strokes in `var(--accent)`, subtle 25% opacity center facet fill, zero 3D-kitsch.
-- **Icons:** Geometry-only, ultra-fine 1px line icons (Phosphor / Lucide / Feather style).
-- **Typography (Universal across ALL themes including Pond):**
-  - **Fließtext & Headlines:** *Newsreader* (Classical Antiqua/Serif) bundled locally for all themes (Claude, Pond, Dark).
-  - **Code, Badges & Telemetry:** *Geist Mono* (Precision monospaced) bundled locally.
-  - **UI Controls & Buttons:** *Inter* / Clean neutral sans for navigation and small utility labels.
+- **Icons:** One family at one weight: Phosphor Light, bundled as `assets/fonts/PhosphorLight.ttf`. Use them only through `AppIcons` (`lib/core/constants/app_icons.dart`), which names icons by meaning. Never use Material `Icons.*`.
+- **Typography (three families, each with one job, all themes):**
+  - **Long-form reading:** *Newsreader* (serif): answers, the user's sent messages, headings, dialog titles, the brand name.
+  - **Interface text:** *Inter* (sans): chat and workspace titles in lists, the composer and every other text input with its hint, short prose in dialogs and the hub.
+  - **Labels, measurements and code:** *Geist Mono*: chips, buttons, section labels, metadata, telemetry, code.
+  - Inter ships upright only, so never set interface text in italics.
+  - **Scale:** only the styles in `AppTypography` (`micro` 10.5, `label` 12, `small` 13, `input` 15, `body` 16.5, `title` 20, `display` 30, plus `code` and `telemetry`). Do not introduce other sizes.
   - **Zero Network Reliance:** Fonts are embedded in `assets/fonts/` for 100% offline privacy.
+- **Design tokens (`lib/core/constants/app_tokens.dart`):**
+  - **Radii:** `panel` 18 → `card` 12 → `control` 8 → `pill`. A shape nested in another uses the next step down.
+  - **Motion:** `fast` 120 ms (hover), `base` 200 ms (state), `slow` 320 ms (layout); curves `standard` and `spring`.
+  - **Elevation:** one shadow, `AppElevation.floating`, only for surfaces that float (composer, popovers, dialogs, a dragged item). Everything else separates by fill.
+  - **Colour:** no colour literals outside `app_colors.dart`; states use the theme's accent, never ad-hoc green, red or amber.
+- **Shared widgets (`lib/core/widgets/`):** build controls from `Pressable`, `AppPill`, `AppIconButton`, `AppButton`, `AppDialog`, `appInputDecoration` and `InkFadeIn` instead of hand-rolling hover and press behaviour.
+- **Reviewing a design change:** `flutter test --update-goldens test/tool/render_screens.dart` writes PNGs of the main screens in every theme to `build/renders/`.
 
 ### 1.2 Micro-Animations & Playful Physics (Pond-Style)
 Animationen sind sanft, meditativ und organisch wie Naturphänomene (kein lautes UI-Feuerwerk):
-1. **Logo Ruheatmen:** Das Gemini × Diamant-Logo pulsiert während der Generierung und im Leerlauf in einem langsamen 3.5s Atemrhythmus (Scale 1.0 → 1.06).
+1. **Logo Ruheatmen:** Das Logo pulsiert **nur während der Generierung** in einem langsamen 3.5s Atemrhythmus (Scale 1.0 → 1.06); im Leerlauf steht es vollkommen still.
 2. **Pond Button Ripple:** Klicks auf interaktive Buttons erzeugen eine ultrafeine 1px-Wasserwelle, die sich sanft ausbreitet und verblasst.
 3. **Tinte-auf-Papier Fade:** Neue Chat-Nachrichten und Codeblöcke gleiten mit minimalem vertikalem Versatz (4px) und weichem Einblenden (Fade-In) hinein.
 4. **Button Spring Physics:** Interaktive Knöpfe reagieren auf Klick und Release mit einer feinen, elastischen Dämpfung (`cubic-bezier(0.34, 1.56, 0.64, 1)`).
@@ -51,7 +60,7 @@ Animationen sind sanft, meditativ und organisch wie Naturphänomene (kein lautes
 
 Accent colors are applied strictly as subtle visual anchors:
 1. **Brand Logo & Model Online Dot:** Top-left header logo & model status indicator.
-2. **Active Chat Item:** 2px vertical indicator bar on the left edge of selected conversation.
+2. **Brand mark while generating:** the header logo breathes while any chat has an answer in progress. A chat with an answer in progress breathes too: its row's tint swells and fades at the same pace (`BreathingTint`). The open chat is marked only by a neutral tint and a medium-weight title: no bar, outline or dot. Selected segments (theme switcher, Chats/Workspaces) are likewise neutral, never accent-tinted.
 3. **Composer Focus:** Subtle 1px border highlight when the input field is active.
 4. **Primary Actions:** Send button background, code block language badge (`dart`, `python`).
 5. **Interactive Hover States:** Subtle color shift on links (`Regenerate`, `Copy MD`, `Persona-Chip`).

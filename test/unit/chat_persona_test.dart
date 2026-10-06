@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -5,13 +6,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tomsllama/features/chat/controllers/chat_controller.dart';
 import 'package:tomsllama/features/sidebar/controllers/sidebar_controller.dart';
 
+// Each test file gets its own documents directory, and with it its own database.
+final String _documentsDir = Directory.systemTemp.createTempSync('tomsllama_test').path;
+
 void main() {
   setUpAll(() {
     TestWidgetsFlutterBinding.ensureInitialized();
     const channel = MethodChannel('plugins.flutter.io/path_provider');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-      return '.';
+      return _documentsDir;
     });
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
