@@ -55,21 +55,28 @@ class _ChatViewportState extends State<ChatViewport> {
   void didUpdateWidget(ChatViewport oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.messages != oldWidget.messages || (widget.isGenerating && !_userScrolledUp)) {
+      // Glide for a new message, but only pin to the bottom while one is growing:
+      // restarting a 250ms animation on every chunk never lets it finish.
+      final isNewMessage = widget.messages.length != oldWidget.messages.length;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          _scrollToBottom();
+          _scrollToBottom(animate: isNewMessage);
         }
       });
     }
   }
 
-  void _scrollToBottom() {
-    if (_scrollController.hasClients && !_userScrolledUp) {
+  void _scrollToBottom({required bool animate}) {
+    if (!_scrollController.hasClients || _userScrolledUp) return;
+    final target = _scrollController.position.maxScrollExtent;
+    if (animate) {
       _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
+        target,
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOutCubic,
       );
+    } else {
+      _scrollController.jumpTo(target);
     }
   }
 

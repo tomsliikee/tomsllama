@@ -93,6 +93,12 @@ class ChatNotifier extends StateNotifier<ChatState> {
   StreamSubscription<String>? _activeStream;
   String? _activeAssistantId;
 
+  // Stream chunks are coalesced before they reach the UI: every state update
+  // re-parses and re-lays-out the whole answer, which costs CPU the model needs.
+  static const Duration _streamPublishInterval = Duration(milliseconds: 50);
+  Timer? _publishTimer;
+  void Function()? _publishPending;
+
   // Full prompt payload (with attached file bodies) of the most recent user turn.
   // Only the display text is persisted, so regenerate needs this to resend the files.
   String? _lastPayloadMessageId;
@@ -116,6 +122,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
   void _interruptGeneration() {
     _activeStream?.cancel();
     _activeStream = null;
+    // Bring state up to the last received chunk so the saved partial is complete.
+    _flushPendingPublish();
     final assistantId = _activeAssistantId;
     _activeAssistantId = null;
     if (!state.isGenerating) return;
@@ -137,6 +145,20 @@ class ChatNotifier extends StateNotifier<ChatState> {
       clearStatusMessage: true,
       clearStatusTokens: true,
     );
+  }
+
+  void _flushPendingPublish() {
+    _publishTimer?.cancel();
+    _publishTimer = null;
+    final publish = _publishPending;
+    _publishPending = null;
+    publish?.call();
+  }
+
+  void _dropPendingPublish() {
+    _publishTimer?.cancel();
+    _publishTimer = null;
+    _publishPending = null;
   }
 
   static String _describeError(Object err) {
@@ -578,26 +600,31 @@ class ChatNotifier extends StateNotifier<ChatState> {
             rawStreamBuffer.write(chunk);
             tokenEstimate++;
 
-            final parsed = ThinkParser.parse(rawStreamBuffer.toString());
+            _publishPending = () {
+              if (!mounted) return;
+              final parsed = ThinkParser.parse(rawStreamBuffer.toString());
 
-            final currentAssistant = Message(
-              id: assistantMsgId,
-              conversationId: convId,
-              role: 'assistant',
-              content: parsed.content,
-              thinkContent: parsed.thinkContent.isNotEmpty ? parsed.thinkContent : null,
-              createdAt: now,
-              tokens: tokenEstimate,
-              generationDurationMs: stopwatch.elapsedMilliseconds,
-            );
+              final currentAssistant = Message(
+                id: assistantMsgId,
+                conversationId: convId,
+                role: 'assistant',
+                content: parsed.content,
+                thinkContent: parsed.thinkContent.isNotEmpty ? parsed.thinkContent : null,
+                createdAt: now,
+                tokens: tokenEstimate,
+                generationDurationMs: stopwatch.elapsedMilliseconds,
+              );
 
-            final msgs = List<Message>.from(state.messages);
-            if (msgs.isNotEmpty && msgs.last.id == assistantMsgId) {
-              msgs[msgs.length - 1] = currentAssistant;
-            }
-            state = state.copyWith(messages: msgs);
+              final msgs = List<Message>.from(state.messages);
+              if (msgs.isNotEmpty && msgs.last.id == assistantMsgId) {
+                msgs[msgs.length - 1] = currentAssistant;
+              }
+              state = state.copyWith(messages: msgs);
+            };
+            _publishTimer ??= Timer(_streamPublishInterval, _flushPendingPublish);
           },
           onError: (err) {
+            _dropPendingPublish();
             if (!mounted) return;
             if (withTools && err.toString().contains('400')) {
               runStream(withTools: false);
@@ -613,6 +640,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
             );
           },
           onDone: () async {
+            // State is what the user sees and what gets finalized; show the last chunks first.
+            _flushPendingPublish();
             // Check if model called a tool
             if (pendingToolCall != null) {
               final fn = pendingToolCall!['function'];
@@ -753,6 +782,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   @override
   void dispose() {
+    _dropPendingPublish();
     _activeStream?.cancel();
     super.dispose();
   }

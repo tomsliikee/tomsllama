@@ -259,7 +259,12 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
 
     final sidebarState = ref.watch(sidebarProvider);
     final modelState = ref.watch(modelProvider);
-    final chatState = ref.watch(chatProvider);
+    // Watch only what the shell itself lays out. The streaming message list is
+    // watched further down, so a new token does not rebuild header and sidebar.
+    final conversationId = ref.watch(chatProvider.select((s) => s.conversationId));
+    final isCanvasOpen = ref.watch(chatProvider.select((s) => s.isCanvasOpen));
+    final canvasContent = ref.watch(chatProvider.select((s) => s.canvasContent));
+    final canvasLanguage = ref.watch(chatProvider.select((s) => s.canvasLanguage));
     final sidebarMode = ref.watch(sidebarModeProvider);
     final workspaceListState = ref.watch(workspaceListProvider);
     final activeWsState = ref.watch(activeWorkspaceProvider);
@@ -272,7 +277,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
         (modelState.models.isNotEmpty ? modelState.models.first.name : 'qwen2.5:3b');
 
     final currentConv = sidebarState.conversations
-        .where((c) => c.id == (chatState.conversationId ?? sidebarState.activeConversationId))
+        .where((c) => c.id == (conversationId ?? sidebarState.activeConversationId))
         .firstOrNull;
     final isWorkspaceChat = currentConv?.workspaceId != null;
     final currentConvWs = isWorkspaceChat
@@ -315,7 +320,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                       if (_isSidebarOpen && !_isZenMode)
                         SidebarView(
                           conversations: sidebarState.filteredConversations,
-                          activeConversationId: chatState.conversationId ?? sidebarState.activeConversationId,
+                          activeConversationId: conversationId ?? sidebarState.activeConversationId,
                           searchController: _searchController,
                           onSearchChanged: (q) => sidebarNotifier.setSearchQuery(q),
                           onSearchClear: () {
@@ -332,7 +337,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                             await sidebarNotifier.deleteConversation(id);
                             ref.read(workspaceProvider.notifier).removeConversation(id);
                             ref.read(activeWorkspaceProvider.notifier).refresh();
-                            if (chatState.conversationId == id) {
+                            if (ref.read(chatProvider).conversationId == id) {
                               final remaining = ref.read(sidebarProvider).conversations;
                               if (remaining.isNotEmpty) {
                                 sidebarNotifier.setActiveConversation(remaining.first.id);
@@ -390,12 +395,12 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                       // Main Chat & Split-View Canvas Area
                       Expanded(
                         child: ArtifactCanvasView(
-                          isCanvasOpen: chatState.isCanvasOpen,
+                          isCanvasOpen: isCanvasOpen,
                           onCloseCanvas: () => chatNotifier.closeCanvas(),
-                          language: chatState.canvasLanguage,
+                          language: canvasLanguage,
                           onCopy: () {
-                            if (chatState.canvasContent != null) {
-                              Clipboard.setData(ClipboardData(text: chatState.canvasContent!));
+                            if (canvasContent != null) {
+                              Clipboard.setData(ClipboardData(text: canvasContent));
                             }
                           },
                           canvasPanel: Container(
@@ -403,7 +408,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                             padding: const EdgeInsets.all(16.0),
                             child: SingleChildScrollView(
                               child: SelectableText(
-                                chatState.canvasContent ?? '',
+                                canvasContent ?? '',
                                 style: AppTypography.code.copyWith(
                                   color: appColors.textPrimary,
                                   fontSize: 13.0,
@@ -413,7 +418,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                             ),
                           ),
                           chatPanel: Padding(
-                            padding: EdgeInsets.fromLTRB(4.0, 10.0, chatState.isCanvasOpen ? 5.0 : 10.0, 12.0),
+                            padding: EdgeInsets.fromLTRB(4.0, 10.0, isCanvasOpen ? 5.0 : 10.0, 12.0),
                             child: _isViewingWorkspaceHub && activeWsState.workspace != null
                                 ? Container(
                                     decoration: BoxDecoration(
@@ -518,39 +523,51 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                                                     );
                                                   },
                                                   child: KeyedSubtree(
-                                                    key: ValueKey(chatState.conversationId ?? 'empty_chat'),
-                                                    child: ChatViewport(
-                                                      messages: chatState.messages,
-                                                      isGenerating: chatState.isGenerating,
-                                                      modelName: selectedModel,
-                                                      statusMessage: chatState.statusMessage,
-                                                      statusTokens: chatState.statusTokens,
-                                                      onRegenerate: () => chatNotifier.regenerateLast(selectedModel),
-                                                      // A failed model listing means the daemon is down; offer to look again.
-                                                      errorMessage: chatState.errorMessage ?? modelState.errorMessage,
-                                                      onRetry: chatState.errorMessage == null && modelState.errorMessage != null
-                                                          ? () => modelNotifier.loadModels()
-                                                          : null,
+                                                    key: ValueKey(conversationId ?? 'empty_chat'),
+                                                    child: Consumer(
+                                                      builder: (context, ref, _) {
+                                                        final chatState = ref.watch(chatProvider);
+                                                        return ChatViewport(
+                                                          messages: chatState.messages,
+                                                          isGenerating: chatState.isGenerating,
+                                                          modelName: selectedModel,
+                                                          statusMessage: chatState.statusMessage,
+                                                          statusTokens: chatState.statusTokens,
+                                                          onRegenerate: () => chatNotifier.regenerateLast(selectedModel),
+                                                          // A failed model listing means the daemon is down; offer to look again.
+                                                          errorMessage: chatState.errorMessage ?? modelState.errorMessage,
+                                                          onRetry: chatState.errorMessage == null && modelState.errorMessage != null
+                                                              ? () => modelNotifier.loadModels()
+                                                              : null,
+                                                        );
+                                                      },
                                                     ),
                                                   ),
                                                 ),
                                               ),
-                                              ComposerBar(
-                                                isGenerating: chatState.isGenerating,
-                                                activePersonaName: chatState.activePersonaName,
-                                                modelName: selectedModel,
-                                                models: modelState.models,
-                                                selectedModel: selectedModel,
-                                                onModelChanged: (m) {
-                                                  if (m != null) modelNotifier.selectModel(m);
+                                              Consumer(
+                                                builder: (context, ref, _) {
+                                                  final (isGenerating, activePersonaName, mode) = ref.watch(
+                                                    chatProvider.select((s) => (s.isGenerating, s.activePersonaName, s.mode)),
+                                                  );
+                                                  return ComposerBar(
+                                                    isGenerating: isGenerating,
+                                                    activePersonaName: activePersonaName,
+                                                    modelName: selectedModel,
+                                                    models: modelState.models,
+                                                    selectedModel: selectedModel,
+                                                    onModelChanged: (m) {
+                                                      if (m != null) modelNotifier.selectModel(m);
+                                                    },
+                                                    onManageModels: _openModelManager,
+                                                    mode: mode,
+                                                    onModeChanged: (m) => chatNotifier.setMode(m),
+                                                    onPersonaTap: () {},
+                                                    onSelectPersona: (persona) => chatNotifier.setPersona(persona),
+                                                    onSend: (text) => chatNotifier.sendMessage(text, selectedModel),
+                                                    onStop: () => chatNotifier.stopGeneration(),
+                                                  );
                                                 },
-                                                onManageModels: _openModelManager,
-                                                mode: chatState.mode,
-                                                onModeChanged: (m) => chatNotifier.setMode(m),
-                                                onPersonaTap: () {},
-                                                onSelectPersona: (persona) => chatNotifier.setPersona(persona),
-                                                onSend: (text) => chatNotifier.sendMessage(text, selectedModel),
-                                                onStop: () => chatNotifier.stopGeneration(),
                                               ),
                                             ],
                                           ),
