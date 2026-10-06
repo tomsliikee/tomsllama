@@ -26,7 +26,9 @@ void main() {
               sort_order INTEGER DEFAULT 0,
               persona TEXT DEFAULT 'Standard',
               workspace_id TEXT,
-              is_workspace_context_enabled INTEGER DEFAULT 1
+              is_workspace_context_enabled INTEGER DEFAULT 1,
+              summary TEXT,
+              summary_through_id TEXT
             )
           ''');
 

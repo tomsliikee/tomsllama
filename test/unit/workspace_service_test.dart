@@ -54,5 +54,29 @@ void main() {
       expect(files.first.content, isNotEmpty);
       expect(files.first.estimatedTokens, greaterThan(0));
     });
+
+    test('resolveInsideWorkspace refuses paths that leave the workspace', () async {
+      final root = await Directory.systemTemp.createTemp('tomsllama_ws');
+      final outside = await Directory.systemTemp.createTemp('tomsllama_outside');
+      addTearDown(() async {
+        await root.delete(recursive: true);
+        await outside.delete(recursive: true);
+      });
+      await File('${root.path}/lib/a.dart').create(recursive: true);
+      final secret = await File('${outside.path}/secret.txt').create();
+      await Link('${root.path}/escape').create(outside.path);
+
+      final inside = await WorkspaceService.resolveInsideWorkspace(root.path, 'lib/a.dart');
+      expect(inside, '${root.path}/lib/a.dart');
+      expect(await WorkspaceService.resolveInsideWorkspace(root.path, 'lib/../lib/a.dart'), inside);
+      // A missing file inside the root is still a valid target; the read reports not-found.
+      expect(await WorkspaceService.resolveInsideWorkspace(root.path, 'lib/missing.dart'), isNotNull);
+
+      expect(await WorkspaceService.resolveInsideWorkspace(root.path, '../secret.txt'), isNull);
+      expect(await WorkspaceService.resolveInsideWorkspace(root.path, 'lib/../../x'), isNull);
+      expect(await WorkspaceService.resolveInsideWorkspace(root.path, secret.path), isNull);
+      expect(await WorkspaceService.resolveInsideWorkspace(root.path, 'escape/secret.txt'), isNull);
+      expect(await WorkspaceService.resolveInsideWorkspace(root.path, ''), isNull);
+    });
   });
 }

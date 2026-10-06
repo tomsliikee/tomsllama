@@ -43,7 +43,7 @@ class _TelemetryFooterState extends State<TelemetryFooter> {
     final durationSecs = widget.durationMs / 1000.0;
     final tokensPerSec = widget.durationMs > 0 ? (widget.tokens / durationSecs).toStringAsFixed(1) : '0.0';
     
-    final metricsText = '${widget.modelName} · $tokensPerSec tok/s · ${widget.tokens} tokens · ${durationSecs.toStringAsFixed(1)}s TTFT';
+    final metricsText = '${widget.modelName} · $tokensPerSec tok/s · ${widget.tokens} tokens · ${durationSecs.toStringAsFixed(1)}s';
     
     return Padding(
       padding: const EdgeInsets.only(top: 12.0),

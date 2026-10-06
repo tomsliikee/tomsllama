@@ -9,12 +9,18 @@ import 'features/shell/widgets/desktop_shell.dart';
 import 'core/services/database_service.dart';
 import 'core/services/localization_service.dart';
 import 'core/services/hardware_calibration_service.dart';
+import 'core/services/ollama_service.dart';
+import 'core/services/settings_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Initialize SQLite database
   await DatabaseService().database;
+
+  // Load user settings before anything talks to Ollama
+  final settings = await SettingsService().loadAppSettings();
+  OllamaService().baseUrl = settings.ollamaUrl;
 
   // Initialize Hardware Calibration profile (CPU/GPU detection)
   await HardwareCalibrationService().init();

@@ -19,36 +19,42 @@ class SearchBarView extends StatelessWidget {
   Widget build(BuildContext context) {
     final appColors = context.appColors;
 
+    // Same pill geometry as the mode slider it sits under.
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      padding: const EdgeInsets.symmetric(horizontal: 12.0),
+      height: 32.0,
+      padding: const EdgeInsets.symmetric(horizontal: 10.0),
       decoration: BoxDecoration(
         color: appColors.surface,
-        borderRadius: BorderRadius.circular(8.0),
-        border: Border.all(color: appColors.border),
+        borderRadius: BorderRadius.circular(16.0),
+        border: Border.all(color: appColors.borderSubtle, width: 1.0),
       ),
       child: Row(
         children: [
-          Icon(Icons.search, size: 16.0, color: appColors.textSecondary),
-          const SizedBox(width: 8.0),
+          Icon(Icons.search, size: 14.0, color: appColors.textSecondary),
+          const SizedBox(width: 6.0),
           Expanded(
             child: TextField(
               controller: controller,
               onChanged: onChanged,
-              style: AppTypography.uiControl.copyWith(color: appColors.textPrimary),
+              style: AppTypography.uiControl.copyWith(color: appColors.textPrimary, fontSize: 12.0),
               decoration: InputDecoration(
                 hintText: I18n.searchChats,
-                hintStyle: AppTypography.uiControl.copyWith(color: appColors.textSecondary),
+                hintStyle: AppTypography.uiControl.copyWith(
+                  color: appColors.textSecondary,
+                  fontSize: 12.0,
+                  fontWeight: FontWeight.w400,
+                ),
                 border: InputBorder.none,
                 isDense: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 10.0),
+                contentPadding: EdgeInsets.zero,
               ),
             ),
           ),
           if (controller.text.isNotEmpty)
             InkWell(
               onTap: onClear,
-              child: Icon(Icons.close, size: 16.0, color: appColors.textSecondary),
+              borderRadius: BorderRadius.circular(8.0),
+              child: Icon(Icons.close, size: 14.0, color: appColors.textSecondary),
             ),
         ],
       ),

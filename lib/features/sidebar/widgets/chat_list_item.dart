@@ -90,6 +90,7 @@ class _WobbleItemState extends State<WobbleItem> with SingleTickerProviderStateM
 class ChatListItem extends StatefulWidget {
   final Conversation conversation;
   final bool isSelected;
+  final bool isGenerating;
   final VoidCallback onTap;
   final VoidCallback? onDelete;
   final VoidCallback? onTogglePin;
@@ -101,6 +102,7 @@ class ChatListItem extends StatefulWidget {
     super.key,
     required this.conversation,
     required this.isSelected,
+    this.isGenerating = false,
     required this.onTap,
     this.onDelete,
     this.onTogglePin,
@@ -155,6 +157,17 @@ class _ChatListItemState extends State<ChatListItem> {
               ),
               child: Row(
                 children: [
+                  // An answer is being written in this chat, possibly in the background
+                  if (widget.isGenerating)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 7.0),
+                      child: Container(
+                        key: const Key('chat_generating_dot'),
+                        width: 6.0,
+                        height: 6.0,
+                        decoration: BoxDecoration(color: appColors.accent, shape: BoxShape.circle),
+                      ),
+                    ),
                   // Title text
                   Expanded(
                     child: Text(
@@ -191,6 +204,28 @@ class _ChatListItemState extends State<ChatListItem> {
                                   isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
                                   size: 13.0,
                                   color: isPinned ? appColors.accent : appColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                        // Export button
+                        if (widget.onExport != null && _isHovered)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 3.0),
+                            child: Tooltip(
+                              message: I18n.exportChat,
+                              waitDuration: const Duration(milliseconds: 400),
+                              child: InkWell(
+                                onTap: widget.onExport,
+                                borderRadius: BorderRadius.circular(6.0),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(3.0),
+                                  child: Icon(
+                                    Icons.file_download_outlined,
+                                    size: 13.0,
+                                    color: appColors.textSecondary,
+                                  ),
                                 ),
                               ),
                             ),

@@ -14,6 +14,8 @@ class ChatViewport extends StatefulWidget {
   final String? statusMessage;
   final int? statusTokens;
   final VoidCallback? onRegenerate;
+  final String? errorMessage;
+  final VoidCallback? onRetry;
 
   const ChatViewport({
     super.key,
@@ -23,6 +25,8 @@ class ChatViewport extends StatefulWidget {
     this.statusMessage,
     this.statusTokens,
     this.onRegenerate,
+    this.errorMessage,
+    this.onRetry,
   });
 
   @override
@@ -51,21 +55,28 @@ class _ChatViewportState extends State<ChatViewport> {
   void didUpdateWidget(ChatViewport oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.messages != oldWidget.messages || (widget.isGenerating && !_userScrolledUp)) {
+      // Glide for a new message, but only pin to the bottom while one is growing:
+      // restarting a 250ms animation on every chunk never lets it finish.
+      final isNewMessage = widget.messages.length != oldWidget.messages.length;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          _scrollToBottom();
+          _scrollToBottom(animate: isNewMessage);
         }
       });
     }
   }
 
-  void _scrollToBottom() {
-    if (_scrollController.hasClients && !_userScrolledUp) {
+  void _scrollToBottom({required bool animate}) {
+    if (!_scrollController.hasClients || _userScrolledUp) return;
+    final target = _scrollController.position.maxScrollExtent;
+    if (animate) {
       _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
+        target,
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOutCubic,
       );
+    } else {
+      _scrollController.jumpTo(target);
     }
   }
 
@@ -108,16 +119,36 @@ class _ChatViewportState extends State<ChatViewport> {
                 fontWeight: FontWeight.w400,
               ),
             ),
+            if (widget.errorMessage != null) ...[
+              const SizedBox(height: 18.0),
+              _ErrorNotice(message: widget.errorMessage!, onRetry: widget.onRetry),
+            ],
           ],
         ),
       );
     }
 
+    final hasError = widget.errorMessage != null;
+
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.only(bottom: 24.0, top: 20.0),
-      itemCount: widget.messages.length,
+      itemCount: widget.messages.length + (hasError ? 1 : 0),
       itemBuilder: (context, index) {
+        if (index == widget.messages.length) {
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 680),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 24.0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: _ErrorNotice(message: widget.errorMessage!, onRetry: widget.onRetry),
+                ),
+              ),
+            ),
+          );
+        }
         final message = widget.messages[index];
         final isLast = index == widget.messages.length - 1;
         
@@ -132,6 +163,60 @@ class _ChatViewportState extends State<ChatViewport> {
           onRegenerate: isLast ? widget.onRegenerate : null,
         );
       },
+    );
+  }
+}
+
+/// Hairline notice for a failed request. Kept as quiet as the telemetry line:
+/// an error here is usually "Ollama is not running", not something to shout about.
+class _ErrorNotice extends StatelessWidget {
+  final String message;
+  final VoidCallback? onRetry;
+
+  const _ErrorNotice({required this.message, this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final appColors = context.appColors;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 7.0),
+      decoration: BoxDecoration(
+        color: appColors.background,
+        borderRadius: BorderRadius.circular(12.0),
+        border: Border.all(color: appColors.border, width: 1.0),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: SelectableText(
+              message,
+              style: AppTypography.code.copyWith(
+                color: appColors.textSecondary,
+                fontSize: 11.5,
+              ),
+            ),
+          ),
+          if (onRetry != null) ...[
+            const SizedBox(width: 12.0),
+            InkWell(
+              onTap: onRetry,
+              borderRadius: BorderRadius.circular(6.0),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+                child: Text(
+                  I18n.retry,
+                  style: AppTypography.uiControl.copyWith(
+                    color: appColors.accent,
+                    fontSize: 12.0,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/models/ollama_model.dart';
 import '../../../../core/models/pull_progress.dart';
 import '../../../../core/services/ollama_service.dart';
+import '../../../../core/services/localization_service.dart';
+import '../../settings/controllers/settings_controller.dart';
 
 class ModelState {
   final List<OllamaModel> models;
@@ -39,7 +41,9 @@ class ModelState {
 class ModelNotifier extends StateNotifier<ModelState> {
   final OllamaService _service = OllamaService();
 
-  ModelNotifier() : super(const ModelState()) {
+  final Ref _ref;
+
+  ModelNotifier(this._ref) : super(const ModelState()) {
     loadModels();
   }
 
@@ -53,10 +57,14 @@ class ModelNotifier extends StateNotifier<ModelState> {
         selected = null;
       }
       if (selected == null && list.isNotEmpty) {
-        // Prefer qwen2.5:3b or qwen2.5-coder:3b if present
+        // The configured default wins; otherwise prefer qwen2.5:3b or qwen2.5-coder:3b if present
+        final configured = _ref.read(appSettingsProvider).defaultModel;
         final preferred = list.firstWhere(
-          (m) => m.name.contains('qwen2.5:3b') || m.name.contains('qwen2.5-coder:3b'),
-          orElse: () => list.first,
+          (m) => m.name == configured,
+          orElse: () => list.firstWhere(
+            (m) => m.name.contains('qwen2.5:3b') || m.name.contains('qwen2.5-coder:3b'),
+            orElse: () => list.first,
+          ),
         );
         selected = preferred.name;
       }
@@ -69,7 +77,7 @@ class ModelNotifier extends StateNotifier<ModelState> {
       if (!mounted) return;
       state = state.copyWith(
         isLoading: false,
-        errorMessage: 'Could not connect to Ollama. Make sure Ollama is running.',
+        errorMessage: I18n.ollamaUnreachable(_service.baseUrl),
       );
     }
   }
@@ -103,5 +111,5 @@ class ModelNotifier extends StateNotifier<ModelState> {
 }
 
 final modelProvider = StateNotifierProvider<ModelNotifier, ModelState>((ref) {
-  return ModelNotifier();
+  return ModelNotifier(ref);
 });

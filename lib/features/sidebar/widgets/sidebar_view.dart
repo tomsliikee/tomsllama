@@ -7,11 +7,13 @@ import '../../../core/models/workspace.dart';
 import '../../workspace/controllers/workspace_hub_controller.dart';
 import '../../shell/widgets/tomsllama_logo.dart';
 import 'chat_list_item.dart';
+import 'search_bar_view.dart';
 import 'workspace_list_item.dart';
 
 class SidebarView extends StatefulWidget {
   final List<Conversation> conversations;
   final String? activeConversationId;
+  final Set<String> generatingConversationIds;
   final VoidCallback onNewChat;
   final ValueChanged<String> onSelectChat;
   final ValueChanged<String>? onDeleteChat;
@@ -37,6 +39,7 @@ class SidebarView extends StatefulWidget {
     super.key,
     required this.conversations,
     this.activeConversationId,
+    this.generatingConversationIds = const {},
     required this.onNewChat,
     required this.onSelectChat,
     this.onDeleteChat,
@@ -98,6 +101,15 @@ class _SidebarViewState extends State<SidebarView> {
           _buildModeSlider(appColors),
 
           const SizedBox(height: 8.0),
+
+          if (widget.searchController != null) ...[
+            SearchBarView(
+              controller: widget.searchController!,
+              onChanged: (q) => widget.onSearchChanged?.call(q),
+              onClear: () => widget.onSearchClear?.call(),
+            ),
+            const SizedBox(height: 8.0),
+          ],
 
           // Content Floating Pill Panel (Chats OR Workspaces)
           Expanded(
@@ -307,6 +319,7 @@ class _SidebarViewState extends State<SidebarView> {
           index: index,
           isWobbling: _isDragging,
           isSelected: c.id == widget.activeConversationId,
+          isGenerating: widget.generatingConversationIds.contains(c.id),
           onTap: () => widget.onSelectChat(c.id),
           onTogglePin: widget.onTogglePinChat != null
               ? () => widget.onTogglePinChat!(c.id)

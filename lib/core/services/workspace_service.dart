@@ -62,6 +62,31 @@ class WorkspaceService {
     '.pdf',
   };
 
+  /// Resolves a model-requested [requestedPath] to an absolute path inside
+  /// [workspaceRoot], or null if it would escape the workspace.
+  ///
+  /// The path comes from a tool call, i.e. from model output that file contents
+  /// can steer, so `..` segments, absolute paths and symlinks pointing outside
+  /// the root must not be followed.
+  static Future<String?> resolveInsideWorkspace(String workspaceRoot, String requestedPath) async {
+    final requested = requestedPath.trim();
+    if (requested.isEmpty || p.isAbsolute(requested)) return null;
+
+    final root = p.normalize(p.absolute(workspaceRoot));
+    final candidate = p.normalize(p.join(root, requested));
+    if (!p.isWithin(root, candidate)) return null;
+
+    try {
+      final realRoot = await Directory(root).resolveSymbolicLinks();
+      final realCandidate = await File(candidate).resolveSymbolicLinks();
+      if (!p.isWithin(realRoot, realCandidate)) return null;
+    } on FileSystemException {
+      // Missing file: nothing to follow. The caller reports it as not found.
+    }
+
+    return candidate;
+  }
+
   /// Loads and indexes a workspace directory, discovering files and git branch info.
   static Future<WorkspaceInfo?> loadWorkspace(
     String directoryPath, {
