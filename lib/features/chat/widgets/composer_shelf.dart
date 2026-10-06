@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../core/constants/app_tokens.dart';
+import '../../../core/constants/app_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_typography.dart';
@@ -66,7 +68,7 @@ class _ComposerShelfState extends ConsumerState<ComposerShelf>
     ).animate(curvedAnim);
     _fadeAnim = CurvedAnimation(
       parent: _animController,
-      curve: const Interval(0.2, 1.0, curve: Curves.easeOut),
+      curve: const Interval(0.2, 1.0, curve: AppMotion.standard),
     );
   }
 
@@ -132,19 +134,13 @@ class _ComposerShelfState extends ConsumerState<ComposerShelf>
                   decoration: BoxDecoration(
                     color: shelfBg,
                     borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16.0),
+                      top: Radius.circular(AppRadii.card),
                     ),
                     border: Border.all(
                       color: appColors.borderSubtle,
                       width: 1.0,
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.03),
-                        blurRadius: 8.0,
-                        offset: const Offset(0, -3),
-                      ),
-                    ],
+                    boxShadow: AppElevation.floating(Theme.of(context).brightness),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -211,13 +207,13 @@ class _ComposerShelfState extends ConsumerState<ComposerShelf>
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.folder_off_outlined, size: 13.0, color: appColors.textSecondary),
+          Icon(AppIcons.folderOff, size: 13.0, color: appColors.textSecondary),
           const SizedBox(width: 5.0),
           Flexible(
             child: Text(
               I18n.shelfNoWorkspaceActive,
-              style: AppTypography.uiControl.copyWith(
-                fontSize: 11.0,
+              style: AppTypography.label.copyWith(
+                fontSize: 10.5,
                 color: appColors.textSecondary.withValues(alpha: 0.7),
               ),
               overflow: TextOverflow.ellipsis,
@@ -231,13 +227,13 @@ class _ComposerShelfState extends ConsumerState<ComposerShelf>
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.folder_outlined, size: 13.5, color: appColors.accent),
+        Icon(AppIcons.folder, size: 13.5, color: appColors.accent),
         const SizedBox(width: 5.0),
         Flexible(
           child: Text(
             ws.name,
-            style: AppTypography.uiControl.copyWith(
-              fontSize: 11.5,
+            style: AppTypography.label.copyWith(
+              fontSize: 12.0,
               fontWeight: FontWeight.w600,
               color: appColors.textPrimary,
             ),
@@ -248,7 +244,7 @@ class _ComposerShelfState extends ConsumerState<ComposerShelf>
           const SizedBox(width: 6.0),
           Container(width: 1.0, height: 10.0, color: appColors.borderSubtle),
           const SizedBox(width: 6.0),
-          Icon(Icons.call_split_rounded, size: 12.0, color: appColors.textSecondary),
+          Icon(AppIcons.branch, size: 12.0, color: appColors.textSecondary),
           const SizedBox(width: 3.0),
           Flexible(
             child: Text(
@@ -271,12 +267,12 @@ class _ComposerShelfState extends ConsumerState<ComposerShelf>
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.description_outlined, size: 13.0, color: appColors.textSecondary.withValues(alpha: 0.6)),
+          Icon(AppIcons.file, size: 13.0, color: appColors.textSecondary.withValues(alpha: 0.6)),
           const SizedBox(width: 5.0),
           Text(
             I18n.isGerman ? 'Keine Dateien angehängt' : 'No files attached',
-            style: AppTypography.uiControl.copyWith(
-              fontSize: 11.0,
+            style: AppTypography.label.copyWith(
+              fontSize: 10.5,
               color: appColors.textSecondary.withValues(alpha: 0.7),
             ),
           ),
@@ -291,7 +287,7 @@ class _ComposerShelfState extends ConsumerState<ComposerShelf>
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.inventory_2_outlined, size: 13.5, color: appColors.accent),
+        Icon(AppIcons.knowledge, size: 13.5, color: appColors.accent),
         const SizedBox(width: 5.0),
         Flexible(
           child: Text(
@@ -299,7 +295,7 @@ class _ComposerShelfState extends ConsumerState<ComposerShelf>
                 ? '${widget.attachedFiles.first.name} ($tokenStr tok)'
                 : '$count ${I18n.isGerman ? 'Dateien' : 'files'} ($tokenStr tok)',
             style: AppTypography.code.copyWith(
-              fontSize: 11.0,
+              fontSize: 10.5,
               color: appColors.textPrimary,
               fontWeight: FontWeight.w500,
             ),
@@ -320,7 +316,7 @@ class _ComposerShelfState extends ConsumerState<ComposerShelf>
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.bolt_rounded, size: 13.5, color: appColors.accent),
+        Icon(AppIcons.modeFast, size: 13.5, color: appColors.accent),
         const SizedBox(width: 5.0),
         Flexible(
           child: Text(
@@ -346,7 +342,7 @@ class _ComposerShelfState extends ConsumerState<ComposerShelf>
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.speed_rounded, size: 13.0, color: appColors.textSecondary),
+        Icon(AppIcons.speed, size: 13.0, color: appColors.textSecondary),
         const SizedBox(width: 5.0),
         Flexible(
           child: Text(
@@ -397,16 +393,16 @@ class ShelfToggleButton extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(12.0),
+          borderRadius: BorderRadius.circular(AppRadii.card),
           hoverColor: appColors.hover,
           child: Padding(
             padding: const EdgeInsets.all(4.0),
             child: AnimatedRotation(
               turns: isExpanded ? 0.5 : 0.0,
-              duration: const Duration(milliseconds: 240),
+              duration: AppMotion.base,
               curve: Curves.easeInOutCubic,
               child: Icon(
-                Icons.keyboard_arrow_up_rounded,
+                AppIcons.caretUp,
                 size: 16.0,
                 color: isExpanded ? appColors.accent : appColors.textSecondary,
               ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../../core/constants/app_icons.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/constants/app_tokens.dart';
 import '../../../core/services/localization_service.dart';
 
 class SearchBarView extends StatelessWidget {
@@ -25,24 +27,25 @@ class SearchBarView extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10.0),
       decoration: BoxDecoration(
         color: appColors.surface,
-        borderRadius: BorderRadius.circular(16.0),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
         border: Border.all(color: appColors.borderSubtle, width: 1.0),
       ),
       child: Row(
         children: [
-          Icon(Icons.search, size: 14.0, color: appColors.textSecondary),
+          Icon(AppIcons.search, size: 14.0, color: appColors.textSecondary),
           const SizedBox(width: 6.0),
           Expanded(
             child: TextField(
               controller: controller,
               onChanged: onChanged,
-              style: AppTypography.uiControl.copyWith(color: appColors.textPrimary, fontSize: 12.0),
+              style: AppTypography.small.copyWith(color: appColors.textPrimary, fontSize: 14.0, height: 1.2),
               decoration: InputDecoration(
                 hintText: I18n.searchChats,
-                hintStyle: AppTypography.uiControl.copyWith(
-                  color: appColors.textSecondary,
-                  fontSize: 12.0,
-                  fontWeight: FontWeight.w400,
+                hintStyle: AppTypography.small.copyWith(
+                  color: appColors.textSecondary.withValues(alpha: 0.8),
+                  fontSize: 14.0,
+                  height: 1.2,
+                  fontStyle: FontStyle.italic,
                 ),
                 border: InputBorder.none,
                 isDense: true,
@@ -54,7 +57,7 @@ class SearchBarView extends StatelessWidget {
             InkWell(
               onTap: onClear,
               borderRadius: BorderRadius.circular(8.0),
-              child: Icon(Icons.close, size: 14.0, color: appColors.textSecondary),
+              child: Icon(AppIcons.close, size: 14.0, color: appColors.textSecondary),
             ),
         ],
       ),

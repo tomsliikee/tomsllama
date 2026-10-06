@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tomsllama/core/constants/app_typography.dart';
 import 'package:tomsllama/core/theme/claude_theme.dart';
 import 'package:tomsllama/core/services/localization_service.dart';
 import 'package:tomsllama/features/chat/widgets/chat_viewport.dart';
@@ -32,10 +33,10 @@ void main() {
     final titleText = tester.widget<Text>(titleFinder);
     expect(titleText.style?.fontSize, 30.0);
 
-    // Verify subtitle with enlarged 17.0 font
+    // Verify subtitle uses the reading size of the type scale
     final subtitleFinder = find.text(I18n.subtitle);
     expect(subtitleFinder, findsOneWidget);
     final subtitleText = tester.widget<Text>(subtitleFinder);
-    expect(subtitleText.style?.fontSize, 17.0);
+    expect(subtitleText.style?.fontSize, AppTypography.body.fontSize);
   });
 }

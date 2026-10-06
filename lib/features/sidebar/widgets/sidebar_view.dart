@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import '../../../core/constants/app_icons.dart';
 import '../../../core/models/conversation.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/constants/app_tokens.dart';
+import '../../../core/widgets/pressable.dart';
 import '../../../core/services/localization_service.dart';
 import '../../../core/models/workspace.dart';
 import '../../workspace/controllers/workspace_hub_controller.dart';
@@ -117,7 +120,7 @@ class _SidebarViewState extends State<SidebarView> {
               padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
               decoration: BoxDecoration(
                 color: appColors.sidebar,
-                borderRadius: BorderRadius.circular(18.0),
+                borderRadius: BorderRadius.circular(AppRadii.panel),
                 border: Border.all(color: appColors.borderSubtle, width: 1.0),
               ),
               child: Column(
@@ -128,12 +131,7 @@ class _SidebarViewState extends State<SidebarView> {
                     padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
                     child: Text(
                       widget.mode == SidebarMode.chats ? I18n.history : I18n.workspaces.toUpperCase(),
-                      style: AppTypography.uiControl.copyWith(
-                        color: appColors.textSecondary,
-                        fontSize: 11.0,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
-                      ),
+                      style: AppTypography.micro.copyWith(color: appColors.textSecondary),
                     ),
                   ),
 
@@ -161,8 +159,8 @@ class _SidebarViewState extends State<SidebarView> {
 
     // Darker selected pill to cleanly contrast against the track in both light and dark mode
     final Color activeIndicatorColor = isDark
-        ? Color.alphaBlend(Colors.black.withValues(alpha: 0.55), appColors.surface)
-        : Color.alphaBlend(appColors.textPrimary.withValues(alpha: 0.12), appColors.surface);
+        ? Color.alphaBlend(Colors.black.withValues(alpha: 0.45), appColors.surface)
+        : Color.alphaBlend(appColors.textPrimary.withValues(alpha: 0.07), appColors.surface);
 
     final Color activeIndicatorBorder = isDark ? appColors.border : appColors.border;
 
@@ -171,7 +169,7 @@ class _SidebarViewState extends State<SidebarView> {
       padding: const EdgeInsets.all(2.5),
       decoration: BoxDecoration(
         color: appColors.surface,
-        borderRadius: BorderRadius.circular(16.0),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
         border: Border.all(color: appColors.borderSubtle, width: 1.0),
       ),
       child: LayoutBuilder(
@@ -180,8 +178,8 @@ class _SidebarViewState extends State<SidebarView> {
           return Stack(
             children: [
               AnimatedPositioned(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
+                duration: AppMotion.slow,
+                curve: AppMotion.standard,
                 left: isChats ? 0 : halfWidth,
                 top: 0,
                 bottom: 0,
@@ -189,7 +187,7 @@ class _SidebarViewState extends State<SidebarView> {
                 child: Container(
                   decoration: BoxDecoration(
                     color: activeIndicatorColor,
-                    borderRadius: BorderRadius.circular(13.0),
+                    borderRadius: BorderRadius.circular(AppRadii.pill),
                     border: Border.all(color: activeIndicatorBorder, width: 1.0),
                   ),
                 ),
@@ -199,14 +197,14 @@ class _SidebarViewState extends State<SidebarView> {
                   Expanded(
                     child: InkWell(
                       onTap: () => widget.onModeChanged?.call(SidebarMode.chats),
-                      borderRadius: BorderRadius.circular(13.0),
+                      borderRadius: BorderRadius.circular(AppRadii.pill),
                       child: Center(
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              Icons.chat_bubble_outline,
+                              AppIcons.chats,
                               size: 13.0,
                               color: isChats ? appColors.textPrimary : appColors.textSecondary,
                             ),
@@ -216,10 +214,10 @@ class _SidebarViewState extends State<SidebarView> {
                                 I18n.chats,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: AppTypography.uiControl.copyWith(
+                                style: AppTypography.label.copyWith(
                                   color: isChats ? appColors.textPrimary : appColors.textSecondary,
                                   fontSize: 11.5,
-                                  fontWeight: isChats ? FontWeight.w600 : FontWeight.w400,
+                                  fontWeight: isChats ? FontWeight.w500 : FontWeight.w400,
                                 ),
                               ),
                             ),
@@ -231,14 +229,14 @@ class _SidebarViewState extends State<SidebarView> {
                   Expanded(
                     child: InkWell(
                       onTap: () => widget.onModeChanged?.call(SidebarMode.workspaces),
-                      borderRadius: BorderRadius.circular(13.0),
+                      borderRadius: BorderRadius.circular(AppRadii.pill),
                       child: Center(
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              Icons.folder_outlined,
+                              AppIcons.folder,
                               size: 13.0,
                               color: !isChats ? appColors.textPrimary : appColors.textSecondary,
                             ),
@@ -248,10 +246,10 @@ class _SidebarViewState extends State<SidebarView> {
                                 I18n.workspaces,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: AppTypography.uiControl.copyWith(
+                                style: AppTypography.label.copyWith(
                                   color: !isChats ? appColors.textPrimary : appColors.textSecondary,
                                   fontSize: 11.5,
-                                  fontWeight: !isChats ? FontWeight.w600 : FontWeight.w400,
+                                  fontWeight: !isChats ? FontWeight.w500 : FontWeight.w400,
                                 ),
                               ),
                             ),
@@ -275,7 +273,7 @@ class _SidebarViewState extends State<SidebarView> {
         padding: const EdgeInsets.all(12.0),
         child: Text(
           I18n.noChats,
-          style: AppTypography.uiControl.copyWith(
+          style: AppTypography.label.copyWith(
             color: appColors.textSecondary,
             fontSize: 12.0,
           ),
@@ -297,14 +295,8 @@ class _SidebarViewState extends State<SidebarView> {
             index: index,
             child: Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10.0),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.18),
-                    blurRadius: 14.0,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                borderRadius: BorderRadius.circular(AppRadii.control),
+                boxShadow: AppElevation.floating(Theme.of(context).brightness),
               ),
               child: child,
             ),
@@ -341,7 +333,7 @@ class _SidebarViewState extends State<SidebarView> {
         padding: const EdgeInsets.all(12.0),
         child: Text(
           I18n.noWorkspaces,
-          style: AppTypography.uiControl.copyWith(
+          style: AppTypography.label.copyWith(
             color: appColors.textSecondary,
             fontSize: 12.0,
           ),
@@ -363,14 +355,8 @@ class _SidebarViewState extends State<SidebarView> {
             index: index,
             child: Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10.0),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.18),
-                    blurRadius: 14.0,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                borderRadius: BorderRadius.circular(AppRadii.control),
+                boxShadow: AppElevation.floating(Theme.of(context).brightness),
               ),
               child: child,
             ),
@@ -406,10 +392,10 @@ class _LogoFloatingPill extends StatelessWidget {
     final appColors = context.appColors;
 
     return Container(
-      padding: const EdgeInsets.all(8.5),
+      padding: const EdgeInsets.all(8.0),
       decoration: BoxDecoration(
         color: appColors.surface,
-        borderRadius: BorderRadius.circular(16.0),
+        borderRadius: BorderRadius.circular(AppRadii.card),
         border: Border.all(color: appColors.borderSubtle, width: 1.0),
       ),
       child: const TomsllamaLogo(size: 24.0, animate: false),
@@ -417,7 +403,7 @@ class _LogoFloatingPill extends StatelessWidget {
   }
 }
 
-class _NewActionButton extends StatefulWidget {
+class _NewActionButton extends StatelessWidget {
   final SidebarMode mode;
   final VoidCallback onTap;
 
@@ -427,69 +413,47 @@ class _NewActionButton extends StatefulWidget {
   });
 
   @override
-  State<_NewActionButton> createState() => _NewActionButtonState();
-}
-
-class _NewActionButtonState extends State<_NewActionButton> {
-  bool _isHovered = false;
-  bool _isPressed = false;
-
-  @override
   Widget build(BuildContext context) {
     final appColors = context.appColors;
-    final isChats = widget.mode == SidebarMode.chats;
+    final isChats = mode == SidebarMode.chats;
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTapDown: (_) => setState(() => _isPressed = true),
-        onTapUp: (_) => setState(() => _isPressed = false),
-        onTapCancel: () => setState(() => _isPressed = false),
-        onTap: widget.onTap,
-        child: AnimatedScale(
-          scale: _isPressed ? 0.96 : 1.0,
-          duration: const Duration(milliseconds: 100),
-          curve: const Cubic(0.34, 1.56, 0.64, 1),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 9.0),
-            decoration: BoxDecoration(
-              color: appColors.surface,
-              border: Border.all(
-                color: _isHovered ? appColors.accent : appColors.borderSubtle,
-                width: 1.0,
-              ),
-              borderRadius: BorderRadius.circular(16.0),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Flexible(
-                  child: Text(
-                    isChats ? I18n.newChat : I18n.newWorkspace,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.uiControl.copyWith(
-                      color: _isHovered ? appColors.accent : appColors.textPrimary,
-                      fontSize: 13.0,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                if (isChats) ...[
-                  const SizedBox(width: 6.0),
-                  Text(
-                    I18n.ctrlN,
-                    style: AppTypography.code.copyWith(
-                      color: appColors.textSecondary,
-                      fontSize: 10.5,
-                    ),
-                  ),
-                ],
-              ],
-            ),
+    return Pressable(
+      onTap: onTap,
+      builder: (context, isHovered, _) => AnimatedContainer(
+        duration: AppMotion.fast,
+        curve: AppMotion.standard,
+        height: 42.0,
+        padding: const EdgeInsets.symmetric(horizontal: 12.0),
+        decoration: BoxDecoration(
+          color: isHovered ? appColors.accentSubtle : appColors.surface,
+          border: Border.all(
+            color: isHovered ? appColors.accent.withValues(alpha: 0.35) : appColors.borderSubtle,
+            width: 1.0,
           ),
+          borderRadius: BorderRadius.circular(AppRadii.card),
+        ),
+        child: Row(
+          children: [
+            Icon(AppIcons.add, size: 14.0, color: isHovered ? appColors.accent : appColors.textSecondary),
+            const SizedBox(width: 8.0),
+            Expanded(
+              child: Text(
+                (isChats ? I18n.newChat : I18n.newWorkspace).replaceFirst(RegExp(r'^\+\s*'), ''),
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.small.copyWith(
+                  color: isHovered ? appColors.accent : appColors.textPrimary,
+                  height: 1.2,
+                ),
+              ),
+            ),
+            if (isChats)
+              Text(
+                I18n.ctrlN,
+                style: AppTypography.telemetry.copyWith(
+                  color: appColors.textSecondary.withValues(alpha: 0.7),
+                ),
+              ),
+          ],
         ),
       ),
     );

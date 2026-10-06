@@ -25,7 +25,7 @@ class MarkdownView extends StatelessWidget {
         ? AppTypography.code.copyWith(
             color: appColors.textSecondary,
             fontSize: 12.0,
-            height: 1.6,
+            height: 1.65,
           )
         : AppTypography.body.copyWith(
             color: appColors.textPrimary,
@@ -38,26 +38,44 @@ class MarkdownView extends StatelessWidget {
       selectable: true,
       styleSheet: MarkdownStyleSheet(
         p: baseTextStyle,
-        strong: AppTypography.bodyItalic.copyWith(
-          color: appColors.textPrimary,
-          fontFamily: AppTypography.serifFamily,
-          fontStyle: FontStyle.italic,
-          fontWeight: FontWeight.w600,
-          fontSize: isThinkBlock ? 12.0 : 16.5,
+        pPadding: EdgeInsets.zero,
+        blockSpacing: isThinkBlock ? 8.0 : 12.0,
+        // Emphasis by weight for strong and by slant for em, never both.
+        strong: baseTextStyle.copyWith(fontWeight: FontWeight.w600),
+        em: baseTextStyle.copyWith(fontStyle: FontStyle.italic),
+        a: baseTextStyle.copyWith(
+          color: appColors.accent,
+          decoration: TextDecoration.underline,
+          decorationColor: appColors.accent.withValues(alpha: 0.4),
         ),
-        em: AppTypography.bodyItalic.copyWith(
-          color: appColors.textPrimary,
-          fontFamily: AppTypography.serifFamily,
-          fontStyle: FontStyle.italic,
-          fontSize: isThinkBlock ? 12.0 : 16.5,
+        h1: AppTypography.title.copyWith(color: appColors.textPrimary, fontSize: 22.0),
+        h1Padding: const EdgeInsets.only(top: 6.0),
+        h2: AppTypography.title.copyWith(color: appColors.textPrimary),
+        h2Padding: const EdgeInsets.only(top: 6.0),
+        h3: AppTypography.body.copyWith(color: appColors.textPrimary, fontWeight: FontWeight.w600, height: 1.4),
+        h3Padding: const EdgeInsets.only(top: 4.0),
+        listBullet: baseTextStyle.copyWith(color: appColors.textSecondary),
+        listIndent: 22.0,
+        listBulletPadding: const EdgeInsets.only(right: 6.0),
+        blockquote: baseTextStyle.copyWith(color: appColors.textSecondary, fontStyle: FontStyle.italic),
+        blockquotePadding: const EdgeInsets.only(left: 14.0, top: 2.0, bottom: 2.0),
+        blockquoteDecoration: BoxDecoration(
+          border: Border(left: BorderSide(color: appColors.border, width: 2.0)),
         ),
-        h1: AppTypography.headline.copyWith(color: appColors.textPrimary, fontSize: 24),
-        h2: AppTypography.headline.copyWith(fontSize: 20, color: appColors.textPrimary),
-        h3: AppTypography.headline.copyWith(fontSize: 17, color: appColors.textPrimary),
+        horizontalRuleDecoration: BoxDecoration(
+          border: Border(top: BorderSide(color: appColors.border, width: 1.0)),
+        ),
+        tableHead: AppTypography.label.copyWith(color: appColors.textSecondary, fontWeight: FontWeight.w500),
+        tableBody: baseTextStyle.copyWith(fontSize: isThinkBlock ? 12.0 : 15.0, height: 1.4),
+        tableBorder: TableBorder(
+          horizontalInside: BorderSide(color: appColors.borderSubtle, width: 1.0),
+          bottom: BorderSide(color: appColors.borderSubtle, width: 1.0),
+        ),
+        tableCellsPadding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
         code: AppTypography.code.copyWith(
           backgroundColor: appColors.codeBackground,
           color: appColors.textPrimary,
-          fontSize: 13.0,
+          fontSize: isThinkBlock ? 11.5 : 13.5,
         ),
         codeblockDecoration: const BoxDecoration(
           color: Colors.transparent,
@@ -138,7 +156,7 @@ class LatexBlockBuilder extends MarkdownElementBuilder {
       child: Center(
         child: Math.tex(
           element.textContent,
-          textStyle: const TextStyle(fontSize: 15),
+          textStyle: const TextStyle(fontSize: 15.0),
         ),
       ),
     );
@@ -150,7 +168,7 @@ class LatexInlineBuilder extends MarkdownElementBuilder {
   Widget visitElementAfter(md.Element element, TextStyle? preferredStyle) {
     return Math.tex(
       element.textContent,
-      textStyle: const TextStyle(fontSize: 15),
+      textStyle: const TextStyle(fontSize: 15.0),
     );
   }
 }

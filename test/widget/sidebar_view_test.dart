@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tomsllama/core/constants/app_icons.dart';
 import 'package:tomsllama/core/theme/claude_theme.dart';
 import 'package:tomsllama/core/models/conversation.dart';
 import 'package:tomsllama/core/services/localization_service.dart';
@@ -37,7 +38,7 @@ void main() {
 
     // Verify history section header and new chat button
     expect(find.text(I18n.history), findsOneWidget);
-    expect(find.text(I18n.newChat), findsOneWidget);
+    expect(find.text(I18n.newChatTitle), findsOneWidget);
     expect(find.text(I18n.ctrlN), findsOneWidget);
 
     // Verify chat items
@@ -50,7 +51,7 @@ void main() {
     expect(selectedId, '2');
 
     // Test new chat
-    await tester.tap(find.text(I18n.newChat));
+    await tester.tap(find.text(I18n.newChatTitle));
     await tester.pumpAndSettle();
     expect(newChatClicked, isTrue);
   });
@@ -80,10 +81,10 @@ void main() {
     );
 
     // Pinned chat should have push pin icon visible
-    expect(find.byIcon(Icons.push_pin_rounded), findsOneWidget);
+    expect(find.byIcon(AppIcons.pinned), findsOneWidget);
 
     // Tap pin icon
-    await tester.tap(find.byIcon(Icons.push_pin_rounded));
+    await tester.tap(find.byIcon(AppIcons.pinned));
     await tester.pumpAndSettle();
     expect(pinnedToggledId, '1');
   });

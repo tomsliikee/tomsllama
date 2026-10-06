@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/constants/app_tokens.dart';
 import 'package:flutter/rendering.dart';
 import '../../../core/models/message.dart';
 import '../../../core/theme/app_theme.dart';
@@ -72,8 +73,8 @@ class _ChatViewportState extends State<ChatViewport> {
     if (animate) {
       _scrollController.animateTo(
         target,
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOutCubic,
+        duration: AppMotion.base,
+        curve: AppMotion.standard,
       );
     } else {
       _scrollController.jumpTo(target);
@@ -101,22 +102,18 @@ class _ChatViewportState extends State<ChatViewport> {
               animate: true,
               enableIdleAnimation: true,
             ),
-            const SizedBox(height: 22.0),
+            const SizedBox(height: 20.0),
             Text(
               'tomsllama',
-              style: AppTypography.headline.copyWith(
-                color: appColors.textPrimary,
-                fontSize: 30.0,
-                letterSpacing: -0.4,
-              ),
+              style: AppTypography.display.copyWith(color: appColors.textPrimary),
             ),
-            const SizedBox(height: 8.0),
+            const SizedBox(height: 6.0),
             Text(
               I18n.subtitle,
-              style: AppTypography.uiControl.copyWith(
+              style: AppTypography.body.copyWith(
                 color: appColors.textSecondary,
-                fontSize: 17.0,
-                fontWeight: FontWeight.w400,
+                fontStyle: FontStyle.italic,
+                height: 1.3,
               ),
             ),
             if (widget.errorMessage != null) ...[
@@ -183,7 +180,7 @@ class _ErrorNotice extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 7.0),
       decoration: BoxDecoration(
         color: appColors.background,
-        borderRadius: BorderRadius.circular(12.0),
+        borderRadius: BorderRadius.circular(AppRadii.card),
         border: Border.all(color: appColors.border, width: 1.0),
       ),
       child: Row(
@@ -194,7 +191,7 @@ class _ErrorNotice extends StatelessWidget {
               message,
               style: AppTypography.code.copyWith(
                 color: appColors.textSecondary,
-                fontSize: 11.5,
+                fontSize: 12.0,
               ),
             ),
           ),
@@ -202,12 +199,12 @@ class _ErrorNotice extends StatelessWidget {
             const SizedBox(width: 12.0),
             InkWell(
               onTap: onRetry,
-              borderRadius: BorderRadius.circular(6.0),
+              borderRadius: BorderRadius.circular(AppRadii.control),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
                 child: Text(
                   I18n.retry,
-                  style: AppTypography.uiControl.copyWith(
+                  style: AppTypography.label.copyWith(
                     color: appColors.accent,
                     fontSize: 12.0,
                   ),

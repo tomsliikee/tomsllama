@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../../../core/constants/app_icons.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/localization_service.dart';
 
@@ -147,8 +148,8 @@ class CuteSendButtonState extends State<CuteSendButton> with SingleTickerProvide
                       opacity: (1.0 - (morphProgress * 2.5)).clamp(0.0, 1.0),
                       child: Icon(
                         widget.isGenerating
-                            ? Icons.stop_rounded
-                            : Icons.arrow_upward_rounded,
+                            ? AppIcons.stop
+                            : AppIcons.send,
                         size: 17.0,
                         color: iconColor,
                       ),
@@ -393,7 +394,7 @@ class _CloudMorphPainter extends CustomPainter {
     if (sparkleScale <= 0.05) return;
 
     final Offset s1 = Offset(center.dx - 22.0, center.dy - 6.0);
-    _draw4PointStar(canvas, s1, 3.4 * sparkleScale, isDark ? Colors.amberAccent : Colors.amber.shade700);
+    _draw4PointStar(canvas, s1, 3.4 * sparkleScale, accentColor);
 
     final Offset s2 = Offset(center.dx + 20.0, center.dy - 8.0);
     _draw4PointStar(canvas, s2, 3.0 * sparkleScale, accentColor);
@@ -424,7 +425,7 @@ class _CloudMorphPainter extends CustomPainter {
     if (starScale <= 0.05) return;
 
     final Offset p1 = Offset(center.dx + 21.0, center.dy - 5.0);
-    _draw4PointStar(canvas, p1, 2.8 * starScale, isDark ? Colors.amberAccent : Colors.amber.shade700);
+    _draw4PointStar(canvas, p1, 2.8 * starScale, accentColor);
 
     final Offset p2 = Offset(center.dx - 20.0, center.dy - 4.0);
     _draw4PointStar(canvas, p2, 2.2 * starScale, accentColor);

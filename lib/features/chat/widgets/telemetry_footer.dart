@@ -46,7 +46,7 @@ class _TelemetryFooterState extends State<TelemetryFooter> {
     final metricsText = '${widget.modelName} · $tokensPerSec tok/s · ${widget.tokens} tokens · ${durationSecs.toStringAsFixed(1)}s';
     
     return Padding(
-      padding: const EdgeInsets.only(top: 12.0),
+      padding: const EdgeInsets.only(top: 14.0),
       child: Wrap(
         spacing: 8.0,
         runSpacing: 6.0,
@@ -55,12 +55,13 @@ class _TelemetryFooterState extends State<TelemetryFooter> {
           Text(
             metricsText,
             style: AppTypography.telemetry.copyWith(
-              color: appColors.textSecondary.withValues(alpha: 0.6),
+              color: appColors.textSecondary.withValues(alpha: 0.75),
+              fontSize: 11.0,
             ),
           ),
           Text(
             '·',
-            style: TextStyle(color: appColors.textSecondary.withValues(alpha: 0.6)),
+            style: AppTypography.telemetry.copyWith(color: appColors.textSecondary.withValues(alpha: 0.5), fontSize: 11.0),
           ),
           _ActionLink(
             label: I18n.regenerate,
@@ -69,13 +70,13 @@ class _TelemetryFooterState extends State<TelemetryFooter> {
           ),
           Text(
             '·',
-            style: TextStyle(color: appColors.textSecondary.withValues(alpha: 0.6)),
+            style: AppTypography.telemetry.copyWith(color: appColors.textSecondary.withValues(alpha: 0.5), fontSize: 11.0),
           ),
           _ActionLink(
             label: _copied ? I18n.copied : I18n.copyMd,
             onTap: _copyContent,
             appColors: appColors,
-            colorOverride: _copied ? Colors.green : null,
+            colorOverride: _copied ? appColors.accent : null,
           ),
         ],
       ),
@@ -116,9 +117,11 @@ class _ActionLinkState extends State<_ActionLink> {
         onTap: widget.onTap,
         child: Text(
           widget.label,
-          style: AppTypography.uiControl.copyWith(
+          style: AppTypography.telemetry.copyWith(
             color: _isHovered ? hoverColor : defaultColor,
-            fontSize: 12.0,
+            fontSize: 11.0,
+            decoration: _isHovered ? TextDecoration.underline : TextDecoration.none,
+            decorationColor: hoverColor.withValues(alpha: 0.5),
           ),
         ),
       ),

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../../core/constants/app_tokens.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../core/services/localization_service.dart';
@@ -84,7 +85,7 @@ class _ClaudeThinkingIndicatorState extends State<ClaudeThinkingIndicator> {
       padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
       decoration: BoxDecoration(
         color: appColors.background,
-        borderRadius: BorderRadius.circular(16.0),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
         border: Border.all(
           color: appColors.borderSubtle,
           width: 1.0,
@@ -93,16 +94,16 @@ class _ClaudeThinkingIndicatorState extends State<ClaudeThinkingIndicator> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const TomsllamaLogo(size: 13.0, animate: true),
+          const TomsllamaLogo(size: 13.0, breathing: true),
           const SizedBox(width: 7.0),
           AnimatedSwitcher(
-            duration: const Duration(milliseconds: 250),
+            duration: AppMotion.base,
             transitionBuilder: (child, animation) {
               return SlideTransition(
                 position: Tween<Offset>(
                   begin: const Offset(0.0, 0.2),
                   end: Offset.zero,
-                ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+                ).animate(CurvedAnimation(parent: animation, curve: AppMotion.standard)),
                 child: FadeTransition(opacity: animation, child: child),
               );
             },
@@ -111,7 +112,7 @@ class _ClaudeThinkingIndicatorState extends State<ClaudeThinkingIndicator> {
               key: ValueKey<String>(activeText),
               style: AppTypography.code.copyWith(
                 color: appColors.textSecondary,
-                fontSize: 11.5,
+                fontSize: 12.0,
                 fontWeight: FontWeight.w500,
               ),
             ),

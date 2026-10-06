@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import '../../../core/constants/app_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/constants/app_tokens.dart';
+import '../../../core/widgets/app_pill.dart';
 import '../../../core/services/localization_service.dart';
+import '../../chat/controllers/chat_controller.dart';
 import 'tomsllama_logo.dart';
 
 class CsdHeaderBar extends ConsumerStatefulWidget {
@@ -31,6 +35,7 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
   Widget build(BuildContext context) {
     final appColors = context.appColors;
     final currentTheme = ref.watch(themeProvider);
+    final isGenerating = ref.watch(chatProvider.select((s) => s.generatingConversationIds.isNotEmpty));
 
     if (widget.isZenMode) return const SizedBox.shrink();
 
@@ -52,14 +57,15 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
               padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
               child: Row(
                 children: [
-                  const TomsllamaLogo(size: 20.0),
+                  TomsllamaLogo(size: 20.0, breathing: isGenerating),
                   const SizedBox(width: 8.0),
                   Text(
                     'tomsllama',
-                    style: AppTypography.uiControl.copyWith(
+                    style: AppTypography.small.copyWith(
                       color: appColors.textPrimary,
                       fontWeight: FontWeight.w600,
-                      fontSize: 14.0,
+                      fontSize: 16.5,
+                      height: 1.0,
                       letterSpacing: -0.2,
                     ),
                   ),
@@ -71,11 +77,13 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
           const SizedBox(width: 6.0),
 
           // Sidebar Toggle Button next to tomsllama
-          _SidebarToggleButton(
+          AppIconButton(
             key: const Key('sidebar_toggle_button'),
-            isOpen: widget.isSidebarOpen,
+            icon: AppIcons.sidebar,
+            tooltip: I18n.toggleSidebar,
+            color: widget.isSidebarOpen ? appColors.textSecondary : appColors.accent,
+            hoverColor: appColors.accent,
             onTap: widget.onToggleSidebar,
-            appColors: appColors,
           ),
           
           // Drag Window Area (Left)
@@ -99,24 +107,27 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Tooltip(
-                message: I18n.settingsTooltip,
-                waitDuration: const Duration(milliseconds: 300),
-                child: _buildWinBtn(
-                  key: const Key('settings_button'),
-                  icon: Icons.tune,
-                  onTap: widget.onOpenSettings,
-                  appColors: appColors,
-                ),
+              AppIconButton(
+                key: const Key('settings_button'),
+                icon: AppIcons.settings,
+                tooltip: I18n.settingsTooltip,
+                onTap: widget.onOpenSettings,
               ),
-              const SizedBox(width: 6.0),
-              _buildWinBtn(
-                icon: Icons.remove,
+              // A hairline keeps app actions apart from window controls
+              Container(
+                width: 1.0,
+                height: 14.0,
+                margin: const EdgeInsets.symmetric(horizontal: 8.0),
+                color: appColors.border,
+              ),
+              AppIconButton(
+                icon: AppIcons.windowMinimize,
+                size: 14.0,
                 onTap: () => windowManager.minimize(),
-                appColors: appColors,
               ),
-              _buildWinBtn(
-                icon: Icons.crop_square,
+              AppIconButton(
+                icon: AppIcons.windowMaximize,
+                size: 13.0,
                 onTap: () async {
                   if (await windowManager.isMaximized()) {
                     windowManager.unmaximize();
@@ -124,13 +135,12 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
                     windowManager.maximize();
                   }
                 },
-                appColors: appColors,
               ),
-              _buildWinBtn(
-                icon: Icons.close,
+              AppIconButton(
+                icon: AppIcons.close,
+                size: 14.0,
+                hoverColor: appColors.accent,
                 onTap: () => windowManager.close(),
-                appColors: appColors,
-                isClose: true,
               ),
             ],
           ),
@@ -145,7 +155,7 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
     AppThemeType currentTheme,
     AppThemeExtension appColors,
   ) {
-    const double tabWidth = 72.0;
+    const double tabWidth = 76.0;
     final int activeIndex = switch (currentTheme) {
       AppThemeType.claude => 0,
       AppThemeType.pond => 1,
@@ -154,35 +164,35 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
     };
 
     return Container(
-      width: tabWidth * 4 + 12.0,
-      height: 32.0,
-      padding: const EdgeInsets.all(2.5),
+      width: tabWidth * 4 + 8.0,
+      height: 30.0,
+      padding: const EdgeInsets.all(3.0),
       decoration: BoxDecoration(
         color: appColors.surface,
         border: Border.all(color: appColors.borderSubtle),
-        borderRadius: BorderRadius.circular(18.0),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
       ),
       child: Stack(
         children: [
           // Animated sliding background pill
           AnimatedPositioned(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            left: activeIndex * tabWidth + 1.0,
+            duration: AppMotion.slow,
+            curve: AppMotion.standard,
+            left: activeIndex * tabWidth,
             top: 0,
             bottom: 0,
             width: tabWidth,
             child: Container(
               decoration: BoxDecoration(
                 color: appColors.accentSubtle,
-                borderRadius: BorderRadius.circular(15.0),
+                borderRadius: BorderRadius.circular(AppRadii.pill),
                 border: Border.all(color: appColors.accent.withValues(alpha: 0.25)),
               ),
             ),
           ),
           // Clickable labels
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 1.0),
+            padding: EdgeInsets.zero,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -231,102 +241,21 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
   }) {
     return SizedBox(
       width: width,
-      height: 27.0,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(15.0),
-        child: Center(
-          child: Text(
-            label,
-            style: AppTypography.uiControl.copyWith(
-              color: isActive ? appColors.accent : appColors.textSecondary,
-              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-              fontSize: 12.0,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildWinBtn({
-    Key? key,
-    required IconData icon,
-    required VoidCallback onTap,
-    required AppThemeExtension appColors,
-    bool isClose = false,
-  }) {
-    return InkWell(
-      key: key,
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(3.0),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 4.0),
-        child: Icon(
-          icon,
-          size: 14.0,
-          color: isClose ? appColors.textSecondary : appColors.textSecondary,
-        ),
-      ),
-    );
-  }
-}
-
-class _SidebarToggleButton extends StatefulWidget {
-  final bool isOpen;
-  final VoidCallback onTap;
-  final AppThemeExtension appColors;
-
-  const _SidebarToggleButton({
-    super.key,
-    required this.isOpen,
-    required this.onTap,
-    required this.appColors,
-  });
-
-  @override
-  State<_SidebarToggleButton> createState() => _SidebarToggleButtonState();
-}
-
-class _SidebarToggleButtonState extends State<_SidebarToggleButton> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = widget.appColors;
-    return Tooltip(
-      message: I18n.toggleSidebar,
-      waitDuration: const Duration(milliseconds: 300),
+      height: 22.0,
       child: MouseRegion(
-        onEnter: (_) => setState(() => _isHovered = true),
-        onExit: (_) => setState(() => _isHovered = false),
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
-          onTap: widget.onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            width: 28.0,
-            height: 28.0,
-            decoration: BoxDecoration(
-              color: _isHovered
-                  ? colors.accentSubtle
-                  : colors.surface.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(6.0),
-              border: Border.all(
-                color: _isHovered
-                    ? colors.accent.withValues(alpha: 0.3)
-                    : colors.borderSubtle,
-                width: 1.0,
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: Center(
+            child: AnimatedDefaultTextStyle(
+              duration: AppMotion.base,
+              style: AppTypography.label.copyWith(
+                color: isActive ? appColors.accent : appColors.textSecondary,
+                fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
+                fontSize: 11.0,
               ),
-            ),
-            child: Center(
-              child: Icon(
-                Icons.view_sidebar_outlined,
-                size: 15.0,
-                color: _isHovered
-                    ? colors.accent
-                    : (widget.isOpen ? colors.textSecondary : colors.accent),
-              ),
+              child: Text(label),
             ),
           ),
         ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/constants/app_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,7 @@ import '../../../core/models/workspace_info.dart';
 import '../../../core/models/attached_file.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/constants/app_tokens.dart';
 import '../../../core/services/localization_service.dart';
 import '../../../core/services/hardware_calibration_service.dart';
 import '../../../core/services/settings_service.dart';
@@ -357,7 +359,6 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
   @override
   Widget build(BuildContext context) {
     final appColors = context.appColors;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final workspaceState = ref.watch(workspaceProvider);
     final canSend = _hasText || workspaceState.attachedFiles.isNotEmpty;
     final activeModel = widget.selectedModel ?? widget.modelName;
@@ -381,39 +382,20 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
               ),
 
               Container(
-                padding: const EdgeInsets.all(12.0),
+                padding: const EdgeInsets.fromLTRB(16.0, 14.0, 12.0, 12.0),
                 decoration: BoxDecoration(
                   color: appColors.surface, // #FFFFFF in Claude and Pond
                   borderRadius: _isShelfExpanded
-                      ? const BorderRadius.vertical(bottom: Radius.circular(20.0))
-                      : BorderRadius.circular(20.0),
+                      ? const BorderRadius.vertical(bottom: Radius.circular(AppRadii.panel))
+                      : BorderRadius.circular(AppRadii.panel),
+                  // Focus is one accent hairline. No glow: the composer already
+                  // stands out as the only floating surface on the page.
                   border: Border.all(
-                    color: _isFocused ? appColors.accent : appColors.borderSubtle,
+                    color: _isFocused ? appColors.accent.withValues(alpha: 0.7) : appColors.border,
                     width: 1.0,
                   ),
-                boxShadow: [
-                  BoxShadow(
-                    color: isDark
-                        ? Colors.black.withValues(alpha: 0.35)
-                        : Colors.black.withValues(alpha: 0.06),
-                    blurRadius: isDark ? 16.0 : 12.0,
-                    offset: const Offset(0, 4),
-                  ),
-                  BoxShadow(
-                    color: isDark
-                        ? Colors.black.withValues(alpha: 0.20)
-                        : Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 4.0,
-                    offset: const Offset(0, 1),
-                  ),
-                  if (_isFocused)
-                    BoxShadow(
-                      color: appColors.accentSubtle,
-                      spreadRadius: 2.0,
-                      blurRadius: 0.0,
-                    ),
-                ],
-              ),
+                  boxShadow: AppElevation.floating(Theme.of(context).brightness),
+                ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -476,15 +458,9 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
                       margin: const EdgeInsets.only(bottom: 8.0),
                       decoration: BoxDecoration(
                         color: appColors.surface,
-                        borderRadius: BorderRadius.circular(12.0),
+                        borderRadius: BorderRadius.circular(AppRadii.card),
                         border: Border.all(color: appColors.borderSubtle, width: 1.0),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: isDark ? 0.30 : 0.06),
-                            blurRadius: 10.0,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+                        boxShadow: AppElevation.floating(Theme.of(context).brightness),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -494,14 +470,14 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
                             padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
                             child: Row(
                               children: [
-                                Icon(Icons.alternate_email_rounded, size: 12.0, color: appColors.accent),
+                                Icon(AppIcons.mention, size: 12.0, color: appColors.accent),
                                 const SizedBox(width: 5.0),
                                 Text(
                                   workspaceState.workspace != null
                                       ? 'Workspace: ${workspaceState.workspace!.name}'
                                       : I18n.workspaceFilesPrefix,
-                                  style: AppTypography.uiControl.copyWith(
-                                    fontSize: 11.0,
+                                  style: AppTypography.label.copyWith(
+                                    fontSize: 10.5,
                                     fontWeight: FontWeight.w600,
                                     color: appColors.textSecondary,
                                   ),
@@ -510,7 +486,7 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
                                 Text(
                                   I18n.atMentionNavigationHint,
                                   style: AppTypography.code.copyWith(
-                                    fontSize: 9.5,
+                                    fontSize: 10.5,
                                     color: appColors.textSecondary.withValues(alpha: 0.5),
                                   ),
                                 ),
@@ -529,14 +505,14 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
                                 final isSelected = idx == _atSelectedIndex;
                                 return InkWell(
                                   onTap: () => _selectAtMatch(match),
-                                  borderRadius: BorderRadius.circular(6.0),
+                                  borderRadius: BorderRadius.circular(AppRadii.control),
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
                                     color: isSelected ? appColors.accentSubtle : Colors.transparent,
                                     child: Row(
                                       children: [
                                         Icon(
-                                          Icons.description_outlined,
+                                          AppIcons.file,
                                           size: 13.0,
                                           color: isSelected ? appColors.accent : appColors.textSecondary,
                                         ),
@@ -576,9 +552,8 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
                           maxLines: 12,
                           minLines: 2,
                           textInputAction: TextInputAction.newline,
-                          style: AppTypography.uiControl.copyWith(
+                          style: AppTypography.body.copyWith(
                             color: appColors.textPrimary,
-                            fontSize: 15.0,
                             height: 1.5,
                           ),
                           decoration: InputDecoration(
@@ -586,9 +561,10 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
                               activeModel ??
                                   (widget.models.isNotEmpty ? widget.models.first.name : 'qwen2.5:3b'),
                             ),
-                            hintStyle: AppTypography.uiControl.copyWith(
-                              color: appColors.textSecondary.withValues(alpha: 0.6),
-                              fontSize: 14.0,
+                            hintStyle: AppTypography.body.copyWith(
+                              color: appColors.textSecondary.withValues(alpha: 0.7),
+                              fontStyle: FontStyle.italic,
+                              height: 1.5,
                             ),
                             border: InputBorder.none,
                             isDense: true,
@@ -683,7 +659,7 @@ class _WorkspacePill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
       decoration: BoxDecoration(
         color: appColors.hover,
-        borderRadius: BorderRadius.circular(14.0),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
         border: Border.all(
           color: appColors.accent.withValues(alpha: 0.4),
           width: 1.0,
@@ -692,12 +668,12 @@ class _WorkspacePill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.folder_outlined, size: 13.5, color: appColors.accent),
+          Icon(AppIcons.folder, size: 13.5, color: appColors.accent),
           const SizedBox(width: 5.0),
           Text(
             workspace.name,
-            style: AppTypography.uiControl.copyWith(
-              fontSize: 11.5,
+            style: AppTypography.label.copyWith(
+              fontSize: 12.0,
               fontWeight: FontWeight.w600,
               color: appColors.textPrimary,
             ),
@@ -710,12 +686,12 @@ class _WorkspacePill extends StatelessWidget {
               color: appColors.borderSubtle,
             ),
             const SizedBox(width: 6.0),
-            Icon(Icons.call_split_rounded, size: 12.5, color: appColors.textSecondary),
+            Icon(AppIcons.branch, size: 12.5, color: appColors.textSecondary),
             const SizedBox(width: 3.0),
             Text(
               workspace.gitBranch!,
               style: AppTypography.code.copyWith(
-                fontSize: 11.0,
+                fontSize: 10.5,
                 fontWeight: FontWeight.w500,
                 color: appColors.accent,
               ),
@@ -724,10 +700,10 @@ class _WorkspacePill extends StatelessWidget {
           const SizedBox(width: 5.0),
           InkWell(
             onTap: onRemove,
-            borderRadius: BorderRadius.circular(8.0),
+            borderRadius: BorderRadius.circular(AppRadii.control),
             child: Padding(
               padding: const EdgeInsets.all(2.0),
-              child: Icon(Icons.close_rounded, size: 12.0, color: appColors.textSecondary),
+              child: Icon(AppIcons.close, size: 12.0, color: appColors.textSecondary),
             ),
           ),
         ],
@@ -755,7 +731,7 @@ class _AttachedFilePill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
       decoration: BoxDecoration(
         color: appColors.hover,
-        borderRadius: BorderRadius.circular(14.0),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
         border: Border.all(
           color: appColors.borderSubtle,
           width: 1.0,
@@ -765,10 +741,10 @@ class _AttachedFilePill extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            file.extension == '.pdf' ? Icons.picture_as_pdf_outlined : Icons.description_outlined,
+            file.extension == '.pdf' ? AppIcons.pdf : AppIcons.file,
             size: 13.0,
             color: file.extension == '.pdf'
-                ? Colors.redAccent.shade200
+                ? appColors.accent
                 : appColors.textSecondary,
           ),
           const SizedBox(width: 5.0),
@@ -776,8 +752,8 @@ class _AttachedFilePill extends StatelessWidget {
             constraints: const BoxConstraints(maxWidth: 160.0),
             child: Text(
               file.name,
-              style: AppTypography.uiControl.copyWith(
-                fontSize: 11.5,
+              style: AppTypography.label.copyWith(
+                fontSize: 12.0,
                 fontWeight: FontWeight.w500,
                 color: appColors.textPrimary,
               ),
@@ -791,7 +767,7 @@ class _AttachedFilePill extends StatelessWidget {
                 ? '~${(file.estimatedTokens / 1000).toStringAsFixed(1)}k tok'
                 : '${file.estimatedTokens} tok',
             style: AppTypography.code.copyWith(
-              fontSize: 10.0,
+              fontSize: 10.5,
               color: appColors.textSecondary.withValues(alpha: 0.7),
               fontWeight: FontWeight.w400,
             ),
@@ -805,7 +781,7 @@ class _AttachedFilePill extends StatelessWidget {
                     ? '• ${estimate!.speedDisplay}'
                     : '• ${estimate!.speedDisplay} • ${estimate!.durationDisplay}',
                 style: AppTypography.code.copyWith(
-                  fontSize: 10.0,
+                  fontSize: 10.5,
                   color: appColors.textSecondary,
                   fontWeight: FontWeight.w500,
                 ),
@@ -817,10 +793,10 @@ class _AttachedFilePill extends StatelessWidget {
           const SizedBox(width: 4.0),
           InkWell(
             onTap: onRemove,
-            borderRadius: BorderRadius.circular(8.0),
+            borderRadius: BorderRadius.circular(AppRadii.control),
             child: Padding(
               padding: const EdgeInsets.all(2.0),
-              child: Icon(Icons.close_rounded, size: 12.0, color: appColors.textSecondary),
+              child: Icon(AppIcons.close, size: 12.0, color: appColors.textSecondary),
             ),
           ),
         ],
@@ -849,7 +825,7 @@ class _AttachedFilesSummaryPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
       decoration: BoxDecoration(
         color: appColors.hover,
-        borderRadius: BorderRadius.circular(14.0),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
         border: Border.all(
           color: appColors.borderSubtle,
           width: 1.0,
@@ -859,7 +835,7 @@ class _AttachedFilesSummaryPill extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            Icons.speed_rounded,
+            AppIcons.speed,
             size: 13.0,
             color: appColors.textSecondary,
           ),
@@ -869,7 +845,7 @@ class _AttachedFilesSummaryPill extends StatelessWidget {
                 ? '${I18n.totalLabel}: $tokenStr • ${estimate.speedDisplay}'
                 : '${I18n.totalLabel}: $tokenStr • ${estimate.speedDisplay} • ${estimate.durationDisplay}',
             style: AppTypography.code.copyWith(
-              fontSize: 10.0,
+              fontSize: 10.5,
               color: appColors.textSecondary,
               fontWeight: FontWeight.w500,
             ),
@@ -928,7 +904,6 @@ class _AttachChipState extends State<_AttachChip> {
 
   OverlayEntry _createOverlayEntry() {
     final appColors = context.appColors;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return OverlayEntry(
       builder: (context) => Stack(
@@ -952,15 +927,9 @@ class _AttachChipState extends State<_AttachChip> {
                 child: Container(
                   decoration: BoxDecoration(
                     color: appColors.surface,
-                    borderRadius: BorderRadius.circular(14.0),
+                    borderRadius: BorderRadius.circular(AppRadii.card),
                     border: Border.all(color: appColors.borderSubtle, width: 1.0),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
-                        blurRadius: 12.0,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                    boxShadow: AppElevation.floating(Theme.of(context).brightness),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -970,16 +939,16 @@ class _AttachChipState extends State<_AttachChip> {
                           _closeMenu();
                           widget.onPickWorkspace();
                         },
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(14.0)),
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadii.card)),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 9.0),
                           child: Row(
                             children: [
-                              Icon(Icons.folder_outlined, size: 14.0, color: appColors.accent),
+                              Icon(AppIcons.folder, size: 14.0, color: appColors.accent),
                               const SizedBox(width: 8.0),
                               Text(
                                 I18n.openProjectWorkspace,
-                                style: AppTypography.uiControl.copyWith(
+                                style: AppTypography.label.copyWith(
                                   fontSize: 12.0,
                                   fontWeight: FontWeight.w500,
                                   color: appColors.textPrimary,
@@ -999,11 +968,11 @@ class _AttachChipState extends State<_AttachChip> {
                           padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 9.0),
                           child: Row(
                             children: [
-                              Icon(Icons.snippet_folder_outlined, size: 14.0, color: appColors.accent),
+                              Icon(AppIcons.folderOpen, size: 14.0, color: appColors.accent),
                               const SizedBox(width: 8.0),
                               Text(
                                 I18n.attachFolderFiles,
-                                style: AppTypography.uiControl.copyWith(
+                                style: AppTypography.label.copyWith(
                                   fontSize: 12.0,
                                   fontWeight: FontWeight.w500,
                                   color: appColors.textPrimary,
@@ -1019,16 +988,16 @@ class _AttachChipState extends State<_AttachChip> {
                           _closeMenu();
                           widget.onPickFiles();
                         },
-                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14.0)),
+                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(AppRadii.card)),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 9.0),
                           child: Row(
                             children: [
-                              Icon(Icons.description_outlined, size: 14.0, color: appColors.accent),
+                              Icon(AppIcons.file, size: 14.0, color: appColors.accent),
                               const SizedBox(width: 8.0),
                               Text(
                                 I18n.attachFiles,
-                                style: AppTypography.uiControl.copyWith(
+                                style: AppTypography.label.copyWith(
                                   fontSize: 12.0,
                                   fontWeight: FontWeight.w500,
                                   color: appColors.textPrimary,
@@ -1059,13 +1028,13 @@ class _AttachChipState extends State<_AttachChip> {
         color: Colors.transparent,
         child: InkWell(
           onTap: _toggleMenu,
-          borderRadius: BorderRadius.circular(16.0),
+          borderRadius: BorderRadius.circular(AppRadii.pill),
           child: Container(
             height: 28.0,
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             decoration: BoxDecoration(
               color: _isOpen ? appColors.hover : Colors.transparent,
-              borderRadius: BorderRadius.circular(16.0),
+              borderRadius: BorderRadius.circular(AppRadii.pill),
               border: Border.all(
                 color: _isOpen ? appColors.accent : appColors.borderSubtle,
                 width: 1.0,
@@ -1075,14 +1044,14 @@ class _AttachChipState extends State<_AttachChip> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  Icons.attach_file_rounded,
+                  AppIcons.attach,
                   size: 14.0,
                   color: _isOpen ? appColors.accent : appColors.textSecondary,
                 ),
                 const SizedBox(width: 4.0),
                 Text(
                   I18n.attach,
-                  style: AppTypography.uiControl.copyWith(
+                  style: AppTypography.label.copyWith(
                     fontSize: 12.0,
                     fontWeight: FontWeight.w500,
                     color: _isOpen ? appColors.accent : appColors.textSecondary,
@@ -1131,13 +1100,13 @@ class _ModelChipState extends State<_ModelChip> {
       barrierDismissible: true,
       barrierLabel: 'DismissModelMenu',
       barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 200),
+      transitionDuration: AppMotion.base,
       transitionBuilder: (context, anim1, anim2, child) {
         return SlideTransition(
           position: Tween<Offset>(
             begin: const Offset(0.0, 0.06),
             end: Offset.zero,
-          ).animate(CurvedAnimation(parent: anim1, curve: Curves.easeOutCubic)),
+          ).animate(CurvedAnimation(parent: anim1, curve: AppMotion.standard)),
           child: FadeTransition(opacity: anim1, child: child),
         );
       },
@@ -1154,15 +1123,9 @@ class _ModelChipState extends State<_ModelChip> {
                   padding: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 4.0),
                   decoration: BoxDecoration(
                     color: appColors.surface,
-                    borderRadius: BorderRadius.circular(16.0),
+                    borderRadius: BorderRadius.circular(AppRadii.card),
                     border: Border.all(color: appColors.borderSubtle),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.10),
-                        blurRadius: 18.0,
-                        offset: const Offset(0, -6),
-                      ),
-                    ],
+                    boxShadow: AppElevation.floating(Theme.of(context).brightness),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -1172,7 +1135,7 @@ class _ModelChipState extends State<_ModelChip> {
                           padding: const EdgeInsets.all(12.0),
                           child: Text(
                             I18n.noModels,
-                            style: AppTypography.uiControl.copyWith(
+                            style: AppTypography.label.copyWith(
                               color: appColors.textSecondary,
                               fontSize: 12.0,
                             ),
@@ -1186,17 +1149,17 @@ class _ModelChipState extends State<_ModelChip> {
                               Navigator.of(dialogContext).pop();
                               widget.onModelChanged?.call(m.name);
                             },
-                            borderRadius: BorderRadius.circular(10.0),
+                            borderRadius: BorderRadius.circular(AppRadii.control),
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 7.0),
                               decoration: BoxDecoration(
                                 color: isCurrent ? appColors.accentSubtle : Colors.transparent,
-                                borderRadius: BorderRadius.circular(10.0),
+                                borderRadius: BorderRadius.circular(AppRadii.control),
                               ),
                               child: Row(
                                 children: [
                                   if (isCurrent)
-                                    Icon(Icons.check, size: 14.0, color: appColors.accent)
+                                    Icon(AppIcons.check, size: 14.0, color: appColors.accent)
                                   else
                                     const SizedBox(width: 14.0),
                                   const SizedBox(width: 8.0),
@@ -1224,16 +1187,16 @@ class _ModelChipState extends State<_ModelChip> {
                             Navigator.of(dialogContext).pop();
                             widget.onManageModels?.call();
                           },
-                          borderRadius: BorderRadius.circular(10.0),
+                          borderRadius: BorderRadius.circular(AppRadii.control),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 7.0),
                             child: Row(
                               children: [
-                                Icon(Icons.settings_outlined, size: 14.0, color: appColors.textSecondary),
+                                Icon(AppIcons.settings, size: 14.0, color: appColors.textSecondary),
                                 const SizedBox(width: 8.0),
                                 Text(
                                   I18n.manageModels,
-                                  style: AppTypography.uiControl.copyWith(
+                                  style: AppTypography.label.copyWith(
                                     color: appColors.textSecondary,
                                     fontSize: 12.0,
                                   ),
@@ -1266,14 +1229,14 @@ class _ModelChipState extends State<_ModelChip> {
         key: _chipKey,
         onTap: () => _showModelMenu(context, appColors),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: AppMotion.fast,
           padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
           decoration: BoxDecoration(
             color: appColors.background,
             border: Border.all(
               color: _isHovered ? appColors.accent : appColors.borderSubtle,
             ),
-            borderRadius: BorderRadius.circular(16.0),
+            borderRadius: BorderRadius.circular(AppRadii.pill),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -1282,13 +1245,13 @@ class _ModelChipState extends State<_ModelChip> {
                 widget.selectedModel ?? I18n.selectModel,
                 style: AppTypography.code.copyWith(
                   color: _isHovered ? appColors.accent : appColors.textPrimary,
-                  fontSize: 11.5,
+                  fontSize: 12.0,
                   fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(width: 4.0),
               Icon(
-                Icons.keyboard_arrow_up,
+                AppIcons.caretUp,
                 size: 13.0,
                 color: _isHovered ? appColors.accent : appColors.textSecondary,
               ),
@@ -1330,21 +1293,21 @@ class _ModeChipState extends State<_ModeChip> {
         mode: ChatExecutionMode.schnell,
         title: I18n.modeFast,
         desc: I18n.modeFastDesc,
-        icon: Icons.bolt_rounded,
-        iconColor: Colors.amber.shade600,
+        icon: AppIcons.modeFast,
+        iconColor: appColors.accent,
       ),
       (
         mode: ChatExecutionMode.optimal,
         title: I18n.modeOptimal,
         desc: I18n.modeOptimalDesc,
-        icon: Icons.auto_awesome_rounded,
+        icon: AppIcons.modeOptimal,
         iconColor: appColors.accent,
       ),
       (
         mode: ChatExecutionMode.thinking,
         title: I18n.modeThinking,
         desc: I18n.modeThinkingDesc,
-        icon: Icons.psychology_rounded,
+        icon: AppIcons.modeThinking,
         iconColor: const Color(0xFF9C27B0),
       ),
     ];
@@ -1354,13 +1317,13 @@ class _ModeChipState extends State<_ModeChip> {
       barrierDismissible: true,
       barrierLabel: 'DismissModeMenu',
       barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 200),
+      transitionDuration: AppMotion.base,
       transitionBuilder: (context, anim1, anim2, child) {
         return SlideTransition(
           position: Tween<Offset>(
             begin: const Offset(0.0, 0.06),
             end: Offset.zero,
-          ).animate(CurvedAnimation(parent: anim1, curve: Curves.easeOutCubic)),
+          ).animate(CurvedAnimation(parent: anim1, curve: AppMotion.standard)),
           child: FadeTransition(opacity: anim1, child: child),
         );
       },
@@ -1377,15 +1340,9 @@ class _ModeChipState extends State<_ModeChip> {
                   padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 6.0),
                   decoration: BoxDecoration(
                     color: appColors.surface,
-                    borderRadius: BorderRadius.circular(16.0),
+                    borderRadius: BorderRadius.circular(AppRadii.card),
                     border: Border.all(color: appColors.borderSubtle),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.12),
-                        blurRadius: 18.0,
-                        offset: const Offset(0, -6),
-                      ),
-                    ],
+                    boxShadow: AppElevation.floating(Theme.of(context).brightness),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -1395,7 +1352,7 @@ class _ModeChipState extends State<_ModeChip> {
                         padding: const EdgeInsets.only(left: 8.0, top: 4.0, bottom: 6.0),
                         child: Text(
                           I18n.modeTitle,
-                          style: AppTypography.uiControl.copyWith(
+                          style: AppTypography.label.copyWith(
                             color: appColors.textSecondary,
                             fontSize: 10.5,
                             fontWeight: FontWeight.w600,
@@ -1410,12 +1367,12 @@ class _ModeChipState extends State<_ModeChip> {
                             Navigator.of(dialogContext).pop();
                             widget.onModeChanged?.call(item.mode);
                           },
-                          borderRadius: BorderRadius.circular(10.0),
+                          borderRadius: BorderRadius.circular(AppRadii.control),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 7.0),
                             decoration: BoxDecoration(
                               color: isCurrent ? appColors.accentSubtle : Colors.transparent,
-                              borderRadius: BorderRadius.circular(10.0),
+                              borderRadius: BorderRadius.circular(AppRadii.control),
                             ),
                             child: Row(
                               children: [
@@ -1428,7 +1385,7 @@ class _ModeChipState extends State<_ModeChip> {
                                     children: [
                                       Text(
                                         item.title,
-                                        style: AppTypography.uiControl.copyWith(
+                                        style: AppTypography.label.copyWith(
                                           color: isCurrent ? appColors.accent : appColors.textPrimary,
                                           fontSize: 12.0,
                                           fontWeight: isCurrent ? FontWeight.w600 : FontWeight.w500,
@@ -1437,9 +1394,9 @@ class _ModeChipState extends State<_ModeChip> {
                                       const SizedBox(height: 1.0),
                                       Text(
                                         item.desc,
-                                        style: AppTypography.uiControl.copyWith(
+                                        style: AppTypography.label.copyWith(
                                           color: appColors.textSecondary,
-                                          fontSize: 10.0,
+                                          fontSize: 10.5,
                                           fontWeight: FontWeight.w400,
                                         ),
                                       ),
@@ -1447,7 +1404,7 @@ class _ModeChipState extends State<_ModeChip> {
                                   ),
                                 ),
                                 if (isCurrent)
-                                  Icon(Icons.check_rounded, size: 14.0, color: appColors.accent),
+                                  Icon(AppIcons.check, size: 14.0, color: appColors.accent),
                               ],
                             ),
                           ),
@@ -1474,17 +1431,17 @@ class _ModeChipState extends State<_ModeChip> {
 
     switch (widget.mode) {
       case ChatExecutionMode.schnell:
-        icon = Icons.bolt_rounded;
+        icon = AppIcons.modeFast;
         label = I18n.modeFast;
-        iconColor = Colors.amber.shade600;
+        iconColor = appColors.accent;
         break;
       case ChatExecutionMode.optimal:
-        icon = Icons.auto_awesome_rounded;
+        icon = AppIcons.modeOptimal;
         label = I18n.modeOptimal;
         iconColor = appColors.accent;
         break;
       case ChatExecutionMode.thinking:
-        icon = Icons.psychology_rounded;
+        icon = AppIcons.modeThinking;
         label = I18n.modeThinking;
         iconColor = const Color(0xFF9C27B0);
         break;
@@ -1498,14 +1455,14 @@ class _ModeChipState extends State<_ModeChip> {
         key: _chipKey,
         onTap: () => _showModeMenu(context, appColors),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: AppMotion.fast,
           padding: const EdgeInsets.symmetric(horizontal: 9.0, vertical: 4.5),
           decoration: BoxDecoration(
             color: appColors.background,
             border: Border.all(
               color: _isHovered ? appColors.accent : appColors.borderSubtle,
             ),
-            borderRadius: BorderRadius.circular(16.0),
+            borderRadius: BorderRadius.circular(AppRadii.pill),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -1518,15 +1475,15 @@ class _ModeChipState extends State<_ModeChip> {
               const SizedBox(width: 4.5),
               Text(
                 label,
-                style: AppTypography.uiControl.copyWith(
+                style: AppTypography.label.copyWith(
                   color: _isHovered ? appColors.accent : appColors.textPrimary,
-                  fontSize: 11.5,
+                  fontSize: 12.0,
                   fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(width: 3.5),
               Icon(
-                Icons.keyboard_arrow_up,
+                AppIcons.caretUp,
                 size: 13.0,
                 color: _isHovered ? appColors.accent : appColors.textSecondary,
               ),

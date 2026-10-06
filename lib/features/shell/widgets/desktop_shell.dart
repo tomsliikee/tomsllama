@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../../core/constants/app_tokens.dart';
+import '../../../core/constants/app_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
@@ -233,12 +235,12 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
       padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 7.0),
       decoration: BoxDecoration(
         color: appColors.sidebar,
-        borderRadius: BorderRadius.circular(16.0),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
         border: Border.all(color: appColors.borderSubtle, width: 1.0),
       ),
       child: Row(
         children: [
-          Icon(Icons.workspaces_outlined, size: 16.0, color: appColors.textSecondary),
+          Icon(AppIcons.workspace, size: 16.0, color: appColors.textSecondary),
           const SizedBox(width: 8.0),
           Expanded(
             child: Text(
@@ -257,12 +259,12 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
           // Toggle Button Pill
           InkWell(
             onTap: onToggleContext,
-            borderRadius: BorderRadius.circular(16.0),
+            borderRadius: BorderRadius.circular(AppRadii.pill),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
               decoration: BoxDecoration(
                 color: appColors.background,
-                borderRadius: BorderRadius.circular(16.0),
+                borderRadius: BorderRadius.circular(AppRadii.pill),
                 border: Border.all(color: appColors.borderSubtle, width: 1.0),
               ),
               child: Row(
@@ -279,9 +281,9 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                   const SizedBox(width: 6.0),
                   Text(
                     isContextEnabled ? I18n.contextActive : I18n.contextPaused,
-                    style: AppTypography.uiControl.copyWith(
+                    style: AppTypography.label.copyWith(
                       color: isContextEnabled ? appColors.textPrimary : appColors.textSecondary,
-                      fontSize: 11.5,
+                      fontSize: 12.0,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -293,24 +295,24 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
           // Back to Hub Button Pill
           InkWell(
             onTap: onBackToHub,
-            borderRadius: BorderRadius.circular(16.0),
+            borderRadius: BorderRadius.circular(AppRadii.pill),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
               decoration: BoxDecoration(
                 color: appColors.background,
-                borderRadius: BorderRadius.circular(16.0),
+                borderRadius: BorderRadius.circular(AppRadii.pill),
                 border: Border.all(color: appColors.borderSubtle, width: 1.0),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.arrow_back, size: 13.0, color: appColors.textSecondary),
+                  Icon(AppIcons.back, size: 13.0, color: appColors.textSecondary),
                   const SizedBox(width: 4.0),
                   Text(
                     I18n.backToHub,
-                    style: AppTypography.uiControl.copyWith(
+                    style: AppTypography.label.copyWith(
                       color: appColors.textSecondary,
-                      fontSize: 11.5,
+                      fontSize: 12.0,
                     ),
                   ),
                 ],
@@ -491,7 +493,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                                 canvasContent ?? '',
                                 style: AppTypography.code.copyWith(
                                   color: appColors.textPrimary,
-                                  fontSize: 13.0,
+                                  fontSize: 12.0,
                                   height: 1.5,
                                 ),
                               ),
@@ -503,7 +505,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                                 ? Container(
                                     decoration: BoxDecoration(
                                       color: appColors.surface,
-                                      borderRadius: BorderRadius.circular(18.0),
+                                      borderRadius: BorderRadius.circular(AppRadii.panel),
                                       border: Border.all(
                                         color: appColors.borderSubtle,
                                         width: 1.0,
@@ -556,7 +558,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                                     child: Container(
                                       decoration: BoxDecoration(
                                         color: appColors.surface,
-                                        borderRadius: BorderRadius.circular(18.0),
+                                        borderRadius: BorderRadius.circular(AppRadii.panel),
                                         border: Border.all(
                                           color: _isDraggingOverChat ? appColors.accent : appColors.borderSubtle,
                                           width: 1.0,
@@ -588,8 +590,8 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                                                 ),
                                               Expanded(
                                                 child: AnimatedSwitcher(
-                                                  duration: const Duration(milliseconds: 240),
-                                                  switchInCurve: Curves.easeOutCubic,
+                                                  duration: AppMotion.base,
+                                                  switchInCurve: AppMotion.standard,
                                                   switchOutCurve: Curves.easeInCubic,
                                                   transitionBuilder: (child, animation) {
                                                     return SlideTransition(
