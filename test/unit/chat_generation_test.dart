@@ -12,6 +12,7 @@ import 'package:tomsllama/core/services/database_service.dart';
 import 'package:tomsllama/core/services/ollama_service.dart';
 import 'package:tomsllama/features/chat/controllers/chat_controller.dart';
 import 'package:tomsllama/features/models/controllers/model_controller.dart';
+import 'package:tomsllama/features/sidebar/controllers/sidebar_controller.dart';
 
 /// Minimal stand-in for the Ollama daemon: answers /api/chat with NDJSON chunks.
 class _FakeOllama {
@@ -306,6 +307,104 @@ void main() {
     expect(userTurns, ['Second question', 'Third question']);
     // Everything on screen is still there; only the prompt was compacted.
     expect(container.read(chatProvider).messages.where((m) => m.role == 'user'), hasLength(3));
+  });
+
+  test('an answer keeps generating in the background when another chat is opened', () async {
+    final (container, chat) = await newChat();
+    final sidebar = container.read(sidebarProvider.notifier);
+    ollama.reply = ['Part one', ', part two'];
+    ollama.holdAfterFirstChunk = Completer<void>();
+
+    await chat.sendMessage('Long running question', 'test-model');
+    final firstId = container.read(chatProvider).conversationId!;
+    await waitFor(() => container.read(chatProvider).messages.last.content == 'Part one');
+
+    // Open a different chat while the first one is still streaming.
+    final other = await sidebar.createNewConversation(title: 'Other chat');
+    await chat.loadConversation(other.id);
+    var state = container.read(chatProvider);
+    expect(state.conversationId, other.id);
+    expect(state.isGenerating, isFalse);
+    expect(state.messages, isEmpty);
+    expect(state.generatingConversationIds, {firstId});
+
+    // The rest of the answer arrives while the other chat is on screen.
+    ollama.holdAfterFirstChunk!.complete();
+    await waitFor(() => container.read(chatProvider).generatingConversationIds.isEmpty);
+    expect(container.read(chatProvider).messages, isEmpty);
+    expect((await stored(firstId)).map((m) => m.content), ['Long running question', 'Part one, part two']);
+
+    // Coming back shows the finished answer.
+    await chat.loadConversation(firstId);
+    state = container.read(chatProvider);
+    expect(state.isGenerating, isFalse);
+    expect(state.messages.map((m) => m.content), ['Long running question', 'Part one, part two']);
+  });
+
+  test('returning to a chat that is still generating resumes the live stream', () async {
+    final (container, chat) = await newChat();
+    final sidebar = container.read(sidebarProvider.notifier);
+    ollama.reply = ['Still', ' going'];
+    ollama.holdAfterFirstChunk = Completer<void>();
+
+    await chat.sendMessage('Another long question', 'test-model');
+    final firstId = container.read(chatProvider).conversationId!;
+    await waitFor(() => container.read(chatProvider).messages.last.content == 'Still');
+
+    final other = await sidebar.createNewConversation(title: 'Detour');
+    await chat.loadConversation(other.id);
+    await chat.loadConversation(firstId);
+
+    var state = container.read(chatProvider);
+    expect(state.isGenerating, isTrue);
+    expect(state.messages.map((m) => m.content), ['Another long question', 'Still']);
+
+    ollama.holdAfterFirstChunk!.complete();
+    await waitFor(() => !container.read(chatProvider).isGenerating);
+    state = container.read(chatProvider);
+    expect(state.messages.last.content, 'Still going');
+
+    // Stop only ever applies to the chat on screen.
+    expect(state.generatingConversationIds, isEmpty);
+  });
+
+  test('stop in one chat does not touch an answer running in another', () async {
+    final (container, chat) = await newChat();
+    final sidebar = container.read(sidebarProvider.notifier);
+    ollama.reply = ['Background', ' answer'];
+    ollama.holdAfterFirstChunk = Completer<void>();
+
+    await chat.sendMessage('Keep going', 'test-model');
+    final firstId = container.read(chatProvider).conversationId!;
+    await waitFor(() => container.read(chatProvider).messages.last.content == 'Background');
+
+    final other = await sidebar.createNewConversation(title: 'Foreground');
+    await chat.loadConversation(other.id);
+    chat.stopGeneration();
+    expect(container.read(chatProvider).generatingConversationIds, {firstId});
+
+    ollama.holdAfterFirstChunk!.complete();
+    await waitFor(() => container.read(chatProvider).generatingConversationIds.isEmpty);
+    expect((await stored(firstId)).last.content, 'Background answer');
+  });
+
+  test('deleting a chat discards its running answer', () async {
+    final (container, chat) = await newChat();
+    final sidebar = container.read(sidebarProvider.notifier);
+    ollama.reply = ['Doomed', ' text'];
+    ollama.holdAfterFirstChunk = Completer<void>();
+
+    await chat.sendMessage('Soon deleted', 'test-model');
+    final firstId = container.read(chatProvider).conversationId!;
+    await waitFor(() => container.read(chatProvider).messages.last.content == 'Doomed');
+
+    chat.discardGeneration(firstId);
+    await sidebar.deleteConversation(firstId);
+    expect(container.read(chatProvider).generatingConversationIds, isEmpty);
+    expect(container.read(chatProvider).isGenerating, isFalse);
+    expect(await stored(firstId), isEmpty);
+
+    ollama.holdAfterFirstChunk!.complete();
   });
 
   test('stripAttachmentPrefix returns the typed text', () {

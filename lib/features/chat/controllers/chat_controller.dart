@@ -43,6 +43,9 @@ class ChatState {
   final String? statusMessage;
   final int? statusTokens;
 
+  /// Conversations with an answer in progress, including ones not on screen.
+  final Set<String> generatingConversationIds;
+
   const ChatState({
     this.conversationId,
     this.messages = const [],
@@ -55,6 +58,7 @@ class ChatState {
     this.errorMessage,
     this.statusMessage,
     this.statusTokens,
+    this.generatingConversationIds = const {},
   });
 
   ChatState copyWith({
@@ -69,6 +73,7 @@ class ChatState {
     String? errorMessage,
     String? statusMessage,
     int? statusTokens,
+    Set<String>? generatingConversationIds,
     bool clearCanvas = false,
     bool clearStatusMessage = false,
     bool clearStatusTokens = false,
@@ -85,7 +90,54 @@ class ChatState {
       errorMessage: errorMessage,
       statusMessage: clearStatusMessage ? null : (statusMessage ?? this.statusMessage),
       statusTokens: clearStatusTokens ? null : (statusTokens ?? this.statusTokens),
+      generatingConversationIds: generatingConversationIds ?? this.generatingConversationIds,
     );
+  }
+}
+
+/// One answer being generated. It belongs to its conversation, not to whatever
+/// is on screen, so it keeps running and collecting output when the user opens
+/// another chat and is picked up again when they come back.
+class _Generation {
+  final String conversationId;
+  final String assistantMsgId;
+
+  /// Live message list of the conversation, ending in the assistant message being written.
+  List<Message> messages;
+  String? statusMessage;
+  int? statusTokens;
+
+  StreamSubscription<String>? stream;
+  bool cancelled = false;
+
+  // Stream chunks are coalesced before they reach the UI: every state update
+  // re-parses and re-lays-out the whole answer, which costs CPU the model needs.
+  Timer? _publishTimer;
+  void Function()? _publishPending;
+
+  _Generation({
+    required this.conversationId,
+    required this.assistantMsgId,
+    required this.messages,
+  });
+
+  void schedulePublish(Duration interval, void Function() publish) {
+    _publishPending = publish;
+    _publishTimer ??= Timer(interval, flushPending);
+  }
+
+  void flushPending() {
+    _publishTimer?.cancel();
+    _publishTimer = null;
+    final publish = _publishPending;
+    _publishPending = null;
+    publish?.call();
+  }
+
+  void dropPending() {
+    _publishTimer?.cancel();
+    _publishTimer = null;
+    _publishPending = null;
   }
 }
 
@@ -93,14 +145,12 @@ class ChatNotifier extends StateNotifier<ChatState> {
   final DatabaseService _db = DatabaseService();
   final OllamaService _ollama = OllamaService();
   final Ref _ref;
-  StreamSubscription<String>? _activeStream;
-  String? _activeAssistantId;
-
-  // Stream chunks are coalesced before they reach the UI: every state update
-  // re-parses and re-lays-out the whole answer, which costs CPU the model needs.
   static const Duration _streamPublishInterval = Duration(milliseconds: 50);
-  Timer? _publishTimer;
-  void Function()? _publishPending;
+
+  final Map<String, _Generation> _generations = {};
+
+  // A failed answer in a chat that was not on screen is shown when it is opened again.
+  final Map<String, String> _lastErrors = {};
 
   // Full prompt payload (with attached file bodies) of the most recent user turn.
   // Only the display text is persisted, so regenerate needs this to resend the files.
@@ -118,50 +168,78 @@ class ChatNotifier extends StateNotifier<ChatState> {
     return content.substring(endIdx + 1).trim();
   }
 
-  /// Cancels the running stream and keeps what was generated so far.
-  ///
-  /// The user message is already in the database at this point; without saving
-  /// the partial answer the conversation would reload with an unanswered turn.
-  void _interruptGeneration() {
-    _activeStream?.cancel();
-    _activeStream = null;
-    // Bring state up to the last received chunk so the saved partial is complete.
-    _flushPendingPublish();
-    final assistantId = _activeAssistantId;
-    _activeAssistantId = null;
-    if (!state.isGenerating) return;
+  /// Mirrors a generation into [state] when its conversation is the one on screen.
+  void _sync(_Generation gen) {
+    if (!mounted) return;
+    final generating = _generations.keys.toSet();
+    if (state.conversationId == gen.conversationId) {
+      state = state.copyWith(
+        messages: gen.messages,
+        isGenerating: true,
+        statusMessage: gen.statusMessage,
+        statusTokens: gen.statusTokens,
+        clearStatusMessage: gen.statusMessage == null,
+        clearStatusTokens: gen.statusTokens == null,
+        generatingConversationIds: generating,
+      );
+    } else if (generating.length != state.generatingConversationIds.length ||
+        !generating.containsAll(state.generatingConversationIds)) {
+      state = state.copyWith(generatingConversationIds: generating, errorMessage: state.errorMessage);
+    }
+  }
 
-    var msgs = state.messages;
-    final last = msgs.lastOrNull;
-    if (last != null && last.role == 'assistant' && last.id == assistantId) {
+  void _finish(_Generation gen, {String? error}) {
+    gen.dropPending();
+    if (identical(_generations[gen.conversationId], gen)) {
+      _generations.remove(gen.conversationId);
+    }
+    if (error != null) _lastErrors[gen.conversationId] = error;
+    if (!mounted) return;
+
+    final generating = _generations.keys.toSet();
+    if (state.conversationId == gen.conversationId) {
+      state = state.copyWith(
+        messages: gen.messages,
+        isGenerating: false,
+        clearStatusMessage: true,
+        clearStatusTokens: true,
+        errorMessage: error,
+        generatingConversationIds: generating,
+      );
+    } else {
+      state = state.copyWith(generatingConversationIds: generating, errorMessage: state.errorMessage);
+    }
+  }
+
+  /// Cancels the generation of [conversationId], if there is one.
+  ///
+  /// With [keepPartial] the text generated so far is saved: the user message is
+  /// already in the database, and without the partial answer the conversation
+  /// would reload with an unanswered turn.
+  void _interrupt(String? conversationId, {bool keepPartial = true}) {
+    final gen = _generations[conversationId];
+    if (gen == null) return;
+
+    gen.cancelled = true;
+    gen.stream?.cancel();
+    // Bring the message up to the last received chunk so the saved partial is complete.
+    if (keepPartial) {
+      gen.flushPending();
+    } else {
+      gen.dropPending();
+    }
+
+    final last = gen.messages.lastOrNull;
+    if (last != null && last.id == gen.assistantMsgId) {
       final hasOutput = last.content.trim().isNotEmpty || (last.thinkContent?.trim().isNotEmpty ?? false);
-      if (hasOutput) {
+      if (keepPartial && hasOutput) {
         unawaited(_db.saveMessage(last));
       } else {
-        msgs = msgs.sublist(0, msgs.length - 1);
+        gen.messages = gen.messages.sublist(0, gen.messages.length - 1);
       }
     }
 
-    state = state.copyWith(
-      messages: msgs,
-      isGenerating: false,
-      clearStatusMessage: true,
-      clearStatusTokens: true,
-    );
-  }
-
-  void _flushPendingPublish() {
-    _publishTimer?.cancel();
-    _publishTimer = null;
-    final publish = _publishPending;
-    _publishPending = null;
-    publish?.call();
-  }
-
-  void _dropPendingPublish() {
-    _publishTimer?.cancel();
-    _publishTimer = null;
-    _publishPending = null;
+    _finish(gen);
   }
 
   static String _describeError(Object err) {
@@ -171,32 +249,39 @@ class ChatNotifier extends StateNotifier<ChatState> {
     return I18n.generationFailed(err.toString());
   }
 
+  /// Shows [conversationId]. A generation running in the chat being left keeps
+  /// going in the background; one running in the chat being opened is resumed live.
   Future<void> loadConversation(String conversationId) async {
-    _interruptGeneration();
-
     _ref.read(workspaceProvider.notifier).setActiveConversation(conversationId);
 
     // Retrieve the persona saved specifically for this conversation
-    final allConvs = await _db.getConversations();
-    final conv = allConvs.where((c) => c.id == conversationId).firstOrNull;
+    final conv = await _db.getConversation(conversationId);
     final persona = conv?.persona ?? 'Standard';
 
+    final running = _generations[conversationId];
     state = state.copyWith(
       conversationId: conversationId,
       activePersonaName: persona,
-      isGenerating: false,
-      errorMessage: null,
+      messages: running?.messages,
+      isGenerating: running != null,
+      statusMessage: running?.statusMessage,
+      statusTokens: running?.statusTokens,
+      clearStatusMessage: running?.statusMessage == null,
+      clearStatusTokens: running?.statusTokens == null,
+      errorMessage: _lastErrors[conversationId],
       clearCanvas: true,
       isCanvasOpen: false,
     );
+    // The live list already holds everything the database has, plus the answer in progress.
+    if (running != null) return;
+
     final msgs = await _db.getMessagesForConversation(conversationId);
     if (!mounted || state.conversationId != conversationId) return;
-    state = state.copyWith(messages: msgs);
+    final started = _generations[conversationId];
+    state = state.copyWith(messages: started?.messages ?? msgs, errorMessage: state.errorMessage);
   }
 
   Future<void> startNewChat() async {
-    _interruptGeneration();
-
     // 1. If current conversation had messages, ensure it has a good title
     if (state.conversationId != null && state.messages.isNotEmpty) {
       final convId = state.conversationId!;
@@ -314,6 +399,10 @@ class ChatNotifier extends StateNotifier<ChatState> {
         await _ref.read(sidebarProvider.notifier).updateTitle(convId, previewTitle);
       }
     }
+
+    // The setup below awaits file and database work. Pin the conversation's
+    // messages now so a chat switch in between cannot mix two conversations.
+    final baseMessages = state.conversationId == convId ? state.messages : const <Message>[];
 
     // 2. Check if conversation belongs to a Claude-style Workspace with active context
     final currentConv = await _db.getConversation(convId);
@@ -467,8 +556,12 @@ class ChatNotifier extends StateNotifier<ChatState> {
       createdAt: DateTime.now(),
     );
 
-    final updatedMessages = [...state.messages, if (!isRegeneration) userMsg, assistantMsg];
-    _activeAssistantId = assistantMsgId;
+    final updatedMessages = [...baseMessages, if (!isRegeneration) userMsg, assistantMsg];
+    final gen = _Generation(
+      conversationId: convId,
+      assistantMsgId: assistantMsgId,
+      messages: updatedMessages,
+    );
     final hasPdf = effectiveFiles.any((f) => f.extension == '.pdf') ||
         claudeWorkspaceFiles.any((f) => f.extension == '.pdf');
 
@@ -490,13 +583,11 @@ class ChatNotifier extends StateNotifier<ChatState> {
       statusMsg = I18n.cpuEvaluatingContext(tokenStr, hwEstimate.durationDisplay);
     }
 
-    state = state.copyWith(
-      messages: updatedMessages,
-      isGenerating: true,
-      errorMessage: null,
-      statusMessage: statusMsg,
-      statusTokens: totalTokens > 600 ? totalTokens : null,
-    );
+    gen.statusMessage = statusMsg;
+    gen.statusTokens = totalTokens > 600 ? totalTokens : null;
+    _generations[convId] = gen;
+    _lastErrors.remove(convId);
+    _sync(gen);
 
     final double effectiveTemperature;
     switch (state.mode) {
@@ -630,19 +721,18 @@ class ChatNotifier extends StateNotifier<ChatState> {
           },
         );
 
-        _activeStream = stream.listen(
+        gen.stream = stream.listen(
           (chunk) {
             if (!mounted) return;
-            if (state.statusMessage != null || state.statusTokens != null) {
-              state = state.copyWith(
-                clearStatusMessage: true,
-                clearStatusTokens: true,
-              );
+            if (gen.statusMessage != null || gen.statusTokens != null) {
+              gen.statusMessage = null;
+              gen.statusTokens = null;
+              _sync(gen);
             }
             rawStreamBuffer.write(chunk);
             tokenEstimate++;
 
-            _publishPending = () {
+            gen.schedulePublish(_streamPublishInterval, () {
               if (!mounted) return;
               final parsed = ThinkParser.parse(rawStreamBuffer.toString());
 
@@ -657,33 +747,27 @@ class ChatNotifier extends StateNotifier<ChatState> {
                 generationDurationMs: stopwatch.elapsedMilliseconds,
               );
 
-              final msgs = List<Message>.from(state.messages);
+              final msgs = List<Message>.from(gen.messages);
               if (msgs.isNotEmpty && msgs.last.id == assistantMsgId) {
                 msgs[msgs.length - 1] = currentAssistant;
               }
-              state = state.copyWith(messages: msgs);
-            };
-            _publishTimer ??= Timer(_streamPublishInterval, _flushPendingPublish);
+              gen.messages = msgs;
+              _sync(gen);
+            });
           },
           onError: (err) {
-            _dropPendingPublish();
+            gen.dropPending();
             if (!mounted) return;
             if (withTools && err.toString().contains('400')) {
               runStream(withTools: false);
               return;
             }
-            final msgs = state.messages.where((m) => m.id != assistantMsgId).toList();
-            state = state.copyWith(
-              messages: msgs,
-              isGenerating: false,
-              clearStatusMessage: true,
-              clearStatusTokens: true,
-              errorMessage: _describeError(err),
-            );
+            gen.messages = gen.messages.where((m) => m.id != assistantMsgId).toList();
+            _finish(gen, error: _describeError(err));
           },
           onDone: () async {
-            // State is what the user sees and what gets finalized; show the last chunks first.
-            _flushPendingPublish();
+            // The message list is what the user sees and what gets finalized; apply the last chunks first.
+            gen.flushPending();
             // Check if model called a tool
             if (pendingToolCall != null) {
               final fn = pendingToolCall!['function'];
@@ -700,7 +784,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
                 }
 
                 if (reqPath != null && effectiveWorkspace != null && mounted) {
-                  state = state.copyWith(statusMessage: I18n.readingFile(reqPath));
+                  gen.statusMessage = I18n.readingFile(reqPath);
+                  _sync(gen);
 
                   final fullPath = await WorkspaceService.resolveInsideWorkspace(effectiveWorkspace.path, reqPath);
                   final file = fullPath == null
@@ -710,8 +795,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
                           workspaceRoot: effectiveWorkspace.path,
                           maxLines: 400,
                         );
-                  // The user may have stopped or switched chats while the file was read.
-                  if (!mounted || _activeAssistantId != assistantMsgId) return;
+                  // The user may have stopped the answer while the file was read.
+                  if (!mounted || gen.cancelled) return;
 
                   promptMessages.add({
                     'role': 'assistant',
@@ -734,13 +819,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
             if (!mounted) return;
 
             if (rawStreamBuffer.isEmpty) {
-              final msgs = state.messages.where((m) => m.id != assistantMsgId).toList();
-              state = state.copyWith(
-                messages: msgs,
-                isGenerating: false,
-                clearStatusMessage: true,
-                clearStatusTokens: true,
-              );
+              gen.messages = gen.messages.where((m) => m.id != assistantMsgId).toList();
+              _finish(gen);
               return;
             }
 
@@ -760,20 +840,15 @@ class ChatNotifier extends StateNotifier<ChatState> {
                   evalDurationNs > 0 ? (evalDurationNs / 1e6).round() : stopwatch.elapsedMilliseconds,
             );
 
-            _activeAssistantId = null;
-            await _db.saveMessage(finalizedMsg);
-            if (!mounted) return;
-
-            final finalMsgs = List<Message>.from(state.messages);
+            final finalMsgs = List<Message>.from(gen.messages);
             if (finalMsgs.isNotEmpty && finalMsgs.last.id == assistantMsgId) {
               finalMsgs[finalMsgs.length - 1] = finalizedMsg;
             }
-            state = state.copyWith(
-              messages: finalMsgs,
-              isGenerating: false,
-              clearStatusMessage: true,
-              clearStatusTokens: true,
-            );
+            gen.messages = finalMsgs;
+
+            await _db.saveMessage(finalizedMsg);
+            if (!mounted) return;
+            _finish(gen);
 
             // Auto-summarize title in background if it was the first user message
             final titleSource = stripAttachmentPrefix(userMsg.content);
@@ -808,12 +883,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
         if (withTools && err.toString().contains('400')) {
           runStream(withTools: false);
         } else {
-          state = state.copyWith(
-            isGenerating: false,
-            clearStatusMessage: true,
-            clearStatusTokens: true,
-            errorMessage: _describeError(err),
-          );
+          gen.messages = gen.messages.where((m) => m.id != assistantMsgId).toList();
+          _finish(gen, error: _describeError(err));
         }
       }
     }
@@ -856,8 +927,15 @@ class ChatNotifier extends StateNotifier<ChatState> {
     }
   }
 
+  /// Stops the answer in the chat on screen. Answers in other chats keep running.
   void stopGeneration() {
-    _interruptGeneration();
+    _interrupt(state.conversationId);
+  }
+
+  /// Cancels a generation whose conversation is being deleted; nothing is saved.
+  void discardGeneration(String conversationId) {
+    _interrupt(conversationId, keepPartial: false);
+    _lastErrors.remove(conversationId);
   }
 
   /// Replaces the last answer: drops everything after the last user message and
@@ -882,8 +960,11 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   @override
   void dispose() {
-    _dropPendingPublish();
-    _activeStream?.cancel();
+    for (final gen in _generations.values) {
+      gen.dropPending();
+      gen.stream?.cancel();
+    }
+    _generations.clear();
     super.dispose();
   }
 }

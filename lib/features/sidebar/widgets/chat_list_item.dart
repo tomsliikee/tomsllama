@@ -90,6 +90,7 @@ class _WobbleItemState extends State<WobbleItem> with SingleTickerProviderStateM
 class ChatListItem extends StatefulWidget {
   final Conversation conversation;
   final bool isSelected;
+  final bool isGenerating;
   final VoidCallback onTap;
   final VoidCallback? onDelete;
   final VoidCallback? onTogglePin;
@@ -101,6 +102,7 @@ class ChatListItem extends StatefulWidget {
     super.key,
     required this.conversation,
     required this.isSelected,
+    this.isGenerating = false,
     required this.onTap,
     this.onDelete,
     this.onTogglePin,
@@ -155,6 +157,17 @@ class _ChatListItemState extends State<ChatListItem> {
               ),
               child: Row(
                 children: [
+                  // An answer is being written in this chat, possibly in the background
+                  if (widget.isGenerating)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 7.0),
+                      child: Container(
+                        key: const Key('chat_generating_dot'),
+                        width: 6.0,
+                        height: 6.0,
+                        decoration: BoxDecoration(color: appColors.accent, shape: BoxShape.circle),
+                      ),
+                    ),
                   // Title text
                   Expanded(
                     child: Text(
