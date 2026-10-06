@@ -21,6 +21,7 @@ import 'package:tomsllama/features/chat/controllers/chat_controller.dart';
 import 'package:tomsllama/features/models/controllers/model_controller.dart';
 import 'package:tomsllama/core/models/workspace.dart';
 import 'package:tomsllama/core/models/workspace_context_file.dart';
+import 'package:tomsllama/features/chat/widgets/composer_shelf.dart';
 import 'package:tomsllama/features/chat/widgets/cute_send_button.dart';
 import 'package:tomsllama/features/chat/widgets/file_drop_overlay.dart';
 import 'package:tomsllama/features/models/widgets/model_manager_dialog.dart';
@@ -151,7 +152,8 @@ void main() {
       chatProvider.overrideWith((ref) => _HarnessChat(ref)),
       modelProvider.overrideWith((ref) => _HarnessModels(ref)),
     ]);
-    addTearDown(container.dispose);
+    // Containers are deliberately not disposed in this file: that would dispose
+    // the app-wide calibration service they expose, which later scenes still use.
 
     await tester.pumpWidget(UncontrolledProviderScope(container: container, child: const TomsllamaApp()));
     Future<void> settle() async {
@@ -215,6 +217,106 @@ void main() {
     }
 
     // Unmount so periodic timers in the logo and indicators are cancelled.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 1));
+    debugDisableShadows = true;
+  });
+
+  // Popovers, the expanded shelf, the canvas and the waiting states, at the
+  // smallest window size the app allows. Layout overflows fail this test.
+  testWidgets('render interactions', (tester) async {
+    debugDisableShadows = false;
+    tester.view.physicalSize = const Size(850, 600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final container = ProviderContainer(overrides: [
+      chatProvider.overrideWith((ref) => _HarnessChat(ref)),
+      modelProvider.overrideWith((ref) => _HarnessModels(ref)),
+    ]);
+    await tester.pumpWidget(UncontrolledProviderScope(container: container, child: const TomsllamaApp()));
+    Future<void> settle() async {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+    }
+
+    await settle();
+    await settle();
+    await settle();
+    Directory(outDir).createSync(recursive: true);
+    Future<void> shot(String name) => expectLater(
+          find.byType(MaterialApp),
+          matchesGoldenFile(p.join(outDir, 'i_$name.png')),
+        );
+
+    final chat = container.read(chatProvider.notifier) as _HarnessChat;
+    final convId = container.read(chatProvider).conversationId;
+    final now = DateTime.now();
+    Message msg(String id, String role, String content) =>
+        Message(id: id, conversationId: convId ?? 'c', role: role, content: content, createdAt: now);
+
+    await shot('small_empty');
+
+    for (final chip in ['PersonaChip', '_ModelChip', '_ModeChip', '_AttachChip']) {
+      final finder = find.byWidgetPredicate((w) => w.runtimeType.toString() == chip);
+      expect(finder, findsOneWidget, reason: chip);
+      await tester.tap(finder);
+      await settle();
+      await shot('menu_$chip');
+      await tester.tapAt(const Offset(840, 300));
+      await settle();
+    }
+
+    await tester.tap(find.byType(ShelfToggleButton));
+    await settle();
+    await shot('shelf');
+    await tester.tap(find.byType(ShelfToggleButton));
+    await settle();
+
+    chat.show(ChatState(
+      conversationId: convId,
+      messages: [msg('u', 'user', 'Summarise the attached contract.'), msg('a', 'assistant', '')],
+      isGenerating: true,
+      statusMessage: 'Loading deepseek-r1:14b...',
+      statusEtaSeconds: 24,
+    ));
+    await settle();
+    await shot('status_loading');
+
+    chat.show(ChatState(
+      conversationId: convId,
+      messages: [msg('u', 'user', 'Summarise the attached contract.'), msg('a', 'assistant', '')],
+      isGenerating: true,
+      statusMessage: 'Reading context...',
+      statusTokens: 3200,
+      statusEtaSeconds: 95,
+    ));
+    await settle();
+    await shot('status_countdown');
+
+    chat.show(ChatState(
+      conversationId: convId,
+      messages: [msg('u', 'user', 'Show me the code.'), msg('a', 'assistant', _answer.trim())],
+      isCanvasOpen: true,
+      canvasContent: 'int planCompaction(List<Message> history, int budget) {\n  return 0;\n}',
+      canvasLanguage: 'dart',
+    ));
+    await settle();
+    await shot('canvas');
+
+    chat.show(ChatState(
+      conversationId: convId,
+      messages: [msg('u', 'user', 'Anyone there?')],
+      errorMessage: 'Ollama is not reachable at http://localhost:11434. Is "ollama serve" running?',
+    ));
+    await settle();
+    await shot('error');
+
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 1));
     debugDisableShadows = true;

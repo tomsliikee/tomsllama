@@ -128,6 +128,20 @@ class I18n {
     return isGerman ? '• CPU-Vorlauf: ca. $timeStr' : '• CPU lead time: ~$timeStr';
   }
 
+  static String approxDuration(int seconds) {
+    if (seconds < 60) return isGerman ? 'ca. ${seconds}s' : '~${seconds}s';
+    final minutes = (seconds / 60.0).toStringAsFixed(1);
+    return isGerman ? 'ca. $minutes Min' : '~$minutes min';
+  }
+
+  static String loadingModel(String model) => isGerman ? 'Lade $model...' : 'Loading $model...';
+  static String evaluatingContext(String tokenStr, String remainingStr) => isGerman
+      ? 'Kontext wird gelesen ($tokenStr Tokens • noch ~$remainingStr)...'
+      : 'Reading context ($tokenStr tokens • ~$remainingStr left)...';
+  static String finalizingContext(String tokenStr, int seconds) => isGerman
+      ? 'Kontext wird gelesen ($tokenStr Tokens, ${seconds}s)...'
+      : 'Reading context ($tokenStr tokens, ${seconds}s)...';
+
   static String get readingPdf =>
       isGerman ? 'Lese PDF-Dokument ein...' : 'Analyzing PDF document...';
   static String cpuEvaluatingPrompt(int tokens) => isGerman

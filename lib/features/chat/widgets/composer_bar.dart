@@ -777,9 +777,8 @@ class _AttachedFilePill extends StatelessWidget {
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 240.0),
               child: Text(
-                !estimate!.isTested
-                    ? '• ${estimate!.speedDisplay}'
-                    : '• ${estimate!.speedDisplay} • ${estimate!.durationDisplay}',
+                // What reading this file adds to the wait, once the model's speed is known.
+                estimate!.isTested ? '• +${estimate!.durationDisplay}' : '',
                 style: AppTypography.code.copyWith(
                   fontSize: 10.5,
                   color: appColors.textSecondary,
@@ -842,8 +841,8 @@ class _AttachedFilesSummaryPill extends StatelessWidget {
           const SizedBox(width: 5.0),
           Text(
             !estimate.isTested
-                ? '${I18n.totalLabel}: $tokenStr • ${estimate.speedDisplay}'
-                : '${I18n.totalLabel}: $tokenStr • ${estimate.speedDisplay} • ${estimate.durationDisplay}',
+                ? '${I18n.totalLabel}: $tokenStr'
+                : '${I18n.totalLabel}: $tokenStr • +${estimate.durationDisplay}',
             style: AppTypography.code.copyWith(
               fontSize: 10.5,
               color: appColors.textSecondary,
@@ -915,7 +914,7 @@ class _AttachChipState extends State<_AttachChip> {
             ),
           ),
           Positioned(
-            width: 210,
+            width: 250,
             child: CompositedTransformFollower(
               link: _layerLink,
               showWhenUnlinked: false,
@@ -946,12 +945,14 @@ class _AttachChipState extends State<_AttachChip> {
                             children: [
                               Icon(AppIcons.folder, size: 14.0, color: appColors.accent),
                               const SizedBox(width: 8.0),
-                              Text(
-                                I18n.openProjectWorkspace,
-                                style: AppTypography.label.copyWith(
-                                  fontSize: 12.0,
-                                  fontWeight: FontWeight.w500,
-                                  color: appColors.textPrimary,
+                              Flexible(
+                                child: Text(
+                                  I18n.openProjectWorkspace,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTypography.label.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    color: appColors.textPrimary,
+                                  ),
                                 ),
                               ),
                             ],
@@ -970,12 +971,14 @@ class _AttachChipState extends State<_AttachChip> {
                             children: [
                               Icon(AppIcons.folderOpen, size: 14.0, color: appColors.accent),
                               const SizedBox(width: 8.0),
-                              Text(
-                                I18n.attachFolderFiles,
-                                style: AppTypography.label.copyWith(
-                                  fontSize: 12.0,
-                                  fontWeight: FontWeight.w500,
-                                  color: appColors.textPrimary,
+                              Flexible(
+                                child: Text(
+                                  I18n.attachFolderFiles,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTypography.label.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    color: appColors.textPrimary,
+                                  ),
                                 ),
                               ),
                             ],
@@ -995,12 +998,14 @@ class _AttachChipState extends State<_AttachChip> {
                             children: [
                               Icon(AppIcons.file, size: 14.0, color: appColors.accent),
                               const SizedBox(width: 8.0),
-                              Text(
-                                I18n.attachFiles,
-                                style: AppTypography.label.copyWith(
-                                  fontSize: 12.0,
-                                  fontWeight: FontWeight.w500,
-                                  color: appColors.textPrimary,
+                              Flexible(
+                                child: Text(
+                                  I18n.attachFiles,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTypography.label.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    color: appColors.textPrimary,
+                                  ),
                                 ),
                               ),
                             ],

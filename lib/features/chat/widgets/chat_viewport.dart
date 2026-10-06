@@ -14,6 +14,7 @@ class ChatViewport extends StatefulWidget {
   final String modelName;
   final String? statusMessage;
   final int? statusTokens;
+  final int? statusEtaSeconds;
   final VoidCallback? onRegenerate;
   final String? errorMessage;
   final VoidCallback? onRetry;
@@ -25,6 +26,7 @@ class ChatViewport extends StatefulWidget {
     this.modelName = 'qwen2.5:3b',
     this.statusMessage,
     this.statusTokens,
+    this.statusEtaSeconds,
     this.onRegenerate,
     this.errorMessage,
     this.onRetry,
@@ -154,6 +156,7 @@ class _ChatViewportState extends State<ChatViewport> {
           isThinking: isLast && widget.isGenerating,
           statusMessage: isLast && widget.isGenerating ? widget.statusMessage : null,
           statusTokens: isLast && widget.isGenerating ? widget.statusTokens : null,
+          statusEtaSeconds: isLast && widget.isGenerating ? widget.statusEtaSeconds : null,
           modelName: widget.modelName,
           branchIndex: 0,
           totalBranches: 1,

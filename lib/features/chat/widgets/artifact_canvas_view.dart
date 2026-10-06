@@ -23,37 +23,53 @@ class ArtifactCanvasView extends StatelessWidget {
     this.language,
   });
 
+  static const double _minChatWidth = 340.0;
+
   @override
   Widget build(BuildContext context) {
     final appColors = context.appColors;
 
-    return Row(
-      children: [
-        // Left: Chat Panel (takes full width if canvas is closed, 50% if open)
-        Expanded(
-          flex: 1,
-          child: chatPanel,
-        ),
-          
-        // Right: Canvas Panel (takes 50% width if open, 0 if closed)
-        AnimatedContainer(
-          duration: AppMotion.slow,
-          curve: AppMotion.standard,
-          width: isCanvasOpen ? MediaQuery.of(context).size.width * 0.5 : 0.0,
-          child: isCanvasOpen
-              ? Padding(
-                  padding: const EdgeInsets.fromLTRB(5.0, 10.0, 10.0, 12.0),
-                  child: _CanvasWrapper(
-                    onClose: onCloseCanvas,
-                    onCopy: onCopy,
-                    appColors: appColors,
-                    language: language,
-                    child: canvasPanel ?? const SizedBox.shrink(),
-                  ),
-                )
-              : const SizedBox.shrink(),
-        ),
-      ],
+    // Half of the space this view actually has (the sidebar is not part of it),
+    // and never so much that the chat can no longer lay out its composer.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final available = constraints.maxWidth;
+        final canvasWidth = isCanvasOpen
+            ? (available * 0.5).clamp(0.0, (available - _minChatWidth).clamp(0.0, available)).toDouble()
+            : 0.0;
+
+        return Row(
+          children: [
+            Expanded(child: chatPanel),
+            AnimatedContainer(
+              duration: AppMotion.slow,
+              curve: AppMotion.standard,
+              width: canvasWidth,
+              child: isCanvasOpen
+                  ? ClipRect(
+                      // The panel keeps its final width while the container
+                      // animates open, so its content does not reflow mid-animation.
+                      child: OverflowBox(
+                        alignment: Alignment.centerLeft,
+                        minWidth: canvasWidth,
+                        maxWidth: canvasWidth,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(5.0, 10.0, 10.0, 12.0),
+                          child: _CanvasWrapper(
+                            onClose: onCloseCanvas,
+                            onCopy: onCopy,
+                            appColors: appColors,
+                            language: language,
+                            child: canvasPanel ?? const SizedBox.shrink(),
+                          ),
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        );
+      },
     );
   }
 }

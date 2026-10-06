@@ -518,8 +518,8 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                 const SizedBox(width: 6.0),
                 Text(
                   !fileEstimate.isTested
-                      ? '${I18n.totalLabel}: $tokenStr • ${fileEstimate.speedDisplay}'
-                      : '${I18n.totalLabel}: $tokenStr • ${fileEstimate.speedDisplay} • ${fileEstimate.durationDisplay}',
+                      ? '${I18n.totalLabel}: $tokenStr'
+                      : '${I18n.totalLabel}: $tokenStr • +${fileEstimate.durationDisplay}',
                   style: AppTypography.code.copyWith(
                     fontSize: 10.5,
                     color: appColors.textSecondary,

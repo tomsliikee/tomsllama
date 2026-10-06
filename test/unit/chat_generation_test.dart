@@ -39,6 +39,15 @@ class _FakeOllama {
   Future<void> stop() => _server.close(force: true);
 
   Future<void> _handle(HttpRequest request) async {
+    if (request.uri.path == '/api/ps') {
+      request.response.write(jsonEncode({
+        'models': [
+          {'name': 'test-model'},
+        ],
+      }));
+      await request.response.close();
+      return;
+    }
     if (request.uri.path == '/api/tags') {
       request.response.write(jsonEncode({'models': models}));
       await request.response.close();

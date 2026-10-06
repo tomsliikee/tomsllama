@@ -616,6 +616,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                                                           modelName: selectedModel,
                                                           statusMessage: chatState.statusMessage,
                                                           statusTokens: chatState.statusTokens,
+                                                          statusEtaSeconds: chatState.statusEtaSeconds,
                                                           onRegenerate: () => chatNotifier.regenerateLast(selectedModel),
                                                           // A failed model listing means the daemon is down; offer to look again.
                                                           errorMessage: chatState.errorMessage ?? modelState.errorMessage,

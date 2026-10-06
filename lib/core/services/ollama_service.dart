@@ -23,6 +23,20 @@ class OllamaService {
     return (data['models'] as List).map((e) => OllamaModel.fromJson(e)).toList();
   }
 
+  /// Whether [modelName] is currently held in memory. Null when the daemon did
+  /// not answer in time; callers should then assume nothing either way.
+  Future<bool?> isModelLoaded(String modelName) async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/api/ps')).timeout(const Duration(milliseconds: 500));
+      if (response.statusCode != 200) return null;
+      final data = jsonDecode(response.body);
+      final models = (data['models'] as List?) ?? const [];
+      return models.any((m) => m is Map && (m['name'] == modelName || m['model'] == modelName));
+    } catch (_) {
+      return null;
+    }
+  }
+
   Stream<String> streamChat(
     String model,
     List<Map<String, dynamic>> messages, {

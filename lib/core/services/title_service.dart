@@ -2,12 +2,13 @@ import 'dart:async';
 import 'ollama_service.dart';
 import '../models/message.dart';
 import 'localization_service.dart';
+import '../utils/think_parser.dart';
 
 class TitleService {
   static const String summarizerModel = 'qwen2.5-coder:1.5b'; // Fast small model
   static const int maxTitleLength = 40;
 
-  static Future<String> generateTitle(List<Message> messages, {String? modelOverride, int? numCtx}) async {
+  static Future<String> generateTitle(List<Message> messages, {String? modelOverride, int? numCtx, bool? think}) async {
     // Only use the first 2-3 messages for context
     final contextMessages = messages.where((m) => m.role != 'system').take(3).toList();
     if (contextMessages.isEmpty) return I18n.newChatTitle;
@@ -23,19 +24,21 @@ class TitleService {
         ],
         // Same num_ctx as the chat, or Ollama reloads the model for a title.
         numCtx: numCtx,
+        think: think,
       );
 
       final buffer = StringBuffer();
       await for (final chunk in stream) {
         if (!chunk.startsWith('Error:')) {
           buffer.write(chunk);
-          if (buffer.length > maxTitleLength) {
+          if (ThinkParser.parse(buffer.toString()).content.length > maxTitleLength) {
             break; // Stop listening early
           }
         }
       }
 
-      final title = buffer.toString().trim().replaceAll('"', '');
+      // Models that reason inline wrap it in <think> tags; only the answer is the title.
+      final title = ThinkParser.parse(buffer.toString()).content.trim().replaceAll('"', '');
       return title.isEmpty ? I18n.newChatTitle : _truncate(title);
     } catch (e) {
       // Fallback

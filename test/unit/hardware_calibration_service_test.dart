@@ -37,7 +37,7 @@ void main() {
       // Verify formatted string outputs
       expect(estOptimal.speedDisplay, startsWith('~'));
       expect(estOptimal.speedDisplay, endsWith('tok/s'));
-      expect(estOptimal.durationDisplay, startsWith('ca. '));
+      expect(estOptimal.durationDisplay, I18n.approxDuration(estOptimal.estimatedSeconds));
     });
 
     test('large token contexts incur non-linear scaling penalty', () {
@@ -77,8 +77,8 @@ void main() {
 
       // Now record metrics for this model
       await service.recordMetrics(
-        promptEvalCount: 50,
-        promptEvalDurationNs: 2000000000, // 25 tok/s
+        promptEvalCount: 250,
+        promptEvalDurationNs: 10000000000, // 25 tok/s
         evalCount: 30,
         evalDurationNs: 1000000000, // 30 tok/s
         modelName: modelName,
@@ -89,7 +89,62 @@ void main() {
       expect(calibratedEst.isTested, isTrue);
       expect(calibratedEst.speedDisplay, startsWith('~'));
       expect(calibratedEst.speedDisplay, contains('tok/s'));
-      expect(calibratedEst.durationDisplay, startsWith('ca. '));
+      expect(calibratedEst.durationDisplay, I18n.approxDuration(calibratedEst.estimatedSeconds));
+    });
+
+    test('a cached prompt does not distort the measured prompt speed', () async {
+      const modelName = 'cache-test-model';
+      // Real evaluation: 2000 tokens in 10s = 200 tok/s, writing at 25 tok/s.
+      await service.recordMetrics(
+        promptEvalCount: 2000,
+        promptEvalDurationNs: 10000000000,
+        evalCount: 250,
+        evalDurationNs: 10000000000,
+        modelName: modelName,
+      );
+      final measured = service.modelProfiles[modelName]!.promptEvalSpeed;
+      expect(measured, closeTo(200.0, 0.01));
+
+      // Next turn: the same 2000 tokens reported, but evaluated in 0.15s because they were cached.
+      await service.recordMetrics(
+        promptEvalCount: 2000,
+        promptEvalDurationNs: 150000000,
+        evalCount: 250,
+        evalDurationNs: 10000000000,
+        modelName: modelName,
+      );
+      expect(service.modelProfiles[modelName]!.promptEvalSpeed, closeTo(200.0, 0.01));
+    });
+
+    test('estimateResponse covers load, prompt and the answer itself', () async {
+      const modelName = 'response-test-model';
+      await service.recordMetrics(
+        promptEvalCount: 1000,
+        promptEvalDurationNs: 10000000000, // 100 tok/s reading
+        evalCount: 200,
+        evalDurationNs: 10000000000, // 20 tok/s writing
+        loadDurationNs: 12000000000, // 12s cold load
+        modelName: modelName,
+      );
+      await service.recordOutput(modelName: modelName, tokens: 400, hadThinking: false);
+      await service.recordOutput(modelName: modelName, tokens: 2000, hadThinking: true);
+
+      final warm = service.estimateResponse(uncachedPromptTokens: 500, modelName: modelName);
+      expect(warm.waitSeconds, 5); // 500 / 100
+      expect(warm.totalSeconds, 25); // + 400 / 20
+
+      final cold = service.estimateResponse(uncachedPromptTokens: 500, modelName: modelName, modelLoaded: false);
+      expect(cold.waitSeconds, 17); // + 12s load
+      expect(cold.totalSeconds, 37);
+
+      final thinking = service.estimateResponse(
+        uncachedPromptTokens: 500,
+        modelName: modelName,
+        expectsThinking: true,
+      );
+      expect(thinking.totalSeconds, 105); // 5 + 2000 / 20
+
+      expect(service.estimateResponse(uncachedPromptTokens: 500, modelName: 'never-used').isTested, isFalse);
     });
   });
 }

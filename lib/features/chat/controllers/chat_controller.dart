@@ -43,6 +43,9 @@ class ChatState {
   final String? statusMessage;
   final int? statusTokens;
 
+  /// Seconds the wait before the first token is expected to take, for the countdown.
+  final int? statusEtaSeconds;
+
   /// Conversations with an answer in progress, including ones not on screen.
   final Set<String> generatingConversationIds;
 
@@ -58,6 +61,7 @@ class ChatState {
     this.errorMessage,
     this.statusMessage,
     this.statusTokens,
+    this.statusEtaSeconds,
     this.generatingConversationIds = const {},
   });
 
@@ -73,6 +77,7 @@ class ChatState {
     String? errorMessage,
     String? statusMessage,
     int? statusTokens,
+    int? statusEtaSeconds,
     Set<String>? generatingConversationIds,
     bool clearCanvas = false,
     bool clearStatusMessage = false,
@@ -90,6 +95,8 @@ class ChatState {
       errorMessage: errorMessage,
       statusMessage: clearStatusMessage ? null : (statusMessage ?? this.statusMessage),
       statusTokens: clearStatusTokens ? null : (statusTokens ?? this.statusTokens),
+      // The countdown belongs to the token status and is cleared with it.
+      statusEtaSeconds: clearStatusTokens ? null : (statusEtaSeconds ?? this.statusEtaSeconds),
       generatingConversationIds: generatingConversationIds ?? this.generatingConversationIds,
     );
   }
@@ -106,6 +113,7 @@ class _Generation {
   List<Message> messages;
   String? statusMessage;
   int? statusTokens;
+  int? statusEtaSeconds;
 
   StreamSubscription<String>? stream;
   bool cancelled = false;
@@ -149,6 +157,11 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   final Map<String, _Generation> _generations = {};
 
+  // The prompt prefix (model, system prompt, context size) each conversation was
+  // last answered with. While it is unchanged and the model is still loaded,
+  // Ollama has that prefix cached and only the new turn needs evaluating.
+  final Map<String, String> _cachedPrefixes = {};
+
   // A failed answer in a chat that was not on screen is shown when it is opened again.
   final Map<String, String> _lastErrors = {};
 
@@ -178,6 +191,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
         isGenerating: true,
         statusMessage: gen.statusMessage,
         statusTokens: gen.statusTokens,
+        statusEtaSeconds: gen.statusEtaSeconds,
         clearStatusMessage: gen.statusMessage == null,
         clearStatusTokens: gen.statusTokens == null,
         generatingConversationIds: generating,
@@ -266,6 +280,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
       isGenerating: running != null,
       statusMessage: running?.statusMessage,
       statusTokens: running?.statusTokens,
+      statusEtaSeconds: running?.statusEtaSeconds,
       clearStatusMessage: running?.statusMessage == null,
       clearStatusTokens: running?.statusTokens == null,
       errorMessage: _lastErrors[conversationId],
@@ -568,23 +583,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
     // 4. Discrete token budget and num_ctx tiers to prevent Ollama runner reload on CPU
     final systemTokens = ContextManager.estimateTokens(systemPromptBuffer.toString());
     final userTokens = ContextManager.estimateTokens(promptPayload);
-    final totalTokens = systemTokens + userTokens;
-
-    final hwEstimate = HardwareCalibrationService().estimatePrompt(
-      tokens: totalTokens,
-      mode: state.mode,
-    );
-
-    String? statusMsg;
-    if (hasPdf) {
-      statusMsg = I18n.readingPdf;
-    } else if (totalTokens > 600) {
-      final tokenStr = totalTokens >= 1000 ? '~${(totalTokens / 1000).toStringAsFixed(1)}k' : '$totalTokens';
-      statusMsg = I18n.cpuEvaluatingContext(tokenStr, hwEstimate.durationDisplay);
-    }
-
-    gen.statusMessage = statusMsg;
-    gen.statusTokens = totalTokens > 600 ? totalTokens : null;
+    // The wait estimate needs the final prompt and is filled in further down.
+    gen.statusMessage = hasPdf ? I18n.readingPdf : null;
     _generations[convId] = gen;
     _lastErrors.remove(convId);
     _sync(gen);
@@ -653,6 +653,43 @@ class ChatNotifier extends StateNotifier<ChatState> {
       });
     }
 
+    // How long until the first token: the model may have to be loaded, and only
+    // the part of the prompt that Ollama does not have cached is evaluated.
+    final prefixKey = '$modelName|$ollamaNumCtx|${systemPromptBuffer.toString().hashCode}|$summarizedCount';
+    final modelLoaded = await _ollama.isModelLoaded(modelName) ?? true;
+    if (!mounted || gen.cancelled) return;
+
+    final lastAnswer = windowed.where((m) => m.role == 'assistant').lastOrNull;
+    final int uncachedTokens;
+    if (modelLoaded && _cachedPrefixes[convId] == prefixKey) {
+      uncachedTokens = userTokens + (lastAnswer == null ? 0 : ContextManager.historyTokens(lastAnswer));
+    } else {
+      final historyTokens = windowed
+          .where((m) => m.id != userMsg.id)
+          .fold<int>(0, (sum, m) => sum + ContextManager.historyTokens(m));
+      uncachedTokens = systemTokens + historyTokens + userTokens;
+    }
+    // A thinking model reasons unless told not to, so "unset" means it will.
+    final expectsThinking = think ?? (modelInfo?.supportsThinking == true);
+    final waitEstimate = HardwareCalibrationService().estimateResponse(
+      uncachedPromptTokens: uncachedTokens,
+      modelName: modelName,
+      expectsThinking: expectsThinking,
+      modelLoaded: modelLoaded,
+    );
+    if (!hasPdf && waitEstimate.isTested && waitEstimate.waitSeconds >= 4) {
+      final tokenStr = uncachedTokens >= 1000 ? '~${(uncachedTokens / 1000).toStringAsFixed(1)}k' : '$uncachedTokens';
+      gen.statusMessage = modelLoaded
+          ? I18n.evaluatingContext(tokenStr, I18n.approxDuration(waitEstimate.waitSeconds))
+          : I18n.loadingModel(modelName);
+      gen.statusTokens = modelLoaded ? uncachedTokens : null;
+      gen.statusEtaSeconds = waitEstimate.waitSeconds;
+      _sync(gen);
+    } else if (!hasPdf && !modelLoaded) {
+      gen.statusMessage = I18n.loadingModel(modelName);
+      _sync(gen);
+    }
+
     final rawStreamBuffer = StringBuffer();
     final stopwatch = Stopwatch()..start();
     int tokenEstimate = 0;
@@ -715,6 +752,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
                 promptEvalDurationNs: promptDurationNs,
                 evalCount: roundEvalCount,
                 evalDurationNs: roundEvalDurationNs,
+                loadDurationNs: metrics['load_duration'] as int? ?? 0,
                 modelName: modelName,
               );
             }
@@ -727,6 +765,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
             if (gen.statusMessage != null || gen.statusTokens != null) {
               gen.statusMessage = null;
               gen.statusTokens = null;
+              gen.statusEtaSeconds = null;
               _sync(gen);
             }
             rawStreamBuffer.write(chunk);
@@ -850,6 +889,16 @@ class ChatNotifier extends StateNotifier<ChatState> {
             if (!mounted) return;
             _finish(gen);
 
+            // This prompt is now what Ollama has cached for the conversation.
+            _cachedPrefixes[convId] = prefixKey;
+            if (evalCount > 0) {
+              unawaited(HardwareCalibrationService().recordOutput(
+                modelName: modelName,
+                tokens: evalCount,
+                hadThinking: finalizedMsg.thinkContent != null,
+              ));
+            }
+
             // Auto-summarize title in background if it was the first user message
             final titleSource = stripAttachmentPrefix(userMsg.content);
             if (isFirstMessageInConv && titleSource.isNotEmpty) {
@@ -858,6 +907,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
                   [userMsg.copyWith(content: titleSource)],
                   modelOverride: modelName,
                   numCtx: ollamaNumCtx,
+                  // A title needs no reasoning, and reasoning would end up in it.
+                  think: modelInfo?.supportsThinking == true ? false : null,
                 );
                 if (title.isNotEmpty && title != 'New Chat' && title != 'Neuer Chat') {
                   await _ref.read(sidebarProvider.notifier).updateTitle(convId, title);

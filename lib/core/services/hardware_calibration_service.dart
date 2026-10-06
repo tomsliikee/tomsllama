@@ -25,24 +25,80 @@ class HardwareEstimate {
   });
 }
 
+/// What a whole reply is expected to cost, not just reading the prompt.
+class ResponseEstimate {
+  /// Until the first token: model load (if it is not in memory) plus prompt evaluation.
+  final int waitSeconds;
+
+  /// Until the reply is complete: [waitSeconds] plus writing a typical answer.
+  final int totalSeconds;
+
+  final double genSpeed;
+  final bool isTested;
+
+  const ResponseEstimate({
+    required this.waitSeconds,
+    required this.totalSeconds,
+    required this.genSpeed,
+    required this.isTested,
+  });
+
+  String get speedDisplay => isTested ? '~${genSpeed.round().clamp(1, 9999)} tok/s' : I18n.noSpeedTestedYet;
+  String get durationDisplay => isTested ? I18n.approxDuration(totalSeconds) : '-';
+}
+
 class ModelHardwareProfile {
   final double promptEvalSpeed;
   final double genSpeed;
   final int sampleCount;
   final bool isCalibrated;
 
+  /// Seconds a cold load took the last times it was observed; null until one was seen.
+  final double? loadSeconds;
+
+  /// Typical reply length in tokens, kept separately for replies with and
+  /// without reasoning: a thinking model writes several times as much.
+  final double? avgOutputTokens;
+  final double? avgThinkingOutputTokens;
+
   const ModelHardwareProfile({
     required this.promptEvalSpeed,
     required this.genSpeed,
     required this.sampleCount,
     required this.isCalibrated,
+    this.loadSeconds,
+    this.avgOutputTokens,
+    this.avgThinkingOutputTokens,
   });
+
+  ModelHardwareProfile copyWith({
+    double? promptEvalSpeed,
+    double? genSpeed,
+    int? sampleCount,
+    bool? isCalibrated,
+    double? loadSeconds,
+    double? avgOutputTokens,
+    double? avgThinkingOutputTokens,
+  }) {
+    return ModelHardwareProfile(
+      promptEvalSpeed: promptEvalSpeed ?? this.promptEvalSpeed,
+      genSpeed: genSpeed ?? this.genSpeed,
+      sampleCount: sampleCount ?? this.sampleCount,
+      isCalibrated: isCalibrated ?? this.isCalibrated,
+      loadSeconds: loadSeconds ?? this.loadSeconds,
+      avgOutputTokens: avgOutputTokens ?? this.avgOutputTokens,
+      avgThinkingOutputTokens: avgThinkingOutputTokens ?? this.avgThinkingOutputTokens,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
     'prompt_eval_speed': promptEvalSpeed,
     'gen_speed': genSpeed,
     'sample_count': sampleCount,
     'is_calibrated': isCalibrated,
+    if (loadSeconds != null) 'load_seconds': loadSeconds,
+    if (avgOutputTokens != null) 'avg_output_tokens': avgOutputTokens,
+    if (avgThinkingOutputTokens != null) 'avg_thinking_output_tokens': avgThinkingOutputTokens,
   };
 
   factory ModelHardwareProfile.fromJson(Map<String, dynamic> json) => ModelHardwareProfile(
@@ -50,6 +106,9 @@ class ModelHardwareProfile {
     genSpeed: (json['gen_speed'] as num?)?.toDouble() ?? 10.0,
     sampleCount: (json['sample_count'] as num?)?.toInt() ?? 0,
     isCalibrated: (json['is_calibrated'] as bool?) ?? false,
+    loadSeconds: (json['load_seconds'] as num?)?.toDouble(),
+    avgOutputTokens: (json['avg_output_tokens'] as num?)?.toDouble(),
+    avgThinkingOutputTokens: (json['avg_thinking_output_tokens'] as num?)?.toDouble(),
   );
 }
 
@@ -151,22 +210,30 @@ class HardwareCalibrationService extends ChangeNotifier {
     required int promptEvalDurationNs,
     required int evalCount,
     required int evalDurationNs,
+    int loadDurationNs = 0,
     String? modelName,
   }) async {
     bool changed = false;
     double? measuredPrompt;
     double? measuredGen;
 
-    if (promptEvalDurationNs > 0 && promptEvalCount > 5) {
+    // Generation speed first: it is what tells a real prompt evaluation from a cache hit.
+    final double? responseGen = (evalDurationNs > 0 && evalCount > 5) ? evalCount / (evalDurationNs / 1e9) : null;
+    final double referenceGen = responseGen ?? _modelProfiles[modelName]?.genSpeed ?? _calibratedGenSpeed;
+
+    // Short prompts and sub-half-second evaluations are mostly overhead and
+    // partial cache hits (a shared system prompt), so they are not sampled.
+    if (promptEvalDurationNs >= _minPromptSampleNs && promptEvalCount >= _minPromptSampleTokens) {
       final p = promptEvalCount / (promptEvalDurationNs / 1e9);
-      if (p >= 1.0 && p <= 10000.0) {
+      // When the prompt prefix is still in Ollama's cache it reports the full
+      // token count with almost no duration, i.e. an absurd speed. Reading a
+      // prompt is batched and faster than writing, but not by more than ~25x;
+      // anything above that is a cache hit and says nothing about the hardware.
+      final isCacheHit = p > referenceGen * _maxPromptToGenRatio;
+      if (p >= 1.0 && p <= 10000.0 && !isCacheHit) {
         measuredPrompt = p;
-        if (!_isCalibrated) {
-          _calibratedPromptEvalSpeed = measuredPrompt;
-        } else {
-          // Exponential moving average (alpha = 0.35)
-          _calibratedPromptEvalSpeed = (0.35 * measuredPrompt) + (0.65 * _calibratedPromptEvalSpeed);
-        }
+        _calibratedPromptEvalSpeed =
+            _isCalibrated ? _blendPromptSpeed(measuredPrompt, _calibratedPromptEvalSpeed) : measuredPrompt;
         changed = true;
       }
     }
@@ -191,18 +258,27 @@ class HardwareCalibrationService extends ChangeNotifier {
 
       if (existing != null && existing.isCalibrated) {
         if (measuredPrompt != null) {
-          modelPrompt = (0.35 * measuredPrompt) + (0.65 * existing.promptEvalSpeed);
+          modelPrompt = _blendPromptSpeed(measuredPrompt, existing.promptEvalSpeed);
         }
         if (measuredGen != null) {
           modelGen = (0.35 * measuredGen) + (0.65 * existing.genSpeed);
         }
       }
 
+      // A load of under a second is the model already sitting in memory.
+      final loadSeconds = loadDurationNs / 1e9;
+      final double? modelLoad = loadSeconds >= 1.0
+          ? (existing?.loadSeconds == null ? loadSeconds : 0.5 * loadSeconds + 0.5 * existing!.loadSeconds!)
+          : existing?.loadSeconds;
+
       _modelProfiles[modelName] = ModelHardwareProfile(
         promptEvalSpeed: modelPrompt,
         genSpeed: modelGen,
         sampleCount: (existing?.sampleCount ?? 0) + 1,
         isCalibrated: true,
+        loadSeconds: modelLoad,
+        avgOutputTokens: existing?.avgOutputTokens,
+        avgThinkingOutputTokens: existing?.avgThinkingOutputTokens,
       );
       changed = true;
     }
@@ -211,16 +287,92 @@ class HardwareCalibrationService extends ChangeNotifier {
       _isCalibrated = true;
       _sampleCount++;
       notifyListeners();
-      await SettingsService().saveHardwareProfile(
-        promptEvalSpeed: _calibratedPromptEvalSpeed,
-        genSpeed: _calibratedGenSpeed,
-        sampleCount: _sampleCount,
-        detectedDeviceType: _deviceType,
-        modelProfiles: _modelProfiles.map((k, v) => MapEntry(k, v.toJson())),
-      );
+      await _persist();
     }
   }
 
+  static const double _maxPromptToGenRatio = 25.0;
+  static const int _minPromptSampleNs = 400000000;
+  static const int _minPromptSampleTokens = 100;
+
+  /// Caching can only make a prompt look faster than the hardware is, never
+  /// slower. So a slower sample is believed quickly and a faster one slowly.
+  static double _blendPromptSpeed(double sample, double current) {
+    final alpha = sample < current ? 0.5 : 0.15;
+    return alpha * sample + (1 - alpha) * current;
+  }
+
+  // Used until a model has produced replies of its own to learn from.
+  static const double _defaultOutputTokens = 350.0;
+  static const double _defaultThinkingOutputTokens = 1100.0;
+  static const double _defaultLoadSeconds = 8.0;
+
+  /// Remembers how long a finished reply was, so the next estimate for this
+  /// model reflects how much it actually tends to write.
+  Future<void> recordOutput({
+    required String modelName,
+    required int tokens,
+    required bool hadThinking,
+  }) async {
+    final existing = _modelProfiles[modelName];
+    if (existing == null || tokens <= 0) return;
+
+    double blend(double? previous) => previous == null ? tokens.toDouble() : 0.3 * tokens + 0.7 * previous;
+    _modelProfiles[modelName] = hadThinking
+        ? existing.copyWith(avgThinkingOutputTokens: blend(existing.avgThinkingOutputTokens))
+        : existing.copyWith(avgOutputTokens: blend(existing.avgOutputTokens));
+
+    notifyListeners();
+    await _persist();
+  }
+
+  Future<void> _persist() {
+    return SettingsService().saveHardwareProfile(
+      promptEvalSpeed: _calibratedPromptEvalSpeed,
+      genSpeed: _calibratedGenSpeed,
+      sampleCount: _sampleCount,
+      detectedDeviceType: _deviceType,
+      modelProfiles: _modelProfiles.map((k, v) => MapEntry(k, v.toJson())),
+    );
+  }
+
+  /// Estimates a whole reply: loading the model if needed, reading the part of
+  /// the prompt that is not cached, and writing an answer of typical length.
+  ///
+  /// [uncachedPromptTokens] is what Ollama still has to evaluate. On a follow-up
+  /// turn that is only the new message, not the system prompt and history.
+  /// [expectsThinking] is whether the model will reason before answering.
+  ResponseEstimate estimateResponse({
+    required int uncachedPromptTokens,
+    required String? modelName,
+    bool expectsThinking = false,
+    bool modelLoaded = true,
+  }) {
+    final profile = _modelProfiles[modelName];
+    if (profile == null || !profile.isCalibrated) {
+      return ResponseEstimate(waitSeconds: 0, totalSeconds: 0, genSpeed: _calibratedGenSpeed, isTested: false);
+    }
+
+    final promptSpeed = profile.promptEvalSpeed.clamp(0.5, 50000.0);
+    final genSpeed = profile.genSpeed.clamp(0.5, 5000.0);
+
+    final loadSeconds = modelLoaded ? 0.0 : (profile.loadSeconds ?? _defaultLoadSeconds);
+    final promptSeconds = uncachedPromptTokens <= 0 ? 0.0 : uncachedPromptTokens / promptSpeed;
+    final outputTokens = expectsThinking
+        ? (profile.avgThinkingOutputTokens ?? _defaultThinkingOutputTokens)
+        : (profile.avgOutputTokens ?? _defaultOutputTokens);
+
+    final wait = loadSeconds + promptSeconds;
+    return ResponseEstimate(
+      waitSeconds: wait.ceil(),
+      totalSeconds: (wait + outputTokens / genSpeed).ceil(),
+      genSpeed: genSpeed,
+      isTested: true,
+    );
+  }
+
+  /// Estimates only the cost of evaluating [tokens] of prompt, e.g. what an
+  /// attached file adds. For how long a reply takes, use [estimateResponse].
   HardwareEstimate estimatePrompt({
     required int tokens,
     ChatExecutionMode mode = ChatExecutionMode.optimal,
@@ -290,9 +442,7 @@ class HardwareCalibrationService extends ChangeNotifier {
     final totalSec = evalSec + modeOverheadSec;
 
     final speedDisplay = '~${activePromptSpeed.round().clamp(1, 9999)} tok/s';
-    final durationDisplay = totalSec >= 60
-        ? 'ca. ${(totalSec / 60.0).toStringAsFixed(1)} Min'
-        : 'ca. ${totalSec}s';
+    final durationDisplay = I18n.approxDuration(totalSec);
 
     return HardwareEstimate(
       tokens: tokens,

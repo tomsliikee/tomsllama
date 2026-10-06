@@ -12,6 +12,7 @@ import '../../../core/services/localization_service.dart';
 import '../../../core/services/token_stats_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../controllers/chat_controller.dart';
+import '../../models/controllers/model_controller.dart';
 
 /// An animated extended shelf that slides up from the top edge of the composer
 /// with an elastic bounce, displaying Git workspace info, attached files,
@@ -100,11 +101,13 @@ class _ComposerShelfState extends ConsumerState<ComposerShelf>
     final tokenStats = ref.watch(tokenStatsProvider);
     final hwCalibration = ref.watch(hardwareCalibrationProvider);
 
-    // Estimate typical 300-token prompt response time for active model & mode
-    final baselineEstimate = hwCalibration.estimatePrompt(
-      tokens: 300,
-      mode: widget.mode,
+    // What a typical short message costs end to end on the active model: reading
+    // ~300 new tokens and writing an answer of the length this model usually gives.
+    final modelInfo = ref.watch(modelProvider).models.where((m) => m.name == widget.selectedModel).firstOrNull;
+    final baselineEstimate = hwCalibration.estimateResponse(
+      uncachedPromptTokens: 300,
       modelName: widget.selectedModel,
+      expectsThinking: modelInfo?.supportsThinking == true && widget.mode != ChatExecutionMode.schnell,
     );
 
     // Shelf background: subtly lighter tone seamlessly extending the composer card
@@ -308,7 +311,7 @@ class _ComposerShelfState extends ConsumerState<ComposerShelf>
 
   Widget _buildModelTimingSection({
     required AppThemeExtension appColors,
-    required HardwareEstimate estimate,
+    required ResponseEstimate estimate,
   }) {
     final modelName = widget.selectedModel ?? 'default';
     final modeLabel = _getModeLabel(widget.mode);

@@ -16,6 +16,7 @@ class MessageBubble extends StatelessWidget {
   final bool isThinking;
   final String? statusMessage;
   final int? statusTokens;
+  final int? statusEtaSeconds;
   final int branchIndex;
   final int totalBranches;
   final String modelName;
@@ -30,6 +31,7 @@ class MessageBubble extends StatelessWidget {
     this.isThinking = false,
     this.statusMessage,
     this.statusTokens,
+    this.statusEtaSeconds,
     this.branchIndex = 0,
     this.totalBranches = 1,
     this.modelName = 'qwen2.5:3b',
@@ -210,6 +212,7 @@ class MessageBubble extends StatelessWidget {
           ClaudeThinkingIndicator(
             statusMessage: statusMessage,
             totalTokens: statusTokens,
+            etaSeconds: statusEtaSeconds,
           ),
 
         // Main Answer Markdown

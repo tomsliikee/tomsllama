@@ -10,10 +10,14 @@ class ClaudeThinkingIndicator extends StatefulWidget {
   final String? statusMessage;
   final int? totalTokens;
 
+  /// Estimated seconds until the first token, for the countdown.
+  final int? etaSeconds;
+
   const ClaudeThinkingIndicator({
     super.key,
     this.statusMessage,
     this.totalTokens,
+    this.etaSeconds,
   });
 
   @override
@@ -55,24 +59,24 @@ class _ClaudeThinkingIndicatorState extends State<ClaudeThinkingIndicator> {
     if (widget.statusMessage?.trim().isNotEmpty == true) {
       final base = widget.statusMessage!.trim();
       final tokens = widget.totalTokens;
-      if (tokens != null && tokens > 500) {
-        final expectedSeconds = (tokens / 38).round();
-        final remainingSeconds = (expectedSeconds - _elapsedSeconds).clamp(0, 9999);
-        final remainingStr = remainingSeconds >= 60
-            ? '${remainingSeconds ~/ 60}:${(remainingSeconds % 60).toString().padLeft(2, '0')} Min'
-            : '${remainingSeconds}s';
-        final tokenStr = tokens >= 1000
-            ? '~${(tokens / 1000).toStringAsFixed(1)}k'
-            : '~$tokens';
+      final eta = widget.etaSeconds;
+      String formatRemaining(int seconds) => seconds >= 60
+          ? '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')} min'
+          : '${seconds}s';
 
-        if (remainingSeconds > 0) {
-          activeText = I18n.cpuEvaluatingContext(tokenStr, remainingStr);
-        } else {
-          activeText = I18n.cpuFinalizingContext(tokenStr, _elapsedSeconds);
-        }
+      if (tokens != null && eta != null) {
+        // Count down against the estimate made for this prompt on this model.
+        final remainingSeconds = (eta - _elapsedSeconds).clamp(0, 9999);
+        final tokenStr = tokens >= 1000 ? '~${(tokens / 1000).toStringAsFixed(1)}k' : '~$tokens';
+        activeText = remainingSeconds > 0
+            ? I18n.evaluatingContext(tokenStr, formatRemaining(remainingSeconds))
+            : I18n.finalizingContext(tokenStr, _elapsedSeconds);
       } else if (base.endsWith('...')) {
         final prefix = base.substring(0, base.length - 3);
-        activeText = '$prefix, ${_elapsedSeconds}s)...';
+        final remaining = eta == null ? 0 : (eta - _elapsedSeconds).clamp(0, 9999);
+        activeText = remaining > 0
+            ? '$prefix (${_elapsedSeconds}s • ~${formatRemaining(remaining)})...'
+            : '$prefix (${_elapsedSeconds}s)...';
       } else {
         activeText = '$base (${_elapsedSeconds}s)';
       }

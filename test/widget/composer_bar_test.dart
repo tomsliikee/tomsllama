@@ -334,7 +334,8 @@ void main() {
 
     // Verify summary pill is rendered next to them with total tokens (300+600=900 tok) and speed
     expect(find.textContaining('${I18n.totalLabel}: 900 tok'), findsOneWidget);
-    expect(find.textContaining('tok/s'), findsOneWidget);
+    // The summary states the added wait once a speed is known, never a raw tok/s figure.
+    expect(find.textContaining('tok/s'), findsNothing);
   });
 
   testWidgets('ComposerBar expands and collapses ComposerShelf on toggle', (WidgetTester tester) async {
