@@ -28,6 +28,28 @@ import '../../../../core/models/workspace.dart';
 import '../../../../core/models/workspace_context_file.dart';
 
 
+/// What a conversation currently holds in the model's context window.
+class ChatContextInfo {
+  /// Summary standing in for the turns up to and including [summaryThroughId].
+  final String? summary;
+  final String? summaryThroughId;
+
+  /// Tokens the last turn occupied and the window it ran in; null before the first answer.
+  final int? tokens;
+  final int? window;
+
+  /// True when [tokens] is an estimate rather than Ollama's own count.
+  final bool isEstimate;
+
+  const ChatContextInfo({
+    this.summary,
+    this.summaryThroughId,
+    this.tokens,
+    this.window,
+    this.isEstimate = false,
+  });
+}
+
 class ChatState {
   final String? conversationId;
   final List<Message> messages;
@@ -47,6 +69,11 @@ class ChatState {
   /// Conversations with an answer in progress, including ones not on screen.
   final Set<String> generatingConversationIds;
 
+  final ChatContextInfo context;
+
+  /// Set while the chat on screen is being summarised on request; sending waits for it.
+  final String? compactingStatus;
+
   const ChatState({
     this.conversationId,
     this.messages = const [],
@@ -61,6 +88,8 @@ class ChatState {
     this.statusTokens,
     this.statusEtaSeconds,
     this.generatingConversationIds = const {},
+    this.context = const ChatContextInfo(),
+    this.compactingStatus,
   });
 
   ChatState copyWith({
@@ -77,6 +106,9 @@ class ChatState {
     int? statusTokens,
     int? statusEtaSeconds,
     Set<String>? generatingConversationIds,
+    ChatContextInfo? context,
+    String? compactingStatus,
+    bool clearCompacting = false,
     bool clearCanvas = false,
     bool clearStatusMessage = false,
     bool clearStatusTokens = false,
@@ -96,7 +128,18 @@ class ChatState {
       // The countdown belongs to the token status and is cleared with it.
       statusEtaSeconds: clearStatusTokens ? null : (statusEtaSeconds ?? this.statusEtaSeconds),
       generatingConversationIds: generatingConversationIds ?? this.generatingConversationIds,
+      context: context ?? this.context,
+      compactingStatus: clearCompacting ? null : (compactingStatus ?? this.compactingStatus),
     );
+  }
+
+  /// Tokens the chat would occupy if sent now, for when Ollama has not counted
+  /// them yet: the summary plus every turn that is not folded into it.
+  int get estimatedContextTokens {
+    final through = context.summaryThroughId;
+    final start = through == null ? 0 : messages.indexWhere((m) => m.id == through) + 1;
+    final turns = messages.skip(start).fold<int>(0, (sum, m) => sum + ContextManager.historyTokens(m));
+    return turns + ContextManager.estimateTokens(context.summary ?? '');
   }
 }
 
@@ -284,6 +327,14 @@ class ChatNotifier extends StateNotifier<ChatState> {
       errorMessage: _lastErrors[conversationId],
       clearCanvas: true,
       isCanvasOpen: false,
+      context: ChatContextInfo(
+        summary: conv?.summary,
+        summaryThroughId: conv?.summaryThroughId,
+        tokens: conv?.contextTokens,
+        window: conv?.contextWindow,
+      ),
+      compactingStatus: _compactingStatus[conversationId],
+      clearCompacting: !_compactingStatus.containsKey(conversationId),
     );
     // The live list already holds everything the database has, plus the answer in progress.
     if (running != null) return;
@@ -344,6 +395,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
       isCanvasOpen: false,
       clearStatusMessage: true,
       clearStatusTokens: true,
+      context: const ChatContextInfo(),
+      clearCompacting: true,
     );
   }
 
@@ -384,7 +437,13 @@ class ChatNotifier extends StateNotifier<ChatState> {
     final explicitAttached = isRegeneration ? const <AttachedFile>[] : (attachedFiles ?? wsState.attachedFiles);
 
     if (!isRegeneration && text.trim().isEmpty && explicitAttached.isEmpty) return;
-    if (state.isGenerating) return;
+    if (state.isGenerating || state.compactingStatus != null) return;
+
+    final compactCommand = isRegeneration ? null : _compactCommand.firstMatch(text.trim());
+    if (compactCommand != null) {
+      await compactConversation(modelName, instructions: compactCommand.group(1));
+      return;
+    }
 
     // 1. Ensure active conversation exists
     String convId = state.conversationId ?? '';
@@ -619,6 +678,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
       promptTokens: userTokens,
       latestMessageTokens: userMsg.tokens,
       maxContext: modelInfo?.contextLength,
+      preferredWindow: _ref.read(appSettingsProvider).contextWindow,
+      defaultWindow: _defaultWindows[modelName],
     );
     final ollamaNumCtx = budget.numCtx;
     final slidingWindowBudget = budget.historyTokens;
@@ -694,6 +755,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
     // Exact generation counters from Ollama, summed over tool rounds.
     int evalCount = 0;
     int evalDurationNs = 0;
+    // Size of the last round as Ollama counted it: the whole prompt plus its answer.
+    int contextTokens = 0;
 
     // Only clear standalone attachments if no workspace is active (preserve workspace files across conversation)
     if (wsState.workspace == null && !isRegeneration) {
@@ -743,6 +806,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
             final roundEvalDurationNs = metrics['eval_duration'] as int? ?? 0;
             evalCount += roundEvalCount;
             evalDurationNs += roundEvalDurationNs;
+            if (promptCount > 0) contextTokens = promptCount + roundEvalCount;
 
             if (promptDurationNs > 0 || roundEvalDurationNs > 0) {
               HardwareCalibrationService().recordMetrics(
@@ -889,6 +953,30 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
             // This prompt is now what Ollama has cached for the conversation.
             _cachedPrefixes[convId] = prefixKey;
+            _lastNumCtx[convId] = ollamaNumCtx;
+            // Without a num_ctx the model runs in the daemon's default window; ask which.
+            int window = budget.window;
+            if (ollamaNumCtx == null) {
+              final loaded = await _ollama.loadedContextLength(modelName);
+              if (loaded != null) {
+                _defaultWindows[modelName] = loaded;
+                window = loaded;
+              }
+            }
+            if (contextTokens > 0) {
+              await _db.updateConversationContext(convId, tokens: contextTokens, window: window);
+              if (mounted && state.conversationId == convId) {
+                state = state.copyWith(
+                  errorMessage: state.errorMessage,
+                  context: ChatContextInfo(
+                    summary: state.context.summary,
+                    summaryThroughId: state.context.summaryThroughId,
+                    tokens: contextTokens,
+                    window: window,
+                  ),
+                );
+              }
+            }
             if (evalCount > 0) {
               unawaited(HardwareCalibrationService().recordOutput(
                 modelName: modelName,
@@ -921,6 +1009,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
               modelName: modelName,
               history: [...rawHistory, finalizedMsg],
               budgetTokens: budget.historyTokens,
+              window: budget.window,
               previousSummary: previousSummary,
               numCtx: ollamaNumCtx,
               think: modelInfo?.supportsThinking == true ? false : null,
@@ -941,7 +1030,33 @@ class ChatNotifier extends StateNotifier<ChatState> {
     await runStream(withTools: true);
   }
 
+  static final RegExp _compactCommand = RegExp(r'^/compact(?:\s+([\s\S]*))?$');
+
   final Set<String> _compacting = {};
+
+  // Progress line of a summary the user asked for, by conversation.
+  final Map<String, String> _compactingStatus = {};
+
+  // The num_ctx each conversation was last answered with (null: Ollama's default).
+  // A summary request has to use the same one or Ollama reloads the model.
+  final Map<String, int?> _lastNumCtx = {};
+
+  // Window each model was seen loaded with when no num_ctx was sent.
+  final Map<String, int> _defaultWindows = {};
+
+  void _showSummary(String conversationId, String summary, String throughId, {int? tokens}) {
+    if (!mounted || state.conversationId != conversationId) return;
+    state = state.copyWith(
+      errorMessage: state.errorMessage,
+      context: ChatContextInfo(
+        summary: summary,
+        summaryThroughId: throughId,
+        tokens: tokens ?? state.context.tokens,
+        window: state.context.window,
+        isEstimate: tokens != null || state.context.isEstimate,
+      ),
+    );
+  }
 
   /// Folds older turns into the conversation summary once the history has
   /// outgrown its budget. Runs after the answer is on screen, so the cost is
@@ -951,28 +1066,111 @@ class ChatNotifier extends StateNotifier<ChatState> {
     required String modelName,
     required List<Message> history,
     required int budgetTokens,
+    required int window,
     required String? previousSummary,
     required int? numCtx,
     required bool? think,
   }) async {
+    if (!mounted || !_ref.read(appSettingsProvider).autoCompact) return;
     final cut = ContextManager.planCompaction(history: history, budgetTokens: budgetTokens);
     if (cut == 0 || !_compacting.add(conversationId)) return;
 
     try {
-      final summary = await SummaryService.summarize(
+      final summary = await SummaryService.summarizeAll(
         model: modelName,
         previousSummary: previousSummary,
         turns: history.sublist(0, cut),
+        window: window,
         numCtx: numCtx,
         think: think,
       );
       if (summary != null) {
         await _db.updateConversationSummary(conversationId, summary, history[cut - 1].id);
+        _showSummary(conversationId, summary, history[cut - 1].id);
       }
     } catch (_) {
       // Without a summary the sliding window still bounds the next prompt.
     } finally {
       _compacting.remove(conversationId);
+    }
+  }
+
+  /// Summarises everything said so far in the chat on screen, on request
+  /// (`/compact`, optionally followed by what the summary should focus on).
+  /// The next turn then starts from the summary instead of the full history.
+  Future<void> compactConversation(String modelName, {String? instructions}) async {
+    final convId = state.conversationId;
+    if (convId == null || convId.isEmpty || state.isGenerating) return;
+    if (!_compacting.add(convId)) return;
+
+    void setStatus(String? status) {
+      if (status == null) {
+        _compactingStatus.remove(convId);
+      } else {
+        _compactingStatus[convId] = status;
+      }
+      if (!mounted || state.conversationId != convId) return;
+      state = state.copyWith(
+        errorMessage: state.errorMessage,
+        compactingStatus: status,
+        clearCompacting: status == null,
+      );
+    }
+
+    String? error;
+    try {
+      final messages = state.messages;
+      final conv = await _db.getConversation(convId);
+      final through = conv?.summaryThroughId;
+      final start = through == null ? 0 : messages.indexWhere((m) => m.id == through) + 1;
+      final turns = messages
+          .skip(start)
+          .where((m) => (m.role == 'user' || m.role == 'assistant') && m.content.trim().isNotEmpty)
+          .toList();
+      if (turns.isEmpty) return;
+
+      setStatus(I18n.compacting);
+
+      final modelInfo = _ref.read(modelProvider).models.where((m) => m.name == modelName).firstOrNull;
+      final preferred = _ref.read(appSettingsProvider).contextWindow;
+      final baseline = ContextManager.planBudget(
+        systemTokens: 0,
+        promptTokens: 0,
+        latestMessageTokens: 0,
+        maxContext: modelInfo?.contextLength,
+        preferredWindow: preferred,
+        defaultWindow: _defaultWindows[modelName],
+      );
+      final numCtx = _lastNumCtx.containsKey(convId) ? _lastNumCtx[convId] : baseline.numCtx;
+
+      final summary = await SummaryService.summarizeAll(
+        model: modelName,
+        previousSummary: conv?.summary,
+        turns: turns,
+        window: numCtx ?? baseline.window,
+        instructions: instructions,
+        numCtx: numCtx,
+        think: modelInfo?.supportsThinking == true ? false : null,
+        onProgress: (step, steps) {
+          if (steps > 1) setStatus(I18n.compactingStep(step, steps));
+        },
+      );
+      if (summary == null) {
+        error = I18n.compactFailed;
+      } else {
+        await _db.updateConversationSummary(convId, summary, turns.last.id);
+        // The summary changes the prompt prefix, so nothing of it is cached any more.
+        _cachedPrefixes.remove(convId);
+        _showSummary(convId, summary, turns.last.id, tokens: ContextManager.estimateTokens(summary));
+      }
+    } catch (err) {
+      error = _describeError(err);
+    } finally {
+      _compacting.remove(convId);
+      setStatus(null);
+    }
+    if (error != null && mounted && state.conversationId == convId) {
+      state = state.copyWith(errorMessage: error);
     }
   }
 

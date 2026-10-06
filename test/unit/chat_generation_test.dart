@@ -10,8 +10,10 @@ import 'package:tomsllama/core/models/conversation.dart';
 import 'package:tomsllama/core/models/message.dart';
 import 'package:tomsllama/core/services/database_service.dart';
 import 'package:tomsllama/core/services/ollama_service.dart';
+import 'package:tomsllama/core/services/settings_service.dart';
 import 'package:tomsllama/features/chat/controllers/chat_controller.dart';
 import 'package:tomsllama/features/models/controllers/model_controller.dart';
+import 'package:tomsllama/features/settings/controllers/settings_controller.dart';
 import 'package:tomsllama/features/sidebar/controllers/sidebar_controller.dart';
 
 /// Minimal stand-in for the Ollama daemon: answers /api/chat with NDJSON chunks.
@@ -22,6 +24,9 @@ class _FakeOllama {
 
   /// Reported as eval_count on the final chunk; 0 leaves the counters out.
   int evalCount = 0;
+
+  /// Reported as prompt_eval_count on the final chunk; 0 leaves it out.
+  int promptEvalCount = 0;
   List<Map<String, dynamic>> models = [];
 
   List<String> reply = ['Hello', ' world'];
@@ -91,6 +96,7 @@ class _FakeOllama {
             'done': true,
             if (evalCount > 0 && !isTitleRequest) 'eval_count': evalCount,
             if (evalCount > 0 && !isTitleRequest) 'eval_duration': 2000000000,
+            if (promptEvalCount > 0 && !isTitleRequest) 'prompt_eval_count': promptEvalCount,
           })}\n');
       await response.close();
     } catch (_) {
@@ -127,6 +133,7 @@ void main() {
     ollama.holdAfterFirstChunk = null;
     ollama.summaryRequests.clear();
     ollama.evalCount = 0;
+    ollama.promptEvalCount = 0;
     ollama.models = [];
   });
 
@@ -316,6 +323,97 @@ void main() {
     expect(userTurns, ['Second question', 'Third question']);
     // Everything on screen is still there; only the prompt was compacted.
     expect(container.read(chatProvider).messages.where((m) => m.role == 'user'), hasLength(3));
+  });
+
+  test('/compact summarises the whole chat and the next turn starts from the summary', () async {
+    final (container, chat) = await newChat();
+
+    await chat.sendMessage('First question', 'test-model');
+    await waitFor(() => !container.read(chatProvider).isGenerating);
+    final requestsBefore = ollama.chatRequests.length;
+
+    await chat.sendMessage('/compact keep the numbers', 'test-model');
+
+    // The command is not a turn: nothing is sent as chat and nothing is added on screen.
+    expect(ollama.chatRequests, hasLength(requestsBefore));
+    final state = container.read(chatProvider);
+    expect(state.messages.map((m) => m.content), ['First question', 'Hello world']);
+    expect(state.compactingStatus, isNull);
+    expect(state.context.summary, 'SUMMARY-OF-EARLIER-TURNS');
+    expect(state.context.summaryThroughId, state.messages.last.id);
+
+    final summaryPrompt = (ollama.summaryRequests.single['messages'] as List).single['content'] as String;
+    expect(summaryPrompt, contains('First question'));
+    expect(summaryPrompt, contains('Hello world'));
+    expect(summaryPrompt, contains('keep the numbers'));
+
+    await chat.sendMessage('Second question', 'test-model');
+    await waitFor(() => !container.read(chatProvider).isGenerating);
+
+    final sent = (ollama.chatRequests.last['messages'] as List).cast<Map<String, dynamic>>();
+    expect(sent.first['content'], contains('SUMMARY-OF-EARLIER-TURNS'));
+    expect(sent.where((m) => m['role'] != 'system').map((m) => m['content']), ['Second question']);
+  });
+
+  test('context usage is what Ollama counted and survives reopening the chat', () async {
+    final (container, chat) = await newChat();
+    ollama.promptEvalCount = 900;
+    ollama.evalCount = 300;
+
+    await chat.sendMessage('Measure this', 'test-model');
+    await waitFor(() => container.read(chatProvider).context.tokens != null);
+
+    final context = container.read(chatProvider).context;
+    expect(context.tokens, 1200);
+    expect(context.window, 2048);
+    expect(context.isEstimate, isFalse);
+
+    final convId = container.read(chatProvider).conversationId!;
+    await chat.startNewChat();
+    expect(container.read(chatProvider).context.tokens, isNull);
+    await chat.loadConversation(convId);
+    expect(container.read(chatProvider).context.tokens, 1200);
+  });
+
+  test('the chosen context window is capped at what the model supports', () async {
+    ollama.models = [
+      {'name': 'small', 'details': {'context_length': 8192}},
+      {'name': 'big', 'details': {'context_length': 131072}},
+    ];
+    final (container, chat) = await newChat();
+    await container.read(modelProvider.notifier).loadModels();
+    final settings = container.read(appSettingsProvider.notifier);
+    await settings.save(AppSettings(ollamaUrl: ollama.url, contextWindow: 16384));
+    addTearDown(() => settings.save(AppSettings(ollamaUrl: ollama.url)));
+
+    await chat.sendMessage('Hello', 'small');
+    await waitFor(() => !container.read(chatProvider).isGenerating);
+    expect((ollama.chatRequests.last['options'] as Map)['num_ctx'], 8192);
+
+    await chat.sendMessage('Hello again', 'big');
+    await waitFor(() => !container.read(chatProvider).isGenerating);
+    expect((ollama.chatRequests.last['options'] as Map)['num_ctx'], 16384);
+
+    await settings.save(AppSettings(ollamaUrl: ollama.url, contextWindow: AppSettings.modelMaxContext));
+    await chat.sendMessage('And again', 'big');
+    await waitFor(() => !container.read(chatProvider).isGenerating);
+    expect((ollama.chatRequests.last['options'] as Map)['num_ctx'], 131072);
+  });
+
+  test('with automatic summaries off, a long chat is left as it is', () async {
+    final (container, chat) = await newChat();
+    final settings = container.read(appSettingsProvider.notifier);
+    await settings.save(AppSettings(ollamaUrl: ollama.url, autoCompact: false));
+    addTearDown(() => settings.save(AppSettings(ollamaUrl: ollama.url)));
+    ollama.evalCount = 800;
+
+    await chat.sendMessage('First question', 'test-model');
+    await waitFor(() => !container.read(chatProvider).isGenerating);
+    await chat.sendMessage('Second question', 'test-model');
+    await waitFor(() => !container.read(chatProvider).isGenerating);
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+
+    expect(ollama.summaryRequests, isEmpty);
   });
 
   test('an answer keeps generating in the background when another chat is opened', () async {

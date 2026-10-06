@@ -120,6 +120,7 @@ flowchart TD
 | **`Arrow Up`** | **`Arrow Up`** | **Previous Prompt in History** | Composer (First Line) |
 | **`Arrow Down`** | **`Arrow Down`** | **Newer Prompt / Restore Draft** | Composer (Last Line) |
 | **`@`** | **`@`** | **Trigger File Autocompletion** | Composer Input |
+| **`/compact`** | **`/compact`** | **Summarise the chat so far and free up context** (text after it says what to keep) | Composer Input |
 
 ---
 

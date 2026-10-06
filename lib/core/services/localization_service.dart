@@ -161,6 +161,31 @@ class I18n {
       ? 'Antwort fehlgeschlagen: $detail'
       : 'Response failed: $detail';
   static String get retry => isGerman ? 'Erneut versuchen' : 'Retry';
+  static String get compacting => isGerman ? 'Fasse den Verlauf zusammen...' : 'Summarising the conversation...';
+  static String compactingStep(int step, int steps) =>
+      isGerman ? 'Fasse den Verlauf zusammen ($step/$steps)...' : 'Summarising the conversation ($step/$steps)...';
+  static String get compactFailed =>
+      isGerman ? 'Die Zusammenfassung ist fehlgeschlagen.' : 'The summary could not be created.';
+  static String get compactAction => isGerman ? 'Zusammenfassen' : 'Compact';
+  static String get compactTooltip => isGerman
+      ? 'Bisherigen Verlauf zusammenfassen und Kontext freigeben (/compact)'
+      : 'Summarise the conversation so far and free up context (/compact)';
+  static String summarisedDivider(String before, String after) => isGerman
+      ? 'Bis hier zusammengefasst • $before → $after Tokens'
+      : 'Summarised up to here • $before → $after tokens';
+  static String get summarisedDividerPlain => isGerman ? 'Bis hier zusammengefasst' : 'Summarised up to here';
+  static String contextUsage(String used, String window, String left) =>
+      isGerman ? 'Kontext $used / $window • $left frei' : 'Context $used / $window • $left left';
+  static String contextModelMax(String max) => isGerman ? 'Modell max. $max' : 'model max $max';
+  static String get autoCompactSetting => isGerman
+      ? 'Ältere Nachrichten automatisch zusammenfassen, wenn der Kontext voll wird'
+      : 'Summarise older messages automatically when the context fills up';
+  static String get contextWindowSetting => isGerman ? 'Kontextfenster' : 'Context window';
+  static String get contextWindowHint => isGerman
+      ? 'Größere Fenster merken sich mehr, brauchen aber mehr Arbeitsspeicher und sind auf der CPU langsamer. Jedes Modell wird auf sein eigenes Maximum begrenzt.'
+      : 'Larger windows remember more but need more memory and are slower on a CPU. Every model is capped at its own maximum.';
+  static String get contextWindowAuto => isGerman ? 'Automatisch (2k bis 8k)' : 'Automatic (2k to 8k)';
+  static String get contextWindowModelMax => isGerman ? 'Maximum des Modells' : 'Model maximum';
   static String readingFile(String path) => isGerman ? 'Lese $path...' : 'Reading $path...';
 
   static String get subtitle => isGerman

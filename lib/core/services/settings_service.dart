@@ -150,11 +150,22 @@ class AppSettings {
   /// Closing the window hides it to the tray instead of quitting.
   final bool closeToTray;
 
+  /// Fold older turns into a summary when a chat nears its context window.
+  final bool autoCompact;
+
+  /// Context window to run chats in: null picks a small tier per turn,
+  /// [modelMaxContext] uses whatever the model supports, any other value is a
+  /// token count that is capped at the model's own limit.
+  final int? contextWindow;
+  static const int modelMaxContext = 0;
+
   const AppSettings({
     this.ollamaUrl = defaultOllamaUrl,
     this.defaultModel,
     this.customInstructions = '',
     this.closeToTray = false,
+    this.autoCompact = true,
+    this.contextWindow,
   });
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
@@ -165,6 +176,8 @@ class AppSettings {
       defaultModel: model.isEmpty ? null : model,
       customInstructions: (json['custom_instructions'] as String?) ?? '',
       closeToTray: (json['close_to_tray'] as bool?) ?? false,
+      autoCompact: (json['auto_compact'] as bool?) ?? true,
+      contextWindow: json['context_window'] as int?,
     );
   }
 
@@ -173,5 +186,7 @@ class AppSettings {
         'default_model': defaultModel,
         'custom_instructions': customInstructions,
         'close_to_tray': closeToTray,
+        'auto_compact': autoCompact,
+        'context_window': contextWindow,
       };
 }

@@ -6,6 +6,10 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../core/widgets/tomsllama_logo.dart';
 import '../../../core/services/localization_service.dart';
+import '../../../core/constants/app_icons.dart';
+import '../../../core/services/context_manager.dart';
+import '../../../core/widgets/pressable.dart';
+import 'claude_thinking_indicator.dart';
 import 'message_bubble.dart';
 
 class ChatViewport extends StatefulWidget {
@@ -19,6 +23,13 @@ class ChatViewport extends StatefulWidget {
   final String? errorMessage;
   final VoidCallback? onRetry;
 
+  /// Summary standing in for the turns up to and including [summaryThroughId].
+  final String? summary;
+  final String? summaryThroughId;
+
+  /// Progress line while the chat is being summarised on request.
+  final String? compactingStatus;
+
   const ChatViewport({
     super.key,
     required this.messages,
@@ -30,6 +41,9 @@ class ChatViewport extends StatefulWidget {
     this.onRegenerate,
     this.errorMessage,
     this.onRetry,
+    this.summary,
+    this.summaryThroughId,
+    this.compactingStatus,
   });
 
   @override
@@ -128,31 +142,59 @@ class _ChatViewportState extends State<ChatViewport> {
     }
 
     final hasError = widget.errorMessage != null;
+    final hasSummary = widget.summary != null && widget.summary!.trim().isNotEmpty;
+    final dividerAfter = hasSummary ? widget.messages.indexWhere((m) => m.id == widget.summaryThroughId) : -1;
+
+    // Rows in display order: messages, with the summary divider after the last
+    // summarised one, then the summarising line and an error, if any.
+    final rows = <Object>[];
+    for (var i = 0; i < widget.messages.length; i++) {
+      rows.add(widget.messages[i]);
+      if (i == dividerAfter) rows.add(_Row.summaryDivider);
+    }
+    if (widget.compactingStatus != null) rows.add(_Row.compacting);
+    if (hasError) rows.add(_Row.error);
 
     // One selection spans every message, so text can be copied across turns.
     return SelectionArea(
       child: ListView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.only(bottom: 24.0, top: 20.0),
-        itemCount: widget.messages.length + (hasError ? 1 : 0),
+        itemCount: rows.length,
         itemBuilder: (context, index) {
-          if (index == widget.messages.length) {
-            return Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 680),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 24.0),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: _ErrorNotice(message: widget.errorMessage!, onRetry: widget.onRetry),
-                  ),
-                ),
+          final row = rows[index];
+          if (row == _Row.error) {
+            return _column(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: _ErrorNotice(message: widget.errorMessage!, onRetry: widget.onRetry),
               ),
             );
           }
-          final message = widget.messages[index];
-          final isLast = index == widget.messages.length - 1;
-        
+          if (row == _Row.compacting) {
+            return _column(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: ClaudeThinkingIndicator(statusMessage: widget.compactingStatus),
+              ),
+            );
+          }
+          if (row == _Row.summaryDivider) {
+            final before = widget.messages
+                .take(dividerAfter + 1)
+                .fold<int>(0, (sum, m) => sum + ContextManager.historyTokens(m));
+            return _column(
+              child: _SummaryDivider(
+                summary: widget.summary!.trim(),
+                tokensBefore: before,
+                tokensAfter: ContextManager.estimateTokens(widget.summary!),
+              ),
+            );
+          }
+
+          final message = row as Message;
+          final isLast = identical(message, widget.messages.last);
+
           return MessageBubble(
             message: message,
             isThinking: isLast && widget.isGenerating,
@@ -166,6 +208,95 @@ class _ChatViewportState extends State<ChatViewport> {
           );
         },
       ),
+    );
+  }
+
+  // Same reading column as the message bubbles.
+  Widget _column({required Widget child}) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 680),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 24.0),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+enum _Row { summaryDivider, compacting, error }
+
+String _compactTokens(int tokens) => tokens >= 1000 ? '${(tokens / 1000).toStringAsFixed(1)}k' : '$tokens';
+
+/// Marks where the summary takes over: everything above it is no longer sent
+/// to the model. Opens to show what the model is told instead.
+class _SummaryDivider extends StatefulWidget {
+  final String summary;
+  final int tokensBefore;
+  final int tokensAfter;
+
+  const _SummaryDivider({required this.summary, required this.tokensBefore, required this.tokensAfter});
+
+  @override
+  State<_SummaryDivider> createState() => _SummaryDividerState();
+}
+
+class _SummaryDividerState extends State<_SummaryDivider> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final appColors = context.appColors;
+    Widget hairline() => Expanded(child: Container(height: 1.0, color: appColors.border));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Pressable(
+          onTap: () => setState(() => _open = !_open),
+          builder: (context, isHovered, _) {
+            final color = isHovered ? appColors.textPrimary : appColors.textSecondary;
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6.0),
+              child: Row(
+                children: [
+                  hairline(),
+                  const SizedBox(width: AppSpace.m),
+                  Text(
+                    // A summary of a very short chat saves nothing; then the numbers only confuse.
+                    widget.tokensAfter < widget.tokensBefore
+                        ? I18n.summarisedDivider(
+                            _compactTokens(widget.tokensBefore),
+                            _compactTokens(widget.tokensAfter),
+                          )
+                        : I18n.summarisedDividerPlain,
+                    style: AppTypography.micro.copyWith(color: color),
+                  ),
+                  const SizedBox(width: 4.0),
+                  Icon(_open ? AppIcons.caretUp : AppIcons.caretDown, size: 11.0, color: color),
+                  const SizedBox(width: AppSpace.m),
+                  hairline(),
+                ],
+              ),
+            );
+          },
+        ),
+        AnimatedSize(
+          duration: AppMotion.slow,
+          curve: AppMotion.standard,
+          alignment: Alignment.topCenter,
+          child: _open
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 4.0, bottom: 10.0),
+                  child: Text(
+                    widget.summary,
+                    style: AppTypography.small.copyWith(color: appColors.textSecondary, height: 1.5),
+                  ),
+                )
+              : const SizedBox(width: double.infinity),
+        ),
+      ],
     );
   }
 }
