@@ -166,7 +166,8 @@ class HardwareCalibrationService extends ChangeNotifier {
 
   void _detectInitialBaseline() {
     try {
-      if (Platform.isMacOS) {
+      // Intel Macs have no Metal offload worth the name and fall through to the CPU baselines.
+      if (Platform.isMacOS && Platform.version.contains('arm64')) {
         _deviceType = 'apple_silicon';
         _calibratedPromptEvalSpeed = 160.0;
         _calibratedGenSpeed = 45.0;

@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import '../theme/app_theme.dart';
+import 'app_paths.dart';
 
 class SettingsService {
   static final SettingsService _instance = SettingsService._internal();
@@ -13,8 +13,8 @@ class SettingsService {
 
   Future<File> _getFile() async {
     if (_settingsFile != null) return _settingsFile!;
-    final dir = await getApplicationDocumentsDirectory();
-    final settingsPath = p.join(dir.path, 'tomsllama', 'settings.json');
+    final dir = await appDataDirectory();
+    final settingsPath = p.join(dir.path, 'settings.json');
     final file = File(settingsPath);
     if (!await file.parent.exists()) {
       await file.parent.create(recursive: true);

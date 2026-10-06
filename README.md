@@ -89,7 +89,7 @@ flowchart TD
 
 | Platform | Native Runner | Hardware Acceleration | Window & System Integration | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **macOS** | **Cocoa / AppKit** (`macos/`) | **Apple Silicon Metal (MPS)** (~160+ tok/s eval) | Native Traffic Lights (78px inset), App Sandbox, Menu Bar Tray, Dock Reopen | **Fully Supported** |
+| **macOS** | **Cocoa / AppKit** (`macos/`) | **Apple Silicon Metal (MPS)** (~160+ tok/s eval) | Native Traffic Lights (78px inset), Menu Bar Tray, Dock Reopen | **Fully Supported** |
 | **Linux** | **GTK3** (`linux/`) | **NVIDIA CUDA / CPU AVX2** | CSD Header Bar, Wayland / X11, GNOME Shell Dock matching, Ayatana Tray | **Fully Supported** |
 | **Windows** | **C++ Win32** (`windows/`) | **DirectML / NVIDIA CUDA / CPU** | Frameless Win32 Window, Native Titlebar Snapping, Taskbar Tray | **Fully Supported** |
 
@@ -153,9 +153,10 @@ Ensure **Flutter SDK (>= 3.19.0)** is installed:
   ```bash
   sudo apt install clang cmake ninja-build pkg-config libgtk-3-dev libayatana-appindicator3-dev
   ```
-- **macOS:**
+- **macOS:** the full Xcode app from the App Store (the command line tools alone cannot build a Flutter app), then:
   ```bash
-  xcode-select --install
+  sudo xcodebuild -runFirstLaunch
+  brew install cocoapods
   ```
 
 ---
@@ -250,11 +251,11 @@ flutter pub get
 
 | File / Directory | Platform | Description |
 | :--- | :--- | :--- |
-| **`~/Documents/tomsllama/tomsllama.db`** | **Linux / Windows / macOS** | Primary **SQLite Database** storing conversations, messages, workspaces, and personas |
-| **`~/Documents/tomsllama/settings.json`** | **Linux / Windows / macOS** | Hardware benchmark statistics, custom speed profiles, and active UI preferences |
+| **`~/Documents/tomsllama/tomsllama.db`** | **Linux / Windows** | Primary **SQLite Database** storing conversations, messages, workspaces, and personas |
+| **`~/Documents/tomsllama/settings.json`** | **Linux / Windows** | Hardware benchmark statistics, custom speed profiles, and active UI preferences |
 | **`~/.local/share/applications/tomsllama.desktop`** | **Linux** | XDG Desktop Entry with `StartupWMClass` matching for GNOME Shell and Wayland docks |
 | **`~/.local/share/icons/hicolor/`** | **Linux** | Scalable application icon assets (16px to 512px) |
-| **`~/Library/Containers/com.haiden.tomsllama/`** | **macOS** | Sandboxed container root when distributed with App Sandbox enabled |
+| **`~/Library/Application Support/com.haiden.tomsllama/`** | **macOS** | Database and settings. The App Sandbox is off, so workspace folders stay readable between launches |
 
 ---
 

@@ -142,8 +142,9 @@ class OllamaService {
     }
     if (numThread != null) {
       options['num_thread'] = numThread;
-    } else {
-      // Keep at least 1 core free for OS / Wayland compositor / UI to prevent desktop input freezing
+    } else if (!Platform.isMacOS) {
+      // Keep at least 1 core free for OS / Wayland compositor / UI to prevent desktop input freezing.
+      // Not on macOS: Ollama runs on the GPU there and picks the performance cores itself.
       final procs = Platform.numberOfProcessors;
       if (procs > 4) {
         options['num_thread'] = 4;

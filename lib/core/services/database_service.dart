@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:path/path.dart';
-import 'package:path_provider/path_provider.dart';
+import 'app_paths.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../models/conversation.dart';
@@ -29,9 +29,9 @@ class DatabaseService {
       databaseFactory = databaseFactoryFfi;
     }
 
-    final appDocDir = await getApplicationDocumentsDirectory();
-    final oldDbPath = join(appDocDir.path, 'gemlama', 'gemlama.db');
-    final dbPath = join(appDocDir.path, 'tomsllama', 'tomsllama.db');
+    final dataDir = await appDataDirectory();
+    final oldDbPath = join(dataDir.parent.path, 'gemlama', 'gemlama.db');
+    final dbPath = join(dataDir.path, 'tomsllama.db');
     
     // Ensure directory exists
     await Directory(dirname(dbPath)).create(recursive: true);

@@ -10,9 +10,9 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: claudeTheme,
-        home: Scaffold(
+        home: const Scaffold(
           body: SelectionArea(
-            child: const SyntaxHighlightView(
+            child: SyntaxHighlightView(
               mdCode,
               language: 'md',
               theme: {},

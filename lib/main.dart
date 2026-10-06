@@ -49,7 +49,12 @@ void main() async {
 
     // Setup Tray safely
     try {
-      await trayManager.setIcon('assets/app_icon.png');
+      if (Platform.isMacOS) {
+        // A template image: the menu bar tints it for light and dark itself.
+        await trayManager.setIcon('assets/tray_icon_macos.png', isTemplate: true);
+      } else {
+        await trayManager.setIcon('assets/app_icon.png');
+      }
       final menu = Menu(
         items: [
           MenuItem(key: 'show_window', label: I18n.showApp),

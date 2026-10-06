@@ -29,7 +29,7 @@ class I18n {
   static String get copyMd => isGerman ? 'Markdown kopieren' : 'Copy MD';
   static String get thinkingProcess => isGerman ? 'Denkprozess' : 'Thinking Process';
   static String get thinkingOngoing => isGerman ? 'Denkprozess läuft...' : 'Thinking in progress...';
-  static String get ctrlN => 'Ctrl N';
+  static String get ctrlN => Platform.isMacOS ? '⌘N' : 'Ctrl N';
   static String get searchPlaceholder => isGerman ? 'Chats durchsuchen...' : 'Search conversations...';
   static String get modeFast => isGerman ? 'Schnell' : 'Fast';
   static String get modeFastDesc => isGerman ? 'Schnelle, direkte Antworten (T=0.3)' : 'Quick, direct answers (T=0.3)';
@@ -46,7 +46,9 @@ class I18n {
   static String get willAttachToConversation =>
       isGerman ? 'Wird an diese Unterhaltung angehängt' : 'Will attach to this conversation';
   static String get toggleSidebar =>
-      isGerman ? 'Seitenleiste umschalten (Strg+B)' : 'Toggle Sidebar (Ctrl+B)';
+      isGerman
+          ? 'Seitenleiste umschalten (${Platform.isMacOS ? '⌘B' : 'Strg+B'})'
+          : 'Toggle Sidebar (${Platform.isMacOS ? '⌘B' : 'Ctrl+B'})';
   static String get workspaces => 'Workspaces';
   static String get chats => 'Chats';
   static String get newWorkspace => isGerman ? '+ Neuer Workspace' : '+ New Workspace';
