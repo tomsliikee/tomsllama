@@ -29,6 +29,7 @@ class OllamaService {
     double? temperature,
     int? numCtx,
     int? numThread,
+    bool? think,
     List<Map<String, dynamic>>? tools,
     void Function(Map<String, dynamic> toolCall)? onToolCall,
     void Function(Map<String, dynamic> doneMetrics)? onDoneMetrics,
@@ -44,28 +45,18 @@ class OllamaService {
     if (tools != null && tools.isNotEmpty) {
       payload['tools'] = tools;
     }
-    final options = <String, dynamic>{};
-    if (temperature != null) {
-      options['temperature'] = temperature;
+    if (think != null) {
+      payload['think'] = think;
     }
-    if (numCtx != null) {
-      options['num_ctx'] = numCtx;
-    }
-    if (numThread != null) {
-      options['num_thread'] = numThread;
-    } else {
-      // Keep at least 1 core free for OS / Wayland compositor / UI to prevent desktop input freezing
-      final procs = Platform.numberOfProcessors;
-      if (procs > 4) {
-        options['num_thread'] = 4;
-      } else if (procs > 1) {
-        options['num_thread'] = procs - 1;
-      }
-    }
+    final options = _buildOptions(temperature: temperature, numCtx: numCtx, numThread: numThread);
     if (options.isNotEmpty) {
       payload['options'] = options;
     }
     request.body = jsonEncode(payload);
+
+    // Reasoning arrives in its own `thinking` field when the daemon separates it.
+    // It is folded back into <think> tags so one parser handles both styles.
+    bool thinkOpen = false;
 
     try {
       final response = await client.send(request);
@@ -84,6 +75,15 @@ class OllamaService {
 
             final msg = data['message'];
             if (msg != null && msg is Map<String, dynamic>) {
+              final thinking = msg['thinking'];
+              if (thinking is String && thinking.isNotEmpty) {
+                if (!thinkOpen) {
+                  thinkOpen = true;
+                  yield '<think>';
+                }
+                yield thinking;
+              }
+
               // Check for native tool calls or json tool call in content
               final toolCall = _extractToolCall(msg);
               if (toolCall != null) {
@@ -93,6 +93,10 @@ class OllamaService {
               if (msg['content'] != null) {
                 final content = msg['content'] as String;
                 if (content.isNotEmpty && toolCall == null) {
+                  if (thinkOpen) {
+                    thinkOpen = false;
+                    yield '</think>';
+                  }
                   yield content;
                 }
               }
@@ -102,9 +106,38 @@ class OllamaService {
           // Ignore incomplete non-json line
         }
       }
+      if (thinkOpen) {
+        yield '</think>';
+      }
     } finally {
       client.close();
     }
+  }
+
+  /// Runner options shared by every chat request. `num_ctx` and `num_thread`
+  /// are load-time options: a request that sends different values than the
+  /// previous one makes Ollama reload the model, so side requests (titles,
+  /// summaries) must go through here with the same values as the chat itself.
+  static Map<String, dynamic> _buildOptions({double? temperature, int? numCtx, int? numThread}) {
+    final options = <String, dynamic>{};
+    if (temperature != null) {
+      options['temperature'] = temperature;
+    }
+    if (numCtx != null) {
+      options['num_ctx'] = numCtx;
+    }
+    if (numThread != null) {
+      options['num_thread'] = numThread;
+    } else {
+      // Keep at least 1 core free for OS / Wayland compositor / UI to prevent desktop input freezing
+      final procs = Platform.numberOfProcessors;
+      if (procs > 4) {
+        options['num_thread'] = 4;
+      } else if (procs > 1) {
+        options['num_thread'] = procs - 1;
+      }
+    }
+    return options;
   }
 
   static Map<String, dynamic>? _extractToolCall(Map<String, dynamic> message) {
@@ -133,6 +166,7 @@ class OllamaService {
     List<Map<String, dynamic>> messages, {
     double? temperature,
     int? numCtx,
+    bool? think,
     List<Map<String, dynamic>>? tools,
   }) async {
     final client = http.Client();
@@ -145,9 +179,10 @@ class OllamaService {
       if (tools != null && tools.isNotEmpty) {
         payload['tools'] = tools;
       }
-      final options = <String, dynamic>{};
-      if (temperature != null) options['temperature'] = temperature;
-      if (numCtx != null) options['num_ctx'] = numCtx;
+      if (think != null) {
+        payload['think'] = think;
+      }
+      final options = _buildOptions(temperature: temperature, numCtx: numCtx);
       if (options.isNotEmpty) payload['options'] = options;
 
       final res = await client.post(

@@ -7,7 +7,7 @@ class TitleService {
   static const String summarizerModel = 'qwen2.5-coder:1.5b'; // Fast small model
   static const int maxTitleLength = 40;
 
-  static Future<String> generateTitle(List<Message> messages, {String? modelOverride}) async {
+  static Future<String> generateTitle(List<Message> messages, {String? modelOverride, int? numCtx}) async {
     // Only use the first 2-3 messages for context
     final contextMessages = messages.where((m) => m.role != 'system').take(3).toList();
     if (contextMessages.isEmpty) return I18n.newChatTitle;
@@ -21,6 +21,8 @@ class TitleService {
         [
           {'role': 'user', 'content': prompt}
         ],
+        // Same num_ctx as the chat, or Ollama reloads the model for a title.
+        numCtx: numCtx,
       );
 
       final buffer = StringBuffer();

@@ -4,10 +4,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:desktop_drop/desktop_drop.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:tray_manager/tray_manager.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../core/services/database_service.dart';
+import '../../../core/services/export_service.dart';
+import '../../settings/controllers/settings_controller.dart';
 import '../../sidebar/controllers/sidebar_controller.dart';
 import '../../models/controllers/model_controller.dart';
 import '../../chat/controllers/chat_controller.dart';
@@ -34,7 +38,7 @@ class DesktopShell extends ConsumerStatefulWidget {
   ConsumerState<DesktopShell> createState() => _DesktopShellState();
 }
 
-class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener {
+class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener, TrayListener {
   bool _isSidebarOpen = true;
   bool _isZenMode = false;
   bool _isDraggingOverChat = false;
@@ -46,6 +50,8 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
     super.initState();
     _searchController = TextEditingController();
     windowManager.addListener(this);
+    trayManager.addListener(this);
+    _applyCloseBehavior(ref.read(appSettingsProvider).closeToTray);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final sidebarNotifier = ref.read(sidebarProvider.notifier);
       await sidebarNotifier.loadConversations();
@@ -72,7 +78,70 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
   void dispose() {
     _searchController.dispose();
     windowManager.removeListener(this);
+    trayManager.removeListener(this);
     super.dispose();
+  }
+
+  // With close-to-tray on, the close button is intercepted and hides the window;
+  // "Exit" in the tray menu is then the way out.
+  Future<void> _applyCloseBehavior(bool closeToTray) async {
+    try {
+      await windowManager.setPreventClose(closeToTray);
+    } catch (_) {
+      // No native window (tests).
+    }
+  }
+
+  Future<void> _showWindow() async {
+    await windowManager.show();
+    await windowManager.focus();
+  }
+
+  @override
+  void onWindowClose() async {
+    if (await windowManager.isPreventClose()) {
+      await windowManager.hide();
+    }
+  }
+
+  @override
+  void onTrayIconMouseDown() => _showWindow();
+
+  @override
+  void onTrayIconRightMouseDown() => trayManager.popUpContextMenu();
+
+  @override
+  void onTrayMenuItemClick(MenuItem menuItem) {
+    if (menuItem.key == 'show_window') {
+      _showWindow();
+    } else if (menuItem.key == 'exit_app') {
+      windowManager.destroy();
+    }
+  }
+
+  Future<void> _exportChat(String conversationId) async {
+    final conv = ref.read(sidebarProvider).conversations.where((c) => c.id == conversationId).firstOrNull;
+    if (conv == null) return;
+
+    final safeTitle = conv.title.replaceAll(RegExp(r'[^\w\s.-]'), '').trim().replaceAll(RegExp(r'\s+'), '_');
+    final path = await FilePicker.platform.saveFile(
+      dialogTitle: I18n.exportDialogTitle,
+      fileName: '${safeTitle.isEmpty ? 'chat' : safeTitle}.md',
+      type: FileType.custom,
+      allowedExtensions: const ['md', 'json', 'html'],
+    );
+    if (path == null) return;
+
+    // The extension the user typed picks the format; anything else is Markdown.
+    final messages = await DatabaseService().getMessagesForConversation(conversationId);
+    final lower = path.toLowerCase();
+    if (lower.endsWith('.json')) {
+      await ExportService.exportToJson(conv, messages, path);
+    } else if (lower.endsWith('.html')) {
+      await ExportService.exportToHtml(conv, messages, path);
+    } else {
+      await ExportService.exportToMarkdown(conv, messages, lower.endsWith('.md') ? path : '$path.md');
+    }
   }
 
   void _toggleSidebar() => setState(() => _isSidebarOpen = !_isSidebarOpen);
@@ -257,6 +326,10 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
   Widget build(BuildContext context) {
     final appColors = context.appColors;
 
+    ref.listen(appSettingsProvider.select((s) => s.closeToTray), (_, closeToTray) {
+      _applyCloseBehavior(closeToTray);
+    });
+
     final sidebarState = ref.watch(sidebarProvider);
     final modelState = ref.watch(modelProvider);
     // Watch only what the shell itself lays out. The streaming message list is
@@ -322,10 +395,14 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                           conversations: sidebarState.filteredConversations,
                           activeConversationId: conversationId ?? sidebarState.activeConversationId,
                           searchController: _searchController,
-                          onSearchChanged: (q) => sidebarNotifier.setSearchQuery(q),
+                          onSearchChanged: (q) {
+                            sidebarNotifier.setSearchQuery(q);
+                            ref.read(workspaceListProvider.notifier).setSearchQuery(q);
+                          },
                           onSearchClear: () {
                             _searchController.clear();
                             sidebarNotifier.setSearchQuery('');
+                            ref.read(workspaceListProvider.notifier).setSearchQuery('');
                           },
                           onNewChat: _newChat,
                           onSelectChat: (id) {
@@ -350,7 +427,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                           onTogglePinChat: (id) => sidebarNotifier.togglePin(id),
                           onReorder: (oldIndex, newIndex) =>
                               sidebarNotifier.reorderConversations(oldIndex, newIndex),
-                          onExportChat: (_) {},
+                          onExportChat: _exportChat,
                           // Claude Workspace Integration
                           mode: sidebarMode,
                           onModeChanged: (newMode) {

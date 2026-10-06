@@ -99,6 +99,17 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Tooltip(
+                message: I18n.settingsTooltip,
+                waitDuration: const Duration(milliseconds: 300),
+                child: _buildWinBtn(
+                  key: const Key('settings_button'),
+                  icon: Icons.tune,
+                  onTap: widget.onOpenSettings,
+                  appColors: appColors,
+                ),
+              ),
+              const SizedBox(width: 6.0),
               _buildWinBtn(
                 icon: Icons.remove,
                 onTap: () => windowManager.minimize(),
@@ -239,12 +250,14 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
   }
 
   Widget _buildWinBtn({
+    Key? key,
     required IconData icon,
     required VoidCallback onTap,
     required AppThemeExtension appColors,
     bool isClose = false,
   }) {
     return InkWell(
+      key: key,
       onTap: onTap,
       borderRadius: BorderRadius.circular(3.0),
       child: Padding(

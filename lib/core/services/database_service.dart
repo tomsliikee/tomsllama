@@ -67,6 +67,12 @@ class DatabaseService {
           try {
             await db.execute('ALTER TABLE conversations ADD COLUMN is_workspace_context_enabled INTEGER DEFAULT 1;');
           } catch (_) {}
+          try {
+            await db.execute('ALTER TABLE conversations ADD COLUMN summary TEXT;');
+          } catch (_) {}
+          try {
+            await db.execute('ALTER TABLE conversations ADD COLUMN summary_through_id TEXT;');
+          } catch (_) {}
           await db.execute('''
             CREATE TABLE IF NOT EXISTS workspaces (
               id TEXT PRIMARY KEY,
@@ -137,6 +143,8 @@ class DatabaseService {
         persona TEXT DEFAULT 'Standard',
         workspace_id TEXT,
         is_workspace_context_enabled INTEGER DEFAULT 1,
+        summary TEXT,
+        summary_through_id TEXT,
         FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE
       )
     ''');
@@ -198,6 +206,28 @@ class DatabaseService {
     await db.update(
       'conversations',
       {'title': title, 'updated_at': DateTime.now().toIso8601String()},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<Conversation?> getConversation(String id) async {
+    final db = await database;
+    final maps = await db.query(
+      'conversations',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (maps.isEmpty) return null;
+    return Conversation.fromMap(maps.first);
+  }
+
+  Future<void> updateConversationSummary(String id, String summary, String throughMessageId) async {
+    final db = await database;
+    await db.update(
+      'conversations',
+      {'summary': summary, 'summary_through_id': throughMessageId},
       where: 'id = ?',
       whereArgs: [id],
     );

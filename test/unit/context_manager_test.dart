@@ -75,4 +75,40 @@ void main() {
       expect(overfull.historyTokens, 0);
     });
   });
+
+  group('planCompaction', () {
+    List<Message> turns(int count, int tokensEach) => [
+          for (var i = 0; i < count; i++)
+            createMessage('m$i', i.isEven ? 'user' : 'assistant', 'text', tokens: tokensEach),
+        ];
+
+    test('leaves history alone below three quarters of the budget', () {
+      expect(ContextManager.planCompaction(history: turns(6, 100), budgetTokens: 1000), 0);
+    });
+
+    test('keeps the newest turns up to half the budget and starts on a user turn', () {
+      final history = turns(10, 100); // 1000 tokens against a budget of 1000
+      final cut = ContextManager.planCompaction(history: history, budgetTokens: 1000);
+      expect(cut, 6);
+      expect(history[cut].role, 'user');
+    });
+
+    test('always keeps the exchange that just finished, however large', () {
+      final history = turns(4, 900);
+      expect(ContextManager.planCompaction(history: history, budgetTokens: 1000), 2);
+    });
+
+    test('a think block is not charged to the history budget', () {
+      final withThink = Message(
+        id: 't',
+        conversationId: 'c1',
+        role: 'assistant',
+        content: 'short',
+        thinkContent: 'long reasoning ' * 200,
+        tokens: 1200,
+        createdAt: DateTime.now(),
+      );
+      expect(ContextManager.historyTokens(withThink), ContextManager.estimateTokens('short'));
+    });
+  });
 }

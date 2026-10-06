@@ -196,6 +196,28 @@ class _ChatListItemState extends State<ChatListItem> {
                             ),
                           ),
 
+                        // Export button
+                        if (widget.onExport != null && _isHovered)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 3.0),
+                            child: Tooltip(
+                              message: I18n.exportChat,
+                              waitDuration: const Duration(milliseconds: 400),
+                              child: InkWell(
+                                onTap: widget.onExport,
+                                borderRadius: BorderRadius.circular(6.0),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(3.0),
+                                  child: Icon(
+                                    Icons.file_download_outlined,
+                                    size: 13.0,
+                                    color: appColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+
                         // Delete button ('X')
                         if (widget.onDelete != null && (_isHovered || widget.isSelected))
                           Padding(

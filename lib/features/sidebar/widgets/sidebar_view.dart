@@ -7,6 +7,7 @@ import '../../../core/models/workspace.dart';
 import '../../workspace/controllers/workspace_hub_controller.dart';
 import '../../shell/widgets/tomsllama_logo.dart';
 import 'chat_list_item.dart';
+import 'search_bar_view.dart';
 import 'workspace_list_item.dart';
 
 class SidebarView extends StatefulWidget {
@@ -98,6 +99,15 @@ class _SidebarViewState extends State<SidebarView> {
           _buildModeSlider(appColors),
 
           const SizedBox(height: 8.0),
+
+          if (widget.searchController != null) ...[
+            SearchBarView(
+              controller: widget.searchController!,
+              onChanged: (q) => widget.onSearchChanged?.call(q),
+              onClear: () => widget.onSearchClear?.call(),
+            ),
+            const SizedBox(height: 8.0),
+          ],
 
           // Content Floating Pill Panel (Chats OR Workspaces)
           Expanded(

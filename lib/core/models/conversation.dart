@@ -10,6 +10,11 @@ class Conversation {
   final String? workspaceId;
   final bool isWorkspaceContextEnabled;
 
+  /// Rolling summary of the turns up to and including [summaryThroughId].
+  /// Those turns are no longer sent as history; the summary stands in for them.
+  final String? summary;
+  final String? summaryThroughId;
+
   const Conversation({
     required this.id,
     required this.title,
@@ -21,6 +26,8 @@ class Conversation {
     this.persona = 'Standard',
     this.workspaceId,
     this.isWorkspaceContextEnabled = true,
+    this.summary,
+    this.summaryThroughId,
   });
 
   Map<String, dynamic> toMap() {
@@ -35,6 +42,8 @@ class Conversation {
       'persona': persona,
       'workspace_id': workspaceId,
       'is_workspace_context_enabled': isWorkspaceContextEnabled ? 1 : 0,
+      'summary': summary,
+      'summary_through_id': summaryThroughId,
     };
   }
 
@@ -50,6 +59,8 @@ class Conversation {
       persona: (map['persona'] as String?) ?? 'Standard',
       workspaceId: map['workspace_id'] as String?,
       isWorkspaceContextEnabled: (map['is_workspace_context_enabled'] as int? ?? 1) == 1,
+      summary: map['summary'] as String?,
+      summaryThroughId: map['summary_through_id'] as String?,
     );
   }
 
@@ -64,6 +75,8 @@ class Conversation {
     String? persona,
     String? workspaceId,
     bool? isWorkspaceContextEnabled,
+    String? summary,
+    String? summaryThroughId,
   }) {
     return Conversation(
       id: id ?? this.id,
@@ -77,6 +90,8 @@ class Conversation {
       workspaceId: workspaceId ?? this.workspaceId,
       isWorkspaceContextEnabled:
           isWorkspaceContextEnabled ?? this.isWorkspaceContextEnabled,
+      summary: summary ?? this.summary,
+      summaryThroughId: summaryThroughId ?? this.summaryThroughId,
     );
   }
 }

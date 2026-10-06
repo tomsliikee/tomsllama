@@ -11,6 +11,9 @@ import '../../../../core/services/title_service.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/context_manager.dart';
 import '../../../../core/services/workspace_service.dart';
+import '../../../../core/services/summary_service.dart';
+import '../../models/controllers/model_controller.dart';
+import '../../settings/controllers/settings_controller.dart';
 import 'package:path/path.dart' as p;
 import '../../../../core/utils/think_parser.dart';
 import '../../../../core/models/attached_file.dart';
@@ -313,8 +316,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     }
 
     // 2. Check if conversation belongs to a Claude-style Workspace with active context
-    final allConvs = await _db.getConversations();
-    final currentConv = allConvs.where((c) => c.id == convId).firstOrNull;
+    final currentConv = await _db.getConversation(convId);
     final workspaceId = currentConv?.workspaceId;
     final isWorkspaceContextEnabled = currentConv?.isWorkspaceContextEnabled ?? true;
 
@@ -373,6 +375,11 @@ class ChatNotifier extends StateNotifier<ChatState> {
     if (matchedPersona.systemPrompt.trim().isNotEmpty) {
       systemPromptBuffer.writeln(matchedPersona.systemPrompt.trim());
     }
+    final customInstructions = _ref.read(appSettingsProvider).customInstructions.trim();
+    if (customInstructions.isNotEmpty) {
+      if (systemPromptBuffer.isNotEmpty) systemPromptBuffer.writeln('\n');
+      systemPromptBuffer.writeln('### User Instructions:\n$customInstructions');
+    }
     if (claudeWorkspace != null) {
       if (claudeWorkspace.prompt.trim().isNotEmpty) {
         if (systemPromptBuffer.isNotEmpty) systemPromptBuffer.writeln('\n');
@@ -395,6 +402,15 @@ class ChatNotifier extends StateNotifier<ChatState> {
         systemPromptBuffer.writeln('#### Project Files Preview: $previewFiles');
       }
       systemPromptBuffer.writeln('#### Workspace Tools:\nYou have access to the `read_file(file_path)` function. When you need to read or verify code from any file in the workspace, call `read_file` with the relative file path.');
+    }
+
+    // The summary of compacted turns goes last: everything above stays an
+    // identical prefix across turns, so only this part is re-evaluated when it changes.
+    final previousSummary = currentConv?.summary;
+    final summaryThroughId = currentConv?.summaryThroughId;
+    if (previousSummary != null && previousSummary.trim().isNotEmpty) {
+      if (systemPromptBuffer.isNotEmpty) systemPromptBuffer.writeln('\n');
+      systemPromptBuffer.writeln('### Earlier in this conversation (summary of turns no longer shown):\n${previousSummary.trim()}');
     }
 
     // Build the user turn prompt payload (standalone attached files + query)
@@ -495,16 +511,36 @@ class ChatNotifier extends StateNotifier<ChatState> {
         break;
     }
 
+    // What the daemon says this model can do. Unknown (older Ollama) leaves
+    // the request as it was and falls back to the HTTP 400 retry below.
+    final modelInfo = _ref.read(modelProvider).models.where((m) => m.name == modelName).firstOrNull;
+    final bool? think;
+    if (modelInfo?.supportsThinking != true) {
+      think = null;
+    } else if (state.mode == ChatExecutionMode.thinking) {
+      think = true;
+    } else if (state.mode == ChatExecutionMode.schnell) {
+      think = false;
+    } else {
+      think = null;
+    }
+
     final budget = ContextManager.planBudget(
       systemTokens: systemTokens,
       promptTokens: userTokens,
       latestMessageTokens: userMsg.tokens,
+      maxContext: modelInfo?.contextLength,
     );
     final ollamaNumCtx = budget.numCtx;
     final slidingWindowBudget = budget.historyTokens;
 
     // Prepare message payload with sliding window bounded by slidingWindowBudget
+    // Turns already folded into the summary are not sent again.
+    final summarizedCount = summaryThroughId == null
+        ? 0
+        : updatedMessages.indexWhere((m) => m.id == summaryThroughId) + 1;
     final rawHistory = updatedMessages
+        .skip(summarizedCount)
         .where((m) => m.role == 'user' || (m.role == 'assistant' && m.id != assistantMsgId))
         .toList();
     final windowed = ContextManager.applySlidingWindow(
@@ -529,13 +565,16 @@ class ChatNotifier extends StateNotifier<ChatState> {
     final rawStreamBuffer = StringBuffer();
     final stopwatch = Stopwatch()..start();
     int tokenEstimate = 0;
+    // Exact generation counters from Ollama, summed over tool rounds.
+    int evalCount = 0;
+    int evalDurationNs = 0;
 
     // Only clear standalone attachments if no workspace is active (preserve workspace files across conversation)
     if (wsState.workspace == null && !isRegeneration) {
       wsNotifier.clearAttachments();
     }
 
-    final List<Map<String, dynamic>> tools = effectiveWorkspace != null
+    final List<Map<String, dynamic>> tools = effectiveWorkspace != null && modelInfo?.supportsTools != false
         ? [
             {
               'type': 'function',
@@ -566,6 +605,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
           promptMessages,
           temperature: effectiveTemperature,
           numCtx: ollamaNumCtx,
+          think: think,
           tools: withTools && tools.isNotEmpty ? tools : null,
           onToolCall: (toolCall) {
             pendingToolCall = toolCall;
@@ -573,15 +613,17 @@ class ChatNotifier extends StateNotifier<ChatState> {
           onDoneMetrics: (metrics) {
             final promptCount = metrics['prompt_eval_count'] as int? ?? 0;
             final promptDurationNs = metrics['prompt_eval_duration'] as int? ?? 0;
-            final evalCount = metrics['eval_count'] as int? ?? 0;
-            final evalDurationNs = metrics['eval_duration'] as int? ?? 0;
+            final roundEvalCount = metrics['eval_count'] as int? ?? 0;
+            final roundEvalDurationNs = metrics['eval_duration'] as int? ?? 0;
+            evalCount += roundEvalCount;
+            evalDurationNs += roundEvalDurationNs;
 
-            if (promptDurationNs > 0 || evalDurationNs > 0) {
+            if (promptDurationNs > 0 || roundEvalDurationNs > 0) {
               HardwareCalibrationService().recordMetrics(
                 promptEvalCount: promptCount,
                 promptEvalDurationNs: promptDurationNs,
-                evalCount: evalCount,
-                evalDurationNs: evalDurationNs,
+                evalCount: roundEvalCount,
+                evalDurationNs: roundEvalDurationNs,
                 modelName: modelName,
               );
             }
@@ -711,24 +753,37 @@ class ChatNotifier extends StateNotifier<ChatState> {
               content: parsed.content,
               thinkContent: parsed.thinkContent.isNotEmpty ? parsed.thinkContent : null,
               createdAt: now,
-              tokens: tokenEstimate,
-              generationDurationMs: stopwatch.elapsedMilliseconds,
+              // Prefer Ollama's own counters: the chunk count and wall clock are
+              // only estimates, and the wall clock includes prompt evaluation.
+              tokens: evalCount > 0 ? evalCount : tokenEstimate,
+              generationDurationMs:
+                  evalDurationNs > 0 ? (evalDurationNs / 1e6).round() : stopwatch.elapsedMilliseconds,
             );
 
             _activeAssistantId = null;
             await _db.saveMessage(finalizedMsg);
             if (!mounted) return;
 
+            final finalMsgs = List<Message>.from(state.messages);
+            if (finalMsgs.isNotEmpty && finalMsgs.last.id == assistantMsgId) {
+              finalMsgs[finalMsgs.length - 1] = finalizedMsg;
+            }
             state = state.copyWith(
+              messages: finalMsgs,
               isGenerating: false,
               clearStatusMessage: true,
               clearStatusTokens: true,
             );
 
             // Auto-summarize title in background if it was the first user message
-            if (isFirstMessageInConv) {
+            final titleSource = stripAttachmentPrefix(userMsg.content);
+            if (isFirstMessageInConv && titleSource.isNotEmpty) {
               try {
-                final title = await TitleService.generateTitle([userMsg], modelOverride: modelName);
+                final title = await TitleService.generateTitle(
+                  [userMsg.copyWith(content: titleSource)],
+                  modelOverride: modelName,
+                  numCtx: ollamaNumCtx,
+                );
                 if (title.isNotEmpty && title != 'New Chat' && title != 'Neuer Chat') {
                   await _ref.read(sidebarProvider.notifier).updateTitle(convId, title);
                 }
@@ -736,6 +791,16 @@ class ChatNotifier extends StateNotifier<ChatState> {
                 // Title generation is non-critical background task
               }
             }
+
+            await _compactHistory(
+              conversationId: convId,
+              modelName: modelName,
+              history: [...rawHistory, finalizedMsg],
+              budgetTokens: budget.historyTokens,
+              previousSummary: previousSummary,
+              numCtx: ollamaNumCtx,
+              think: modelInfo?.supportsThinking == true ? false : null,
+            );
           },
           cancelOnError: true,
         );
@@ -754,6 +819,41 @@ class ChatNotifier extends StateNotifier<ChatState> {
     }
 
     await runStream(withTools: true);
+  }
+
+  final Set<String> _compacting = {};
+
+  /// Folds older turns into the conversation summary once the history has
+  /// outgrown its budget. Runs after the answer is on screen, so the cost is
+  /// paid while the user reads rather than before the next reply.
+  Future<void> _compactHistory({
+    required String conversationId,
+    required String modelName,
+    required List<Message> history,
+    required int budgetTokens,
+    required String? previousSummary,
+    required int? numCtx,
+    required bool? think,
+  }) async {
+    final cut = ContextManager.planCompaction(history: history, budgetTokens: budgetTokens);
+    if (cut == 0 || !_compacting.add(conversationId)) return;
+
+    try {
+      final summary = await SummaryService.summarize(
+        model: modelName,
+        previousSummary: previousSummary,
+        turns: history.sublist(0, cut),
+        numCtx: numCtx,
+        think: think,
+      );
+      if (summary != null) {
+        await _db.updateConversationSummary(conversationId, summary, history[cut - 1].id);
+      }
+    } catch (_) {
+      // Without a summary the sliding window still bounds the next prompt.
+    } finally {
+      _compacting.remove(conversationId);
+    }
   }
 
   void stopGeneration() {

@@ -187,6 +187,19 @@ class I18n {
   static String get themePondDarkMineral => 'Pond Dark (Mineral)';
   static String get ollamaApiUrl => 'Ollama API URL';
   static String get defaultPersona => isGerman ? 'Standard-Persona' : 'Default Persona';
+  static String get defaultModel => isGerman ? 'Standard-Modell' : 'Default model';
+  static String get defaultModelAutomatic => isGerman ? 'Automatisch' : 'Automatic';
+  static String get customInstructions => isGerman ? 'Eigene Anweisungen' : 'Custom instructions';
+  static String get customInstructionsHint => isGerman
+      ? 'Wird in jedem Chat an den Systemprompt angehängt, nach der Rolle.'
+      : 'Added to the system prompt of every chat, after the role.';
+  static String get closeToTray => isGerman
+      ? 'Beim Schließen in den System-Tray minimieren'
+      : 'Minimize to the system tray when closing';
+  static String get settingsTooltip => isGerman ? 'Einstellungen' : 'Settings';
+  static String get exportChat => isGerman ? 'Chat exportieren' : 'Export chat';
+  static String get exportDialogTitle =>
+      isGerman ? 'Chat exportieren (.md, .json oder .html)' : 'Export chat (.md, .json or .html)';
   static String get saveAndClose => isGerman ? 'Speichern & Schließen' : 'Save & Close';
 
   // Model Manager

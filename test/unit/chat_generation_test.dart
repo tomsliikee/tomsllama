@@ -6,15 +6,22 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:tomsllama/core/models/conversation.dart';
 import 'package:tomsllama/core/models/message.dart';
 import 'package:tomsllama/core/services/database_service.dart';
 import 'package:tomsllama/core/services/ollama_service.dart';
 import 'package:tomsllama/features/chat/controllers/chat_controller.dart';
+import 'package:tomsllama/features/models/controllers/model_controller.dart';
 
 /// Minimal stand-in for the Ollama daemon: answers /api/chat with NDJSON chunks.
 class _FakeOllama {
   late final HttpServer _server;
   final List<Map<String, dynamic>> chatRequests = [];
+  final List<Map<String, dynamic>> summaryRequests = [];
+
+  /// Reported as eval_count on the final chunk; 0 leaves the counters out.
+  int evalCount = 0;
+  List<Map<String, dynamic>> models = [];
 
   List<String> reply = ['Hello', ' world'];
 
@@ -31,8 +38,26 @@ class _FakeOllama {
   Future<void> stop() => _server.close(force: true);
 
   Future<void> _handle(HttpRequest request) async {
+    if (request.uri.path == '/api/tags') {
+      request.response.write(jsonEncode({'models': models}));
+      await request.response.close();
+      return;
+    }
+
     final body = jsonDecode(await utf8.decoder.bind(request).join()) as Map<String, dynamic>;
     final messages = (body['messages'] as List).cast<Map<String, dynamic>>();
+
+    // Non-streaming requests are history summaries.
+    if (body['stream'] == false) {
+      summaryRequests.add(body);
+      request.response.write(jsonEncode({
+        'message': {'role': 'assistant', 'content': 'SUMMARY-OF-EARLIER-TURNS'},
+        'done': true,
+      }));
+      await request.response.close();
+      return;
+    }
+
     final isTitleRequest = (messages.first['content'] as String).startsWith('Summarize the user');
     if (!isTitleRequest) chatRequests.add(body);
 
@@ -52,7 +77,11 @@ class _FakeOllama {
           await holdAfterFirstChunk!.future;
         }
       }
-      response.write('${jsonEncode({'done': true})}\n');
+      response.write('${jsonEncode({
+            'done': true,
+            if (evalCount > 0 && !isTitleRequest) 'eval_count': evalCount,
+            if (evalCount > 0 && !isTitleRequest) 'eval_duration': 2000000000,
+          })}\n');
       await response.close();
     } catch (_) {
       // Client cancelled the stream.
@@ -86,6 +115,9 @@ void main() {
     ollama.chatRequests.clear();
     ollama.reply = ['Hello', ' world'];
     ollama.holdAfterFirstChunk = null;
+    ollama.summaryRequests.clear();
+    ollama.evalCount = 0;
+    ollama.models = [];
   });
 
   Future<void> waitFor(bool Function() condition) async {
@@ -199,6 +231,81 @@ void main() {
     final state = container.read(chatProvider);
     expect(state.errorMessage, contains(deadUrl));
     expect(state.messages.map((m) => m.role), ['user']);
+  });
+
+  test('exact counters from Ollama replace the streaming estimates', () async {
+    final (container, chat) = await newChat();
+    ollama.evalCount = 321;
+
+    await chat.sendMessage('Count for me', 'test-model');
+    await waitFor(() => !container.read(chatProvider).isGenerating);
+
+    final answer = container.read(chatProvider).messages.last;
+    expect(answer.tokens, 321);
+    expect(answer.generationDurationMs, 2000);
+    final saved = await stored(container.read(chatProvider).conversationId!);
+    expect(saved.last.tokens, 321);
+  });
+
+  test('think is only sent to models that report the capability', () async {
+    ollama.models = [
+      {'name': 'thinker', 'capabilities': ['completion', 'thinking']},
+      {'name': 'plain', 'capabilities': ['completion']},
+    ];
+    final (container, chat) = await newChat();
+    await container.read(modelProvider.notifier).loadModels();
+
+    chat.setMode(ChatExecutionMode.thinking);
+    await chat.sendMessage('Reason about it', 'thinker');
+    await waitFor(() => !container.read(chatProvider).isGenerating);
+    expect(ollama.chatRequests.last['think'], isTrue);
+
+    chat.setMode(ChatExecutionMode.schnell);
+    await chat.sendMessage('Quick one', 'thinker');
+    await waitFor(() => !container.read(chatProvider).isGenerating);
+    expect(ollama.chatRequests.last['think'], isFalse);
+
+    chat.setMode(ChatExecutionMode.thinking);
+    await chat.sendMessage('Reason anyway', 'plain');
+    await waitFor(() => !container.read(chatProvider).isGenerating);
+    expect(ollama.chatRequests.last.containsKey('think'), isFalse);
+  });
+
+  test('old turns are folded into a summary that replaces them in the next prompt', () async {
+    final (container, chat) = await newChat();
+    // Two answers of 800 tokens outgrow the default-tier history budget.
+    ollama.evalCount = 800;
+
+    await chat.sendMessage('First question', 'test-model');
+    await waitFor(() => !container.read(chatProvider).isGenerating);
+    expect(ollama.summaryRequests, isEmpty);
+
+    await chat.sendMessage('Second question', 'test-model');
+    await waitFor(() => !container.read(chatProvider).isGenerating);
+    await waitFor(() => ollama.summaryRequests.isNotEmpty);
+
+    final convId = container.read(chatProvider).conversationId!;
+    Conversation? conv;
+    for (var i = 0; i < 100; i++) {
+      conv = await DatabaseService().getConversation(convId);
+      if (conv?.summary != null) break;
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    expect(conv!.summary, 'SUMMARY-OF-EARLIER-TURNS');
+    final summaryPrompt = (ollama.summaryRequests.single['messages'] as List).single['content'] as String;
+    expect(summaryPrompt, contains('First question'));
+    expect(summaryPrompt, isNot(contains('Second question')));
+
+    await chat.sendMessage('Third question', 'test-model');
+    await waitFor(() => !container.read(chatProvider).isGenerating);
+
+    final sent = (ollama.chatRequests.last['messages'] as List).cast<Map<String, dynamic>>();
+    expect(sent.first['role'], 'system');
+    expect(sent.first['content'], contains('SUMMARY-OF-EARLIER-TURNS'));
+    final userTurns = sent.where((m) => m['role'] == 'user').map((m) => m['content']).toList();
+    expect(userTurns, ['Second question', 'Third question']);
+    // Everything on screen is still there; only the prompt was compacted.
+    expect(container.read(chatProvider).messages.where((m) => m.role == 'user'), hasLength(3));
   });
 
   test('stripAttachmentPrefix returns the typed text', () {
