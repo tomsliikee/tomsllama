@@ -60,7 +60,7 @@ Animationen sind sanft, meditativ und organisch wie Naturphänomene (kein lautes
 
 Accent colors are applied strictly as subtle visual anchors:
 1. **Brand Logo & Model Online Dot:** Top-left header logo & model status indicator.
-2. **Active Chat Item:** 2px vertical indicator bar on the left edge of selected conversation.
+2. **Brand mark while generating:** the header logo breathes while any chat has an answer in progress. The open chat in the sidebar is marked only by a neutral tint and a medium-weight title: no bar, outline or dot. Selected segments (theme switcher, Chats/Workspaces) are likewise neutral, never accent-tinted.
 3. **Composer Focus:** Subtle 1px border highlight when the input field is active.
 4. **Primary Actions:** Send button background, code block language badge (`dart`, `python`).
 5. **Interactive Hover States:** Subtle color shift on links (`Regenerate`, `Copy MD`, `Persona-Chip`).

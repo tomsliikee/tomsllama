@@ -84,40 +84,28 @@ class _ClaudeThinkingIndicatorState extends State<ClaudeThinkingIndicator> {
       activeText = phrases[_currentIndex % phrases.length];
     }
 
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 6.0),
-      padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
-      decoration: BoxDecoration(
-        color: appColors.background,
-        borderRadius: BorderRadius.circular(AppRadii.pill),
-        border: Border.all(
-          color: appColors.borderSubtle,
-          width: 1.0,
-        ),
-      ),
+    // Just the breathing mark and a line of text: the answer will take this
+    // place, so it sits on the page like the answer does, without a frame.
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const TomsllamaLogo(size: 13.0, breathing: true),
-          const SizedBox(width: 7.0),
-          AnimatedSwitcher(
-            duration: AppMotion.base,
-            transitionBuilder: (child, animation) {
-              return SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0.0, 0.2),
-                  end: Offset.zero,
-                ).animate(CurvedAnimation(parent: animation, curve: AppMotion.standard)),
-                child: FadeTransition(opacity: animation, child: child),
-              );
-            },
-            child: Text(
-              activeText,
-              key: ValueKey<String>(activeText),
-              style: AppTypography.code.copyWith(
-                color: appColors.textSecondary,
-                fontSize: 12.0,
-                fontWeight: FontWeight.w500,
+          const TomsllamaLogo(size: 15.0, breathing: true),
+          const SizedBox(width: 9.0),
+          Flexible(
+            child: AnimatedSwitcher(
+              duration: AppMotion.slow,
+              layoutBuilder: (currentChild, previousChildren) => Stack(
+                alignment: Alignment.centerLeft,
+                children: [...previousChildren, if (currentChild != null) currentChild],
+              ),
+              child: Text(
+                activeText,
+                key: ValueKey<String>(activeText),
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.label.copyWith(color: appColors.textSecondary),
               ),
             ),
           ),

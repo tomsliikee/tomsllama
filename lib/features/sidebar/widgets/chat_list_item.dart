@@ -93,7 +93,6 @@ class _WobbleItemState extends State<WobbleItem> with SingleTickerProviderStateM
 class ChatListItem extends StatefulWidget {
   final Conversation conversation;
   final bool isSelected;
-  final bool isGenerating;
   final VoidCallback onTap;
   final VoidCallback? onDelete;
   final VoidCallback? onTogglePin;
@@ -105,7 +104,6 @@ class ChatListItem extends StatefulWidget {
     super.key,
     required this.conversation,
     required this.isSelected,
-    this.isGenerating = false,
     required this.onTap,
     this.onDelete,
     this.onTogglePin,
@@ -142,42 +140,17 @@ class _ChatListItemState extends State<ChatListItem> {
               duration: AppMotion.fast,
               curve: AppMotion.standard,
               margin: const EdgeInsets.only(bottom: 2.0),
-              padding: const EdgeInsets.only(left: 10.0, right: 6.0, top: 6.0, bottom: 6.0),
+              padding: const EdgeInsets.only(left: 10.0, right: 6.0, top: 7.0, bottom: 7.0),
+              // The open chat is marked by a soft tint of the text colour and a
+              // firmer title, nothing drawn on top of it.
               decoration: BoxDecoration(
                 color: widget.isSelected
-                    ? appColors.surface
+                    ? appColors.textPrimary.withValues(alpha: 0.07)
                     : (_isHovered ? appColors.hover : Colors.transparent),
                 borderRadius: BorderRadius.circular(AppRadii.control),
-                border: Border.all(
-                  color: widget.isSelected ? appColors.borderSubtle : Colors.transparent,
-                  width: 1.0,
-                ),
               ),
               child: Row(
                 children: [
-                  // An answer is being written in this chat, possibly in the background
-                  if (widget.isGenerating)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 7.0),
-                      child: Container(
-                        key: const Key('chat_generating_dot'),
-                        width: 6.0,
-                        height: 6.0,
-                        decoration: BoxDecoration(color: appColors.accent, shape: BoxShape.circle),
-                      ),
-                    ),
-                  // Active marker: a 2px accent bar that grows in when the chat is selected
-                  AnimatedContainer(
-                    duration: AppMotion.base,
-                    curve: AppMotion.standard,
-                    width: 2.0,
-                    height: widget.isSelected ? 14.0 : 0.0,
-                    margin: EdgeInsets.only(right: widget.isSelected ? 8.0 : 0.0),
-                    decoration: BoxDecoration(
-                      color: appColors.accent,
-                      borderRadius: BorderRadius.circular(AppRadii.pill),
-                    ),
-                  ),
                   // Title text
                   Expanded(
                     child: Padding(
@@ -190,6 +163,7 @@ class _ChatListItemState extends State<ChatListItem> {
                           color: (widget.isSelected || isPinned || _isHovered)
                               ? appColors.textPrimary
                               : appColors.textSecondary,
+                          fontWeight: widget.isSelected ? FontWeight.w500 : FontWeight.w400,
                           height: 1.2,
                         ),
                       ),

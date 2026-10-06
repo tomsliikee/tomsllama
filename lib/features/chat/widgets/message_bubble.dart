@@ -55,7 +55,12 @@ class MessageBubble extends StatelessWidget {
           // back into view must not replay the entrance.
           child: InkFadeIn(
             enabled: DateTime.now().difference(message.createdAt) < const Duration(seconds: 3),
-            child: isUser ? _buildUserMessage(context, appColors) : _buildAssistantMessage(),
+            // Full column width, so a short line (the waiting indicator, a one-word
+            // answer) starts at the left edge instead of being centred.
+            child: SizedBox(
+              width: double.infinity,
+              child: isUser ? _buildUserMessage(context, appColors) : _buildAssistantMessage(),
+            ),
           ),
         ),
       ),

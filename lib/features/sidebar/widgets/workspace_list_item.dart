@@ -52,13 +52,9 @@ class _WorkspaceListItemState extends State<WorkspaceListItem> {
           padding: const EdgeInsets.only(left: 10.0, right: 6.0, top: 8.0, bottom: 8.0),
           decoration: BoxDecoration(
             color: widget.isSelected
-                ? appColors.surface
+                ? appColors.textPrimary.withValues(alpha: 0.07)
                 : (_isHovered ? appColors.hover : Colors.transparent),
             borderRadius: BorderRadius.circular(AppRadii.control),
-            border: Border.all(
-              color: widget.isSelected ? appColors.borderSubtle : Colors.transparent,
-              width: 1.0,
-            ),
           ),
           child: Row(
             children: [
@@ -79,6 +75,7 @@ class _WorkspaceListItemState extends State<WorkspaceListItem> {
                     color: widget.isSelected
                         ? appColors.textPrimary
                         : (_isHovered ? appColors.textPrimary : appColors.textSecondary),
+                    fontWeight: widget.isSelected ? FontWeight.w500 : FontWeight.w400,
                     height: 1.2,
                   ),
                 ),

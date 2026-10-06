@@ -155,6 +155,7 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
     AppThemeExtension appColors,
   ) {
     const double tabWidth = 76.0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final int activeIndex = switch (currentTheme) {
       AppThemeType.claude => 0,
       AppThemeType.pond => 1,
@@ -182,10 +183,14 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
             bottom: 0,
             width: tabWidth,
             child: Container(
+              // Same neutral thumb as the Chats/Workspaces switch. The accent is
+              // kept for things that act, not for showing which option is on.
               decoration: BoxDecoration(
-                color: appColors.accentSubtle,
+                color: isDark
+                    ? Color.alphaBlend(Colors.black.withValues(alpha: 0.45), appColors.surface)
+                    : Color.alphaBlend(appColors.textPrimary.withValues(alpha: 0.07), appColors.surface),
                 borderRadius: BorderRadius.circular(AppRadii.pill),
-                border: Border.all(color: appColors.accent.withValues(alpha: 0.25)),
+                border: Border.all(color: appColors.border),
               ),
             ),
           ),
@@ -250,7 +255,7 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
             child: AnimatedDefaultTextStyle(
               duration: AppMotion.base,
               style: AppTypography.label.copyWith(
-                color: isActive ? appColors.accent : appColors.textSecondary,
+                color: isActive ? appColors.textPrimary : appColors.textSecondary,
                 fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
                 fontSize: 11.0,
               ),
