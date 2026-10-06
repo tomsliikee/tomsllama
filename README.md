@@ -1,10 +1,10 @@
 <div align="center">
   <img src="readmestuff/app_icon_512.png" width="96" height="96" alt="tomsllama logo" />
   <h1>tomsllama</h1>
-  <p><strong>A private, distraction-free native desktop client for local Ollama models with project workspaces, dynamic hardware calibration, and zero cloud telemetry.</strong></p>
+  <p><strong>A calm desktop client for local Ollama models, with project workspaces, measured time estimates, and nothing sent to the cloud.</strong></p>
 
   <p>
-    <img src="https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-neutral?style=flat-square" alt="Platform Support" />
+    <img src="https://img.shields.io/badge/Platform-Linux%20(Windows%20%2F%20macOS%20untested)-neutral?style=flat-square" alt="Platform Support" />
     <img src="https://img.shields.io/badge/Engine-Flutter%203.19+-neutral?style=flat-square" alt="Flutter Version" />
     <img src="https://img.shields.io/badge/Backend-Local%20Ollama-neutral?style=flat-square" alt="Ollama Backend" />
     <img src="https://img.shields.io/badge/Storage-SQLite%20FFI-neutral?style=flat-square" alt="SQLite Storage" />
@@ -21,28 +21,28 @@
 
 ## Architecture Overview
 
-**tomsllama** is engineered from the ground up as a native desktop client with complete offline isolation. It connects directly to your local Ollama daemon without external proxies, analytics, or third-party servers.
+**tomsllama** is a **Flutter** desktop application that talks directly to the **Ollama** daemon on your machine. There is no proxy, no analytics and no account. Conversations live in a local **SQLite** file.
 
 ```mermaid
 flowchart TD
     subgraph UI ["Native Editorial UI Layer"]
-        CSD["CSD Header Bar<br/><b>Adaptive Traffic Lights & Themes</b>"]
-        Viewport["Chat Viewport<br/><b>Origami Think Accordions & Telemetry</b>"]
-        Composer["Composer Bar<br/><b>Expandable Shelf & @-Mention Search</b>"]
+        CSD["Header Bar<br/><b>Window Controls & Themes</b>"]
+        Viewport["Chat Viewport<br/><b>Think Blocks, Summary Divider & Telemetry</b>"]
+        Composer["Composer Bar<br/><b>Stats Shelf, Context Bar & @-Mentions</b>"]
         Canvas["Split-View Canvas<br/><b>Live Markdown & Code Inspection</b>"]
     end
 
     subgraph Controllers ["State & Intelligence Layer"]
-        ChatCtrl["ChatController<br/><b>Streaming & History Management</b>"]
+        ChatCtrl["ChatController<br/><b>One Generation per Chat, Summaries</b>"]
         WsCtrl["WorkspaceController<br/><b>Git Branch Tracking & Context Injection</b>"]
-        CalibServ["HardwareCalibrationService<br/><b>EMA Eval & Gen Speed Tracking</b>"]
-        CtxMgr["ContextManager<br/><b>Sliding Window & Token Guards</b>"]
+        CalibServ["HardwareCalibrationService<br/><b>Measured Speed per Model</b>"]
+        CtxMgr["ContextManager<br/><b>Context Window & History Budget</b>"]
     end
 
     subgraph NativeCore ["Local Desktop & Execution Layer"]
-        OllamaDaemon["Local Ollama Server<br/><b>http://127.0.0.1:11434</b>"]
+        OllamaDaemon["Local Ollama Server<br/><b>http://localhost:11434 (configurable)</b>"]
         SQLite["SQLite Database<br/><b>tomsllama.db (Common FFI)</b>"]
-        Hardware["Hardware Acceleration<br/><b>Apple Silicon Metal MPS / NVIDIA CUDA / CPU</b>"]
+        Hardware["Your Hardware<br/><b>GPU or CPU, as Ollama uses it</b>"]
     end
 
     CSD --> ChatCtrl
@@ -62,46 +62,47 @@ flowchart TD
 
 ## Core Capabilities
 
-- **Local Token Streaming:** Streams responses directly from your local **Ollama** daemon token-by-token over cleartext loopback sockets with sub-millisecond response latency.
-- **Claude-Style Workspaces:** Group chats inside dedicated project workspaces with custom **System Prompts**, automated **Git** repository detection, active **Branch Tracking**, and isolated context file sets.
-- **Multi-File & Directory Ingestion:** Attach individual files or full directory trees to the composer. Code files and documents are parsed, token-counted, and formatted into clean context blocks.
-- **Native PDF Text Extraction:** Parses PDF documentation directly on your workstation via **Syncfusion PDF** without headless browsers or external OCR dependencies.
-- **Keyboard Fuzzy `@`-Mentions:** Type **`@`** inside the composer text field to summon an instant fuzzy-filtered search popup to attach workspace files directly from the keyboard.
-- **Per-Model Hardware Calibration:** Continuously benchmarks your system's prompt evaluation speed (**eval tok/s**) and token generation rate (**gen tok/s**). Accurately forecasts expected response duration before dispatching queries.
-- **Expandable Telemetry Shelf:** Collapsible HUD mounted directly to the composer header displaying active **Git branch**, file token footprints, predicted CPU/GPU duration, and session metrics.
-- **Execution Mode Presets:** Three discrete inference profiles replacing clumsy temperature sliders:
-  - **Schnell (0.3):** Low temperature, tight context window, optimized for fast factual queries and deterministic code edits.
-  - **Optimal (0.7):** Balanced sampling parameters for everyday problem solving and natural dialogue.
-  - **Denken (0.6):** Extended thinking budget and reasoning headroom for deep reasoning models like **DeepSeek-R1** and **Qwen2.5-Coder**.
-- **Reasoning Blocks:** Collapsible **`<think>`** accordions displaying live evaluation countdowns, calculation times, and token counts.
-- **Split-View Canvas:** Side-by-side artifact canvas to inspect, review, and copy generated code, markdown documents, or math formulations without losing conversational context.
-- **Prompt History Recall:** Use **`Arrow Up`** and **`Arrow Down`** in the composer to navigate through prompt history while preserving unfinished drafts.
-- **Local Persistence:** Robust persistence for conversations, messages, personas, and workspaces stored in **SQLite** via **`sqflite_common_ffi`**.
-- **Editorial Typography & Themes:** Anti-AI-slop interface with 1px hairlines, floating pills, and typography (**Newsreader**, **Inter**, **Geist Mono**):
-  - **Claude:** Warm ivory paper canvas with terracotta accents.
-  - **Pond:** Clean mineral background with slate teal highlights.
-  - **Dark:** Low-contrast charcoal background with warm highlights.
-  - **Pond Dark:** Deep mineral slate background with luminous teal accents.
+- **Local Streaming:** Answers stream token by token from your local **Ollama** daemon. The URL is configurable in the settings, so a daemon on another machine in your network works too.
+- **Answers Keep Running:** Each answer belongs to its chat. Open another chat and the first one keeps generating in the background; its row in the sidebar breathes until it is done.
+- **Workspaces:** Group chats in a project workspace with its own **system prompt** and **knowledge files**. An attached folder shows its **Git** branch.
+- **Files & Folders:** Attach files or a whole directory by button, drag and drop, or by typing **`@`** in the composer for a fuzzy file search. **PDF** text is extracted locally via **Syncfusion PDF**.
+- **Measured Time Estimates:** The app records how fast each model reads and writes on your hardware and how long it takes to load, then tells you roughly how long an answer will take before and while you wait.
+- **Context Usage Bar:** The stats shelf shows how full the chat's **context window** is, using the token counts **Ollama** reports, next to the limit of the selected model. Every model's limit is read from the daemon, so nothing is fixed per model.
+- **`/compact` and Automatic Summaries:** Type **`/compact`** to fold the chat so far into a summary and continue from it; text after the command says what to keep. Older turns are also summarised automatically when the window fills up. A divider in the chat marks the cut and opens to show the summary. The old messages stay readable.
+- **Context Window Setting:** Run chats in an automatic small window (fast on a CPU) or pick **4k** to **32k** or the **model maximum**. The choice is always capped at what the model supports.
+- **Execution Modes:** **Schnell**, **Optimal** and **Denken** set the sampling temperature and switch reasoning off, to the model's default, or on.
+- **Reasoning Blocks:** Thinking output of models such as **DeepSeek-R1** is kept apart from the answer in a collapsible block with its duration and token count.
+- **Split-View Canvas:** Open any code block beside the chat, with syntax highlighting, to read or copy it without losing your place.
+- **Chat Management:** Search, pin and reorder chats, export a chat as **Markdown**, **JSON** or **HTML**, and recall earlier prompts with **`Arrow Up`** and **`Arrow Down`**.
+- **Settings:** Ollama URL, default model, **custom instructions** added to every chat, context window, automatic summaries, and close-to-tray.
+- **Local Persistence:** Conversations, messages and workspaces are stored in **SQLite** via **`sqflite_common_ffi`**.
+- **Four Themes, Three Typefaces:** Hairlines, floating pills, and one job per typeface: **Newsreader** for reading, **Inter** for interface text, **Geist Mono** for labels and code. All fonts are bundled.
+  - **Claude:** Warm ivory paper with terracotta accents.
+  - **Pond:** Mineral white with slate teal.
+  - **Dark:** Warm charcoal with copper.
+  - **Pond Dark:** Deep slate with teal.
 
 ---
 
 ## Platform Support Matrix
 
-| Platform | Native Runner | Hardware Acceleration | Window & System Integration | Status |
-| :--- | :--- | :--- | :--- | :--- |
-| **macOS** | **Cocoa / AppKit** (`macos/`) | **Apple Silicon Metal (MPS)** (~160+ tok/s eval) | Native Traffic Lights (78px inset), Menu Bar Tray, Dock Reopen | **Fully Supported** |
-| **Linux** | **GTK3** (`linux/`) | **NVIDIA CUDA / CPU AVX2** | CSD Header Bar, Wayland / X11, GNOME Shell Dock matching, Ayatana Tray | **Fully Supported** |
-| **Windows** | **C++ Win32** (`windows/`) | **DirectML / NVIDIA CUDA / CPU** | Frameless Win32 Window, Native Titlebar Snapping, Taskbar Tray | **Fully Supported** |
+| Platform | Runner | Window & System Integration | Status |
+| :--- | :--- | :--- | :--- |
+| **Linux** | **GTK3** (`linux/`) | Custom header bar, Wayland / X11, tray icon | ***Tested*:** the development platform (Fedora, GNOME, Wayland) |
+| **Windows** | **Win32** (`windows/`) | Frameless window, tray icon | ***Untested.*** The runner is in the repository; no build has been verified |
+| **macOS** | **Cocoa / AppKit** (`macos/`) | Native traffic lights, menu bar icon, Dock reopen | ***Not yet built successfully.*** The code is in place; a first build on a Mac failed and the fix is unconfirmed |
+
+Speed depends on how **Ollama** runs the model on your machine (GPU or CPU), not on this app.
 
 ---
 
-## Execution Profiles
+## Execution Modes
 
-| Mode | Temperature | Top-P | Ideal Use Cases | Context Scaling |
-| :--- | :--- | :--- | :--- | :--- |
-| **Schnell** | **0.30** | **0.85** | Quick syntax lookups, JSON formatting, unit tests, fast summaries | Strict 2k-4k limit for minimal CPU prompt eval latency |
-| **Optimal** | **0.70** | **0.90** | Architectural discussions, feature drafting, general paired programming | Balanced 8k window with dynamic safety headroom |
-| **Denken** | **0.60** | **0.95** | Multi-file reasoning, algorithm verification, DeepSeek-R1 reflection | Deep context window with dedicated `<think>` parser |
+| Mode | Temperature | Reasoning (thinking models) | Suited For |
+| :--- | :--- | :--- | :--- |
+| **Schnell** | **0.3** | **Off** | Quick lookups, formatting, short factual answers |
+| **Optimal** | **0.7** | **Model default** | Everyday questions and pair programming |
+| **Denken** | **0.6** | **On** | Multi-step reasoning with models such as **DeepSeek-R1** |
 
 ---
 
@@ -144,7 +145,7 @@ ollama pull qwen2.5:3b
 
 ### 2. Development Toolchain
 
-Ensure **Flutter SDK (>= 3.19.0)** is installed:
+Install the **Flutter SDK** (3.19 or newer), then the platform's build tools:
 
 - **Linux (Fedora):**
   ```bash
@@ -221,24 +222,24 @@ flutter pub get
   ```
 
 - **Linux (Desktop Launcher & GNOME App Grid):**
-  Register the binary with the system XDG application launcher:
+  The release is a folder, not a single file: the binary needs the `lib/` and `data/` directories next to it. Copy the whole bundle and register it with the application launcher:
   ```bash
-  # Copy binary and icon assets
-  mkdir -p ~/.local/bin ~/.local/share/applications ~/.local/share/icons/hicolor/512x512/apps
-  cp build/linux/x64/release/bundle/tomsllama ~/.local/bin/
+  # Copy the whole bundle and the icon
+  mkdir -p ~/.local/share/tomsllama ~/.local/share/applications ~/.local/share/icons/hicolor/512x512/apps
+  cp -R build/linux/x64/release/bundle/. ~/.local/share/tomsllama/
   cp assets/app_icon.png ~/.local/share/icons/hicolor/512x512/apps/tomsllama.png
 
-  # Create desktop entry with proper window class matching
-  cat << 'EOF' > ~/.local/share/applications/tomsllama.desktop
+  # Create the desktop entry
+  cat << EOF > ~/.local/share/applications/tomsllama.desktop
   [Desktop Entry]
   Name=tomsllama
   Comment=Local AI Client for Ollama
-  Exec=/home/$USER/.local/bin/tomsllama
+  Exec=$HOME/.local/share/tomsllama/tomsllama
   Icon=tomsllama
   Terminal=false
   Type=Application
   Categories=Utility;Development;
-  StartupWMClass=tomsllama
+  StartupWMClass=com.example.tomsllama
   EOF
 
   update-desktop-database ~/.local/share/applications/
@@ -248,15 +249,14 @@ flutter pub get
 
 ## Data Storage & Disk Paths
 
-**tomsllama** stores all application state in transparent, user-accessible locations without hidden registry entries:
+**tomsllama** keeps everything in plain files you can find, back up or delete:
 
 | File / Directory | Platform | Description |
 | :--- | :--- | :--- |
-| **`~/Documents/tomsllama/tomsllama.db`** | **Linux / Windows** | Primary **SQLite Database** storing conversations, messages, workspaces, and personas |
-| **`~/Documents/tomsllama/settings.json`** | **Linux / Windows** | Hardware benchmark statistics, custom speed profiles, and active UI preferences |
-| **`~/.local/share/applications/tomsllama.desktop`** | **Linux** | XDG Desktop Entry with `StartupWMClass` matching for GNOME Shell and Wayland docks |
-| **`~/.local/share/icons/hicolor/`** | **Linux** | Scalable application icon assets (16px to 512px) |
-| **`~/Library/Application Support/com.haiden.tomsllama/`** | **macOS** | Database and settings. The App Sandbox is off, so workspace folders stay readable between launches |
+| **`~/Documents/tomsllama/tomsllama.db`** | **Linux / Windows** | **SQLite database** with conversations, messages, summaries and workspaces |
+| **`~/Documents/tomsllama/settings.json`** | **Linux / Windows** | Settings, the theme, and the measured speed of each model |
+| **`~/.local/share/applications/tomsllama.desktop`** | **Linux** | Desktop entry, if you installed it as described above |
+| **`~/Library/Application Support/com.haiden.tomsllama/`** | **macOS** | Database and settings (*planned*: see the platform table) |
 
 ---
 
