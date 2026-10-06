@@ -46,7 +46,7 @@ class _HarnessModels extends ModelNotifier {
   Future<void> loadModels() async {
     state = const ModelState(
       models: [
-        OllamaModel(name: 'qwen2.5:3b', model: 'qwen2.5:3b', size: 1, digest: 'a', modifiedAt: ''),
+        OllamaModel(name: 'qwen2.5:3b', model: 'qwen2.5:3b', size: 1, digest: 'a', modifiedAt: '', contextLength: 32768),
         OllamaModel(name: 'deepseek-r1:14b', model: 'deepseek-r1:14b', size: 1, digest: 'b', modifiedAt: ''),
       ],
       selectedModel: 'qwen2.5:3b',
@@ -317,6 +317,41 @@ void main() {
     ));
     await settle();
     await shot('error');
+
+    // A chat whose first exchange was folded into a summary, with the shelf open
+    // on a window that is nearly full.
+    final compacted = [
+      msg('u1', 'user', 'How does the sliding window decide what to drop?'),
+      msg('a1', 'assistant', 'It keeps the newest turns that fit the budget and drops the rest. ' * 12),
+      msg('u2', 'user', 'And what happens to the dropped ones?'),
+      msg('a2', 'assistant', 'They are folded into a short summary that is sent in their place.'),
+    ];
+    const summary = 'The user asked how the sliding window trims history. Newest turns are kept up to the '
+        'budget; older ones are summarised.';
+    chat.show(ChatState(
+      conversationId: convId,
+      messages: compacted,
+      context: const ChatContextInfo(summary: summary, summaryThroughId: 'a1', tokens: 3300, window: 4096),
+    ));
+    await settle();
+    await tester.tap(find.byType(ShelfToggleButton));
+    await settle();
+    await shot('context_shelf');
+    await tester.tap(find.byType(ShelfToggleButton));
+    await settle();
+
+    await tester.ensureVisible(find.textContaining('→'));
+    await tester.tap(find.textContaining('→'));
+    await settle();
+    await shot('summary_open');
+
+    chat.show(ChatState(
+      conversationId: convId,
+      messages: compacted,
+      compactingStatus: 'Summarising the conversation (2/3)...',
+    ));
+    await settle();
+    await shot('compacting');
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 1));

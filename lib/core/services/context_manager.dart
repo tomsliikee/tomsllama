@@ -7,7 +7,10 @@ class ContextBudget {
   /// Token budget for [ContextManager.applySlidingWindow].
   final int historyTokens;
 
-  const ContextBudget({required this.numCtx, required this.historyTokens});
+  /// Size of the context window the turn runs in.
+  final int window;
+
+  const ContextBudget({required this.numCtx, required this.historyTokens, required this.window});
 }
 
 class ContextManager {
@@ -26,7 +29,8 @@ class ContextManager {
   /// Picks the `num_ctx` tier for a turn and the token budget left for chat history.
   ///
   /// Tiers are discrete so Ollama does not reload the runner on every small change.
-  /// The lowest tier sends no `num_ctx` and budgets for Ollama's 2048 default.
+  /// The lowest tier sends no `num_ctx` and budgets for the daemon's default:
+  /// [defaultWindow] once it has been observed, a cautious 2048 before that.
   ///
   /// The history budget is what remains after the system prompt, the part of the
   /// current prompt that [applySlidingWindow] cannot see (attached file bodies are
@@ -38,28 +42,37 @@ class ContextManager {
     required int promptTokens,
     required int latestMessageTokens,
     int? maxContext,
+    int? preferredWindow,
+    int? defaultWindow,
   }) {
+    final base = defaultWindow != null && defaultWindow > 0 ? defaultWindow : 2048;
     final fixedTokens = systemTokens + promptTokens;
+    final hasModelLimit = maxContext != null && maxContext > 0;
 
     int? numCtx;
     int window;
     final int replyReserve;
-    if (fixedTokens > 3600) {
+    if (preferredWindow != null && (preferredWindow > 0 || hasModelLimit)) {
+      // The user chose a window: one size for every turn, so the runner never reloads.
+      window = preferredWindow > 0 ? preferredWindow : maxContext!;
+      numCtx = window;
+      replyReserve = (window ~/ 8).clamp(400, 2000);
+    } else if (fixedTokens > 3600 && base < 8192) {
       numCtx = 8192;
       window = 8192;
       replyReserve = 600;
-    } else if (fixedTokens > 1800) {
+    } else if (fixedTokens > 1800 && base < 4096) {
       numCtx = 4096;
       window = 4096;
       replyReserve = 500;
     } else {
       numCtx = null;
-      window = 2048;
-      replyReserve = 400;
+      window = base;
+      replyReserve = base >= 8192 ? 600 : (base >= 4096 ? 500 : 400);
     }
 
     // Never ask for more context than the model was trained for.
-    if (maxContext != null && maxContext > 0 && window > maxContext) {
+    if (hasModelLimit && window > maxContext) {
       window = maxContext;
       if (numCtx != null) numCtx = maxContext;
     }
@@ -70,7 +83,21 @@ class ContextManager {
     return ContextBudget(
       numCtx: numCtx,
       historyTokens: historyTokens > 0 ? historyTokens : 0,
+      window: window,
     );
+  }
+
+  /// The window a chat on a model with [maxContext] runs in before any turn
+  /// has reported one: the user's choice, or the smallest automatic tier.
+  static int baselineWindow({int? maxContext, int? preferredWindow, int? defaultWindow}) {
+    return planBudget(
+      systemTokens: 0,
+      promptTokens: 0,
+      latestMessageTokens: 0,
+      maxContext: maxContext,
+      preferredWindow: preferredWindow,
+      defaultWindow: defaultWindow,
+    ).window;
   }
 
   /// Tokens a stored message costs when it is sent back as history.

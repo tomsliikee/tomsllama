@@ -76,6 +76,62 @@ void main() {
     });
   });
 
+  group('preferred window', () {
+    test('a chosen window is used for every turn, however small', () {
+      final budget = ContextManager.planBudget(
+        systemTokens: 100,
+        promptTokens: 50,
+        latestMessageTokens: 50,
+        maxContext: 32768,
+        preferredWindow: 16384,
+      );
+      expect(budget.numCtx, 16384);
+      expect(budget.window, 16384);
+      expect(budget.historyTokens, 16384 - 2000 - 100);
+    });
+
+    test('it never exceeds the limit the model reports', () {
+      final budget = ContextManager.planBudget(
+        systemTokens: 0,
+        promptTokens: 0,
+        latestMessageTokens: 0,
+        maxContext: 4096,
+        preferredWindow: 32768,
+      );
+      expect(budget.numCtx, 4096);
+      expect(budget.window, 4096);
+    });
+
+    test('"model maximum" follows the model, and falls back to the tiers when the limit is unknown', () {
+      expect(ContextManager.baselineWindow(maxContext: 131072, preferredWindow: 0), 131072);
+      expect(ContextManager.baselineWindow(maxContext: 8192, preferredWindow: 0), 8192);
+      expect(ContextManager.baselineWindow(preferredWindow: 0), 2048);
+      expect(ContextManager.baselineWindow(maxContext: 32768), 2048);
+    });
+  });
+
+  test('the lowest tier budgets for the window the daemon really loaded', () {
+    final budget = ContextManager.planBudget(
+      systemTokens: 100,
+      promptTokens: 50,
+      latestMessageTokens: 50,
+      defaultWindow: 4096,
+    );
+    expect(budget.numCtx, isNull);
+    expect(budget.window, 4096);
+    expect(budget.historyTokens, 4096 - 500 - 100);
+
+    // A tier that is no larger than the default would only force a reload.
+    final mid = ContextManager.planBudget(
+      systemTokens: 1500,
+      promptTokens: 600,
+      latestMessageTokens: 600,
+      defaultWindow: 4096,
+    );
+    expect(mid.numCtx, isNull);
+    expect(mid.window, 4096);
+  });
+
   group('planCompaction', () {
     List<Message> turns(int count, int tokensEach) => [
           for (var i = 0; i < count; i++)

@@ -37,6 +37,26 @@ class OllamaService {
     }
   }
 
+  /// Context window [modelName] is loaded with right now, or null if it is not
+  /// loaded or the daemon does not report it. This is how the app learns the
+  /// daemon's own default, which no other endpoint exposes.
+  Future<int?> loadedContextLength(String modelName) async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/api/ps')).timeout(const Duration(milliseconds: 500));
+      if (response.statusCode != 200) return null;
+      final models = (jsonDecode(response.body)['models'] as List?) ?? const [];
+      for (final m in models) {
+        if (m is Map && (m['name'] == modelName || m['model'] == modelName)) {
+          final length = m['context_length'];
+          return length is int && length > 0 ? length : null;
+        }
+      }
+    } catch (_) {
+      // Not reachable in time: the caller keeps its assumption.
+    }
+    return null;
+  }
+
   Stream<String> streamChat(
     String model,
     List<Map<String, dynamic>> messages, {

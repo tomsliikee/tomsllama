@@ -7,12 +7,15 @@ import '../../../core/constants/app_typography.dart';
 import '../../../core/models/attached_file.dart';
 import '../../../core/models/workspace_info.dart';
 import '../../../core/models/token_usage_stats.dart';
+import '../../../core/services/context_manager.dart';
 import '../../../core/services/hardware_calibration_service.dart';
 import '../../../core/services/localization_service.dart';
 import '../../../core/services/token_stats_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../controllers/chat_controller.dart';
 import '../../models/controllers/model_controller.dart';
+import '../../settings/controllers/settings_controller.dart';
+import '../../../core/widgets/pressable.dart';
 
 /// An animated extended shelf that slides up from the top edge of the composer
 /// with an elastic bounce, displaying Git workspace info, attached files,
@@ -194,6 +197,17 @@ class _ComposerShelfState extends ConsumerState<ComposerShelf>
                           ),
                         ],
                       ),
+
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Container(
+                          height: 1.0,
+                          color: appColors.borderSubtle.withValues(alpha: 0.5),
+                        ),
+                      ),
+
+                      // Row 3: how full the context window of this chat is
+                      _buildContextSection(appColors: appColors, maxContext: modelInfo?.contextLength),
                     ],
                   ),
                 ),
@@ -332,6 +346,115 @@ class _ComposerShelfState extends ConsumerState<ComposerShelf>
               fontWeight: FontWeight.w500,
             ),
             overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  static String _compactTokens(int tokens) =>
+      tokens >= 1000 ? '${(tokens / 1000).toStringAsFixed(tokens >= 10000 ? 0 : 1)}k' : '$tokens';
+
+  // Window sizes are powers of two: 32768 reads as 32k, not 33k.
+  static String _windowSize(int tokens) => tokens % 1024 == 0 ? '${tokens ~/ 1024}k' : _compactTokens(tokens);
+
+  /// Usage of the chat's context window on the selected model. The window comes
+  /// from the user's setting and the limit Ollama reports for that model, so it
+  /// follows whichever model is picked.
+  Widget _buildContextSection({required AppThemeExtension appColors, required int? maxContext}) {
+    final (measured, lastWindow, isEstimate, estimated, isBusy, hasMessages) = ref.watch(
+      chatProvider.select((s) => (
+            s.context.tokens,
+            s.context.window,
+            s.context.isEstimate,
+            s.estimatedContextTokens,
+            s.isGenerating || s.compactingStatus != null,
+            s.messages.isNotEmpty,
+          )),
+    );
+    final preferred = ref.watch(appSettingsProvider).contextWindow;
+
+    int window = ContextManager.baselineWindow(maxContext: maxContext, preferredWindow: preferred);
+    // On automatic the window grows with the prompt; show the one last used.
+    if (preferred == null && lastWindow != null && lastWindow > window) {
+      window = maxContext != null && maxContext > 0 && lastWindow > maxContext ? maxContext : lastWindow;
+    }
+
+    final used = measured ?? estimated;
+    final isApproximate = measured == null || isEstimate;
+    final left = used >= window ? 0 : window - used;
+    final fraction = window <= 0 ? 0.0 : (used / window).clamp(0.0, 1.0);
+    // Past three quarters the older turns are about to be folded into a summary.
+    final isNearlyFull = fraction >= 0.75;
+    final canCompact = hasMessages && !isBusy && widget.selectedModel != null;
+
+    final usedLabel = '${isApproximate && used > 0 ? '~' : ''}${_compactTokens(used)}';
+    final style = AppTypography.code.copyWith(
+      fontSize: 10.5,
+      color: appColors.textSecondary,
+      fontWeight: FontWeight.w500,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            Icon(AppIcons.knowledge, size: 13.0, color: appColors.textSecondary),
+            const SizedBox(width: 5.0),
+            Expanded(
+              child: Text.rich(
+                TextSpan(
+                  text: I18n.contextUsage(usedLabel, _windowSize(window), _compactTokens(left)),
+                  children: [
+                    if (maxContext != null && maxContext > 0)
+                      TextSpan(
+                        text: '  •  ${I18n.contextModelMax(_windowSize(maxContext))}',
+                        style: TextStyle(color: appColors.textSecondary.withValues(alpha: 0.6)),
+                      ),
+                  ],
+                ),
+                style: style,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 12.0),
+            Pressable(
+              key: const Key('compact_button'),
+              tooltip: I18n.compactTooltip,
+              onTap: canCompact
+                  ? () => ref.read(chatProvider.notifier).compactConversation(widget.selectedModel!)
+                  : null,
+              builder: (context, isHovered, _) => Text(
+                I18n.compactAction,
+                style: style.copyWith(
+                  color: !canCompact
+                      ? appColors.textSecondary.withValues(alpha: 0.4)
+                      : (isHovered ? appColors.accent : appColors.textPrimary),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 7.0),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadii.pill),
+          child: SizedBox(
+            height: 3.0,
+            child: Stack(
+              children: [
+                Positioned.fill(child: ColoredBox(color: appColors.border)),
+                AnimatedFractionallySizedBox(
+                  duration: AppMotion.slow,
+                  curve: AppMotion.standard,
+                  alignment: Alignment.centerLeft,
+                  widthFactor: fraction,
+                  heightFactor: 1.0,
+                  child: ColoredBox(color: isNearlyFull ? appColors.accent : appColors.textSecondary),
+                ),
+              ],
+            ),
           ),
         ),
       ],

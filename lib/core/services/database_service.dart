@@ -73,6 +73,12 @@ class DatabaseService {
           try {
             await db.execute('ALTER TABLE conversations ADD COLUMN summary_through_id TEXT;');
           } catch (_) {}
+          try {
+            await db.execute('ALTER TABLE conversations ADD COLUMN context_tokens INTEGER;');
+          } catch (_) {}
+          try {
+            await db.execute('ALTER TABLE conversations ADD COLUMN context_window INTEGER;');
+          } catch (_) {}
           await db.execute('''
             CREATE TABLE IF NOT EXISTS workspaces (
               id TEXT PRIMARY KEY,
@@ -145,6 +151,8 @@ class DatabaseService {
         is_workspace_context_enabled INTEGER DEFAULT 1,
         summary TEXT,
         summary_through_id TEXT,
+        context_tokens INTEGER,
+        context_window INTEGER,
         FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE
       )
     ''');
@@ -221,6 +229,16 @@ class DatabaseService {
     );
     if (maps.isEmpty) return null;
     return Conversation.fromMap(maps.first);
+  }
+
+  Future<void> updateConversationContext(String id, {required int tokens, required int window}) async {
+    final db = await database;
+    await db.update(
+      'conversations',
+      {'context_tokens': tokens, 'context_window': window},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   Future<void> updateConversationSummary(String id, String summary, String throughMessageId) async {

@@ -24,6 +24,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
   late final TextEditingController _instructionsController;
   String? _defaultModel;
   late bool _closeToTray;
+  late bool _autoCompact;
+  int? _contextWindow;
 
   @override
   void initState() {
@@ -33,6 +35,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
     _instructionsController = TextEditingController(text: settings.customInstructions);
     _defaultModel = settings.defaultModel;
     _closeToTray = settings.closeToTray;
+    _autoCompact = settings.autoCompact;
+    _contextWindow = settings.contextWindow;
   }
 
   @override
@@ -50,6 +54,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       defaultModel: _defaultModel,
       customInstructions: _instructionsController.text.trim(),
       closeToTray: _closeToTray,
+      autoCompact: _autoCompact,
+      contextWindow: _contextWindow,
     );
 
     await ref.read(appSettingsProvider.notifier).save(settings);
@@ -110,40 +116,22 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
             const SizedBox(height: AppSpace.xl),
             AppFieldLabel(I18n.defaultModel),
             const SizedBox(height: AppSpace.s),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0),
-              decoration: BoxDecoration(
-                color: appColors.background,
-                border: Border.all(color: appColors.border),
-                borderRadius: BorderRadius.circular(AppRadii.control),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String?>(
-                  value: _defaultModel,
-                  isExpanded: true,
-                  isDense: true,
-                  elevation: 2,
-                  borderRadius: BorderRadius.circular(AppRadii.card),
-                  dropdownColor: appColors.surface,
-                  icon: Icon(AppIcons.caretDown, size: 13.0, color: appColors.textSecondary),
-                  padding: const EdgeInsets.symmetric(vertical: 11.0),
-                  style: AppTypography.code.copyWith(color: appColors.textPrimary),
-                  items: [
-                    DropdownMenuItem<String?>(
-                      value: null,
-                      child: Text(
-                        I18n.defaultModelAutomatic,
-                        style: AppTypography.small.copyWith(
-                          color: appColors.textSecondary,
-                          height: 1.2,
-                        ),
-                      ),
+            _buildDropdown<String?>(
+              value: _defaultModel,
+              items: [
+                DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text(
+                    I18n.defaultModelAutomatic,
+                    style: AppTypography.small.copyWith(
+                      color: appColors.textSecondary,
+                      height: 1.2,
                     ),
-                    for (final name in modelNames) DropdownMenuItem<String?>(value: name, child: Text(name)),
-                  ],
-                  onChanged: (value) => setState(() => _defaultModel = value),
+                  ),
                 ),
-              ),
+                for (final name in modelNames) DropdownMenuItem<String?>(value: name, child: Text(name)),
+              ],
+              onChanged: (value) => setState(() => _defaultModel = value),
             ),
 
             const SizedBox(height: AppSpace.xl),
@@ -163,34 +151,108 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
             ),
 
             const SizedBox(height: AppSpace.xl),
-            Pressable(
+            AppFieldLabel(I18n.contextWindowSetting),
+            const SizedBox(height: AppSpace.xs),
+            Text(
+              I18n.contextWindowHint,
+              style: AppTypography.small.copyWith(color: appColors.textSecondary, fontSize: 14.0),
+            ),
+            const SizedBox(height: AppSpace.s),
+            _buildDropdown<int?>(
+              key: const Key('settings_context_window'),
+              value: _contextWindow,
+              items: [
+                DropdownMenuItem<int?>(value: null, child: Text(I18n.contextWindowAuto)),
+                for (final size in const [4096, 8192, 16384, 32768])
+                  DropdownMenuItem<int?>(value: size, child: Text('${size ~/ 1024}k')),
+                DropdownMenuItem<int?>(
+                  value: AppSettings.modelMaxContext,
+                  child: Text(I18n.contextWindowModelMax),
+                ),
+              ],
+              onChanged: (value) => setState(() => _contextWindow = value),
+            ),
+
+            const SizedBox(height: AppSpace.l),
+            _buildCheckbox(
+              key: const Key('settings_auto_compact'),
+              label: I18n.autoCompactSetting,
+              value: _autoCompact,
+              onTap: () => setState(() => _autoCompact = !_autoCompact),
+            ),
+
+            const SizedBox(height: AppSpace.xl),
+            _buildCheckbox(
+              label: I18n.closeToTray,
+              value: _closeToTray,
               onTap: () => setState(() => _closeToTray = !_closeToTray),
-              builder: (context, isHovered, _) => Row(
-                children: [
-                  AnimatedContainer(
-                    duration: AppMotion.fast,
-                    width: 16.0,
-                    height: 16.0,
-                    decoration: BoxDecoration(
-                      color: _closeToTray ? appColors.accent : appColors.background,
-                      borderRadius: BorderRadius.circular(4.0),
-                      border: Border.all(
-                        color: _closeToTray || isHovered ? appColors.accent : appColors.border,
-                      ),
-                    ),
-                    child: _closeToTray ? Icon(AppIcons.check, size: 11.0, color: appColors.surface) : null,
-                  ),
-                  const SizedBox(width: 10.0),
-                  Expanded(
-                    child: Text(
-                      I18n.closeToTray,
-                      style: AppTypography.small.copyWith(color: appColors.textPrimary),
-                    ),
-                  ),
-                ],
-              ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCheckbox({Key? key, required String label, required bool value, required VoidCallback onTap}) {
+    final appColors = context.appColors;
+    return Pressable(
+      key: key,
+      onTap: onTap,
+      builder: (context, isHovered, _) => Row(
+        children: [
+          AnimatedContainer(
+            duration: AppMotion.fast,
+            width: 16.0,
+            height: 16.0,
+            decoration: BoxDecoration(
+              color: value ? appColors.accent : appColors.background,
+              borderRadius: BorderRadius.circular(4.0),
+              border: Border.all(
+                color: value || isHovered ? appColors.accent : appColors.border,
+              ),
+            ),
+            child: value ? Icon(AppIcons.check, size: 11.0, color: appColors.surface) : null,
+          ),
+          const SizedBox(width: 10.0),
+          Expanded(
+            child: Text(
+              label,
+              style: AppTypography.small.copyWith(color: appColors.textPrimary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDropdown<T>({
+    Key? key,
+    required T value,
+    required List<DropdownMenuItem<T>> items,
+    required ValueChanged<T?> onChanged,
+  }) {
+    final appColors = context.appColors;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0),
+      decoration: BoxDecoration(
+        color: appColors.background,
+        border: Border.all(color: appColors.border),
+        borderRadius: BorderRadius.circular(AppRadii.control),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<T>(
+          key: key,
+          value: value,
+          isExpanded: true,
+          isDense: true,
+          elevation: 2,
+          borderRadius: BorderRadius.circular(AppRadii.card),
+          dropdownColor: appColors.surface,
+          icon: Icon(AppIcons.caretDown, size: 13.0, color: appColors.textSecondary),
+          padding: const EdgeInsets.symmetric(vertical: 11.0),
+          style: AppTypography.code.copyWith(color: appColors.textPrimary),
+          items: items,
+          onChanged: onChanged,
         ),
       ),
     );

@@ -15,6 +15,12 @@ class Conversation {
   final String? summary;
   final String? summaryThroughId;
 
+  /// Tokens the last answered turn occupied (prompt plus answer, as counted by
+  /// Ollama) and the context window it ran in. Null until a turn has finished.
+  /// Written only through [DatabaseService.updateConversationContext].
+  final int? contextTokens;
+  final int? contextWindow;
+
   const Conversation({
     required this.id,
     required this.title,
@@ -28,6 +34,8 @@ class Conversation {
     this.isWorkspaceContextEnabled = true,
     this.summary,
     this.summaryThroughId,
+    this.contextTokens,
+    this.contextWindow,
   });
 
   Map<String, dynamic> toMap() {
@@ -61,6 +69,8 @@ class Conversation {
       isWorkspaceContextEnabled: (map['is_workspace_context_enabled'] as int? ?? 1) == 1,
       summary: map['summary'] as String?,
       summaryThroughId: map['summary_through_id'] as String?,
+      contextTokens: map['context_tokens'] as int?,
+      contextWindow: map['context_window'] as int?,
     );
   }
 
@@ -92,6 +102,8 @@ class Conversation {
           isWorkspaceContextEnabled ?? this.isWorkspaceContextEnabled,
       summary: summary ?? this.summary,
       summaryThroughId: summaryThroughId ?? this.summaryThroughId,
+      contextTokens: contextTokens,
+      contextWindow: contextWindow,
     );
   }
 }
