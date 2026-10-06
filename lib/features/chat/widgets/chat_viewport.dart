@@ -4,7 +4,7 @@ import 'package:flutter/rendering.dart';
 import '../../../core/models/message.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
-import '../../shell/widgets/tomsllama_logo.dart';
+import '../../../core/widgets/tomsllama_logo.dart';
 import '../../../core/services/localization_service.dart';
 import 'message_bubble.dart';
 

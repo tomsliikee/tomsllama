@@ -23,7 +23,7 @@ import '../../../../core/models/attached_file.dart';
 import '../../../../core/models/workspace_info.dart';
 import '../../../../core/services/hardware_calibration_service.dart';
 import '../../sidebar/controllers/sidebar_controller.dart';
-import '../../chat/controllers/workspace_controller.dart';
+import 'workspace_controller.dart';
 import '../../../../core/models/workspace.dart';
 import '../../../../core/models/workspace_context_file.dart';
 

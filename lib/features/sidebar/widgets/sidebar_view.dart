@@ -8,7 +8,7 @@ import '../../../core/widgets/pressable.dart';
 import '../../../core/services/localization_service.dart';
 import '../../../core/models/workspace.dart';
 import '../../workspace/controllers/workspace_hub_controller.dart';
-import '../../shell/widgets/tomsllama_logo.dart';
+import '../../../core/widgets/tomsllama_logo.dart';
 import 'chat_list_item.dart';
 import 'search_bar_view.dart';
 import 'workspace_list_item.dart';

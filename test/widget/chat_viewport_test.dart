@@ -4,7 +4,7 @@ import 'package:tomsllama/core/constants/app_typography.dart';
 import 'package:tomsllama/core/theme/claude_theme.dart';
 import 'package:tomsllama/core/services/localization_service.dart';
 import 'package:tomsllama/features/chat/widgets/chat_viewport.dart';
-import 'package:tomsllama/features/shell/widgets/tomsllama_logo.dart';
+import 'package:tomsllama/core/widgets/tomsllama_logo.dart';
 
 void main() {
   testWidgets('ChatViewport renders enlarged logo, title and subtitle in empty state', (WidgetTester tester) async {

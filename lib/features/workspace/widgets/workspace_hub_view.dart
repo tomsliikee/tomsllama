@@ -17,11 +17,11 @@ import '../../../core/widgets/app_pill.dart';
 import '../../../core/services/localization_service.dart';
 import '../../../core/services/hardware_calibration_service.dart';
 import '../../chat/controllers/chat_controller.dart';
-import '../../chat/widgets/persona_chip.dart';
+import '../../../core/widgets/persona_chip.dart';
 import '../../models/controllers/model_controller.dart';
 import '../controllers/workspace_hub_controller.dart';
 import 'cute_llama_file_mascot.dart';
-import '../../chat/widgets/cute_send_button.dart';
+import '../../../core/widgets/cute_send_button.dart';
 
 class WorkspaceHubView extends ConsumerStatefulWidget {
   final Workspace workspace;

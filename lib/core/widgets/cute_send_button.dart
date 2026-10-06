@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../../../core/constants/app_icons.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/services/localization_service.dart';
+import '../constants/app_icons.dart';
+import '../theme/app_theme.dart';
+import '../services/localization_service.dart';
 
 /// A circular send button that smoothly morphs into an organic cloud with
 /// delightful side lobes ("Wolke mit Auswabungen") containing the cute animated

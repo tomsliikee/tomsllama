@@ -5,7 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../core/constants/app_tokens.dart';
 import '../../../core/widgets/ink_fade_in.dart';
-import '../../shell/widgets/tomsllama_logo.dart';
+import '../../../core/widgets/tomsllama_logo.dart';
 import 'claude_thinking_indicator.dart';
 import 'think_block_view.dart';
 import 'telemetry_footer.dart';

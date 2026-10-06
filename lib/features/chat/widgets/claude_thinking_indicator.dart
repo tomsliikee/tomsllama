@@ -4,7 +4,7 @@ import '../../../core/constants/app_tokens.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../core/services/localization_service.dart';
-import '../../shell/widgets/tomsllama_logo.dart';
+import '../../../core/widgets/tomsllama_logo.dart';
 
 class ClaudeThinkingIndicator extends StatefulWidget {
   final String? statusMessage;

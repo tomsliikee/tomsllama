@@ -16,8 +16,8 @@ import '../../../core/services/hardware_calibration_service.dart';
 import '../../../core/services/settings_service.dart';
 import '../controllers/chat_controller.dart';
 import '../controllers/workspace_controller.dart';
-import 'persona_chip.dart';
-import 'cute_send_button.dart';
+import '../../../core/widgets/persona_chip.dart';
+import '../../../core/widgets/cute_send_button.dart';
 import 'composer_shelf.dart';
 
 class ComposerBar extends ConsumerStatefulWidget {

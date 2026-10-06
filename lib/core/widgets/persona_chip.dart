@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants/app_tokens.dart';
-import '../../../core/constants/app_icons.dart';
-import '../../../core/constants/app_typography.dart';
-import '../../../core/models/persona.dart';
-import '../../../core/services/localization_service.dart';
-import '../../../core/theme/app_theme.dart';
+import '../constants/app_tokens.dart';
+import '../constants/app_icons.dart';
+import '../constants/app_typography.dart';
+import '../models/persona.dart';
+import '../services/localization_service.dart';
+import '../theme/app_theme.dart';
 
 class PersonaChip extends StatefulWidget {
   final String personaName;

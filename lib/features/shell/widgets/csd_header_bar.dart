@@ -8,7 +8,7 @@ import '../../../core/constants/app_tokens.dart';
 import '../../../core/widgets/app_pill.dart';
 import '../../../core/services/localization_service.dart';
 import '../../chat/controllers/chat_controller.dart';
-import 'tomsllama_logo.dart';
+import '../../../core/widgets/tomsllama_logo.dart';
 
 class CsdHeaderBar extends ConsumerStatefulWidget {
   final VoidCallback onToggleSidebar;
