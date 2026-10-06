@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/models/ollama_model.dart';
 import '../../../../core/models/pull_progress.dart';
 import '../../../../core/services/ollama_service.dart';
+import '../../../../core/services/localization_service.dart';
 
 class ModelState {
   final List<OllamaModel> models;
@@ -69,7 +70,7 @@ class ModelNotifier extends StateNotifier<ModelState> {
       if (!mounted) return;
       state = state.copyWith(
         isLoading: false,
-        errorMessage: 'Could not connect to Ollama. Make sure Ollama is running.',
+        errorMessage: I18n.ollamaUnreachable(_service.baseUrl),
       );
     }
   }

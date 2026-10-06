@@ -12,18 +12,15 @@ class OllamaService {
 
   String baseUrl = 'http://localhost:11434';
 
+  /// Throws when the daemon is unreachable or answers with an error, so callers
+  /// can tell "no models installed" apart from "Ollama is not running".
   Future<List<OllamaModel>> listModels() async {
-    try {
-      final response = await http.get(Uri.parse('$baseUrl/api/tags'));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final models = (data['models'] as List).map((e) => OllamaModel.fromJson(e)).toList();
-        return models;
-      }
-    } catch (e) {
-      // Ignored for now, handled by UI
+    final response = await http.get(Uri.parse('$baseUrl/api/tags'));
+    if (response.statusCode != 200) {
+      throw HttpException('Ollama returned HTTP ${response.statusCode}');
     }
-    return [];
+    final data = jsonDecode(response.body);
+    return (data['models'] as List).map((e) => OllamaModel.fromJson(e)).toList();
   }
 
   Stream<String> streamChat(

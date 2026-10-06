@@ -525,13 +525,12 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                                                       modelName: selectedModel,
                                                       statusMessage: chatState.statusMessage,
                                                       statusTokens: chatState.statusTokens,
-                                                      onRegenerate: () {
-                                                        // Regenerate last user turn safely
-                                                        final lastUser = chatState.messages.where((m) => m.role == 'user').lastOrNull;
-                                                        if (lastUser != null) {
-                                                          chatNotifier.sendMessage(lastUser.content, selectedModel);
-                                                        }
-                                                      },
+                                                      onRegenerate: () => chatNotifier.regenerateLast(selectedModel),
+                                                      // A failed model listing means the daemon is down; offer to look again.
+                                                      errorMessage: chatState.errorMessage ?? modelState.errorMessage,
+                                                      onRetry: chatState.errorMessage == null && modelState.errorMessage != null
+                                                          ? () => modelNotifier.loadModels()
+                                                          : null,
                                                     ),
                                                   ),
                                                 ),

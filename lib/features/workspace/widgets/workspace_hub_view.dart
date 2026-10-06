@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -48,10 +49,13 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
   bool _isInputFocused = false;
   bool _isDraggingOverContext = false;
   String _selectedPersona = 'Standard';
+  Timer? _promptSaveTimer;
+  late final WorkspaceListNotifier _workspaceList;
 
   @override
   void initState() {
     super.initState();
+    _workspaceList = ref.read(workspaceListProvider.notifier);
     _promptController = TextEditingController(text: widget.workspace.prompt);
     _inputController = TextEditingController();
     _inputFocusNode = FocusNode();
@@ -72,14 +76,26 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
   @override
   void didUpdateWidget(WorkspaceHubView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.workspace.id != oldWidget.workspace.id ||
-        widget.workspace.prompt != _promptController.text) {
+    // Only a different workspace replaces the field. Syncing on every prompt
+    // change would overwrite what is being typed with the last saved value.
+    if (widget.workspace.id != oldWidget.workspace.id) {
+      _flushPendingPrompt(oldWidget.workspace.id);
       _promptController.text = widget.workspace.prompt;
     }
   }
 
+  /// Writes a not-yet-saved prompt edit for [workspaceId], which may no longer
+  /// be the active workspace, so it goes through the id-addressed list notifier.
+  void _flushPendingPrompt(String workspaceId) {
+    if (_promptSaveTimer?.isActive != true) return;
+    _promptSaveTimer!.cancel();
+    final text = _promptController.text;
+    Future.microtask(() => _workspaceList.updateWorkspacePrompt(workspaceId, text));
+  }
+
   @override
   void dispose() {
+    _flushPendingPrompt(widget.workspace.id);
     _promptController.dispose();
     _inputController.dispose();
     _inputFocusNode.dispose();
@@ -87,7 +103,14 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
   }
 
   void _savePrompt() {
+    _promptSaveTimer?.cancel();
     ref.read(activeWorkspaceProvider.notifier).updatePrompt(_promptController.text);
+  }
+
+  // Saving reloads the workspace list from the database, so do it once typing pauses.
+  void _schedulePromptSave() {
+    _promptSaveTimer?.cancel();
+    _promptSaveTimer = Timer(const Duration(milliseconds: 500), _savePrompt);
   }
 
   Future<void> _pickFiles() async {
@@ -300,7 +323,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
               isDense: true,
               contentPadding: EdgeInsets.zero,
             ),
-            onChanged: (_) => _savePrompt(),
+            onChanged: (_) => _schedulePromptSave(),
           ),
         ],
       ),

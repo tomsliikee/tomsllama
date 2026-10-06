@@ -46,4 +46,33 @@ void main() {
     expect(ContextManager.estimateTokens('123456'), 2);
     expect(ContextManager.estimateTokens('1234'), 2);
   });
+
+  group('planBudget', () {
+    test('small turns keep the model default and leave room for history', () {
+      final budget = ContextManager.planBudget(systemTokens: 100, promptTokens: 50, latestMessageTokens: 50);
+      expect(budget.numCtx, isNull);
+      expect(budget.historyTokens, 2048 - 400 - 100);
+    });
+
+    test('system prompt and attached file bodies are taken out of the history budget', () {
+      // 800 system + 500 prompt, of which only 20 are visible to the sliding window.
+      final budget = ContextManager.planBudget(systemTokens: 800, promptTokens: 500, latestMessageTokens: 20);
+      expect(budget.numCtx, isNull);
+      expect(budget.historyTokens, 2048 - 400 - 800 - 480);
+      expect(800 + 500 + (budget.historyTokens - 20), lessThanOrEqualTo(2048 - 400));
+    });
+
+    test('larger turns move up a tier and never return a negative budget', () {
+      final mid = ContextManager.planBudget(systemTokens: 1500, promptTokens: 600, latestMessageTokens: 600);
+      expect(mid.numCtx, 4096);
+      expect(mid.historyTokens, 4096 - 500 - 1500);
+
+      final large = ContextManager.planBudget(systemTokens: 3000, promptTokens: 1000, latestMessageTokens: 30);
+      expect(large.numCtx, 8192);
+
+      final overfull = ContextManager.planBudget(systemTokens: 9000, promptTokens: 2000, latestMessageTokens: 10);
+      expect(overfull.numCtx, 8192);
+      expect(overfull.historyTokens, 0);
+    });
+  });
 }

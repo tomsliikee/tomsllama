@@ -32,7 +32,13 @@ class _ModelManagerDialogState extends State<ModelManagerDialog> {
 
   Future<void> _loadModels() async {
     setState(() => _isLoading = true);
-    final models = await OllamaService().listModels();
+    List<OllamaModel> models = const [];
+    try {
+      models = await OllamaService().listModels();
+    } catch (_) {
+      // Daemon unreachable: the dialog shows its empty state.
+    }
+    if (!mounted) return;
     setState(() {
       _models = models;
       _isLoading = false;

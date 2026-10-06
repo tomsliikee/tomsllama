@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'package:http/http.dart' as http;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/models/message.dart';
 import '../../../../core/models/persona.dart';
@@ -8,6 +10,7 @@ import '../../../../core/services/ollama_service.dart';
 import '../../../../core/services/title_service.dart';
 import '../../../../core/services/localization_service.dart';
 import '../../../../core/services/context_manager.dart';
+import '../../../../core/services/workspace_service.dart';
 import 'package:path/path.dart' as p;
 import '../../../../core/utils/think_parser.dart';
 import '../../../../core/models/attached_file.dart';
@@ -88,11 +91,63 @@ class ChatNotifier extends StateNotifier<ChatState> {
   final OllamaService _ollama = OllamaService();
   final Ref _ref;
   StreamSubscription<String>? _activeStream;
+  String? _activeAssistantId;
+
+  // Full prompt payload (with attached file bodies) of the most recent user turn.
+  // Only the display text is persisted, so regenerate needs this to resend the files.
+  String? _lastPayloadMessageId;
+  String? _lastPayload;
 
   ChatNotifier(this._ref) : super(const ChatState());
 
-  Future<void> loadConversation(String conversationId) async {
+  /// Removes the `[attached:a, b]` display prefix that [sendMessage] stores in
+  /// front of a user message, leaving the text the user typed.
+  static String stripAttachmentPrefix(String content) {
+    if (!content.startsWith('[attached:')) return content;
+    final endIdx = content.indexOf(']');
+    if (endIdx == -1) return content;
+    return content.substring(endIdx + 1).trim();
+  }
+
+  /// Cancels the running stream and keeps what was generated so far.
+  ///
+  /// The user message is already in the database at this point; without saving
+  /// the partial answer the conversation would reload with an unanswered turn.
+  void _interruptGeneration() {
     _activeStream?.cancel();
+    _activeStream = null;
+    final assistantId = _activeAssistantId;
+    _activeAssistantId = null;
+    if (!state.isGenerating) return;
+
+    var msgs = state.messages;
+    final last = msgs.lastOrNull;
+    if (last != null && last.role == 'assistant' && last.id == assistantId) {
+      final hasOutput = last.content.trim().isNotEmpty || (last.thinkContent?.trim().isNotEmpty ?? false);
+      if (hasOutput) {
+        unawaited(_db.saveMessage(last));
+      } else {
+        msgs = msgs.sublist(0, msgs.length - 1);
+      }
+    }
+
+    state = state.copyWith(
+      messages: msgs,
+      isGenerating: false,
+      clearStatusMessage: true,
+      clearStatusTokens: true,
+    );
+  }
+
+  static String _describeError(Object err) {
+    if (err is SocketException || err is http.ClientException) {
+      return I18n.ollamaUnreachable(OllamaService().baseUrl);
+    }
+    return I18n.generationFailed(err.toString());
+  }
+
+  Future<void> loadConversation(String conversationId) async {
+    _interruptGeneration();
 
     _ref.read(workspaceProvider.notifier).setActiveConversation(conversationId);
 
@@ -115,7 +170,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
   }
 
   Future<void> startNewChat() async {
-    _activeStream?.cancel();
+    _interruptGeneration();
 
     // 1. If current conversation had messages, ensure it has a good title
     if (state.conversationId != null && state.messages.isNotEmpty) {
@@ -197,12 +252,15 @@ class ChatNotifier extends StateNotifier<ChatState> {
     String modelName, {
     List<AttachedFile>? attachedFiles,
     WorkspaceInfo? workspace,
+    Message? regenerateFrom,
   }) async {
     final wsNotifier = _ref.read(workspaceProvider.notifier);
     final wsState = _ref.read(workspaceProvider);
-    final explicitAttached = attachedFiles ?? wsState.attachedFiles;
+    final isRegeneration = regenerateFrom != null;
+    // A regenerated turn must not pick up files the user has staged for the next message.
+    final explicitAttached = isRegeneration ? const <AttachedFile>[] : (attachedFiles ?? wsState.attachedFiles);
 
-    if (text.trim().isEmpty && explicitAttached.isEmpty) return;
+    if (!isRegeneration && text.trim().isEmpty && explicitAttached.isEmpty) return;
     if (state.isGenerating) return;
 
     // 1. Ensure active conversation exists
@@ -332,6 +390,9 @@ class ChatNotifier extends StateNotifier<ChatState> {
       }
       promptPayload = buffer.toString().trim();
     }
+    if (isRegeneration && _lastPayloadMessageId == regenerateFrom.id && _lastPayload != null) {
+      promptPayload = _lastPayload!;
+    }
 
     // 2. Add user message with clean display content (only explicitly attached pills encoded)
     final now = DateTime.now();
@@ -341,15 +402,22 @@ class ChatNotifier extends StateNotifier<ChatState> {
       displayContent = '[attached:$fileNames]${displayContent.isNotEmpty ? '\n$displayContent' : ''}';
     }
 
-    final userMsg = Message(
-      id: '${now.millisecondsSinceEpoch}_user',
-      conversationId: convId,
-      role: 'user',
-      content: displayContent.isNotEmpty ? displayContent : (effectiveWorkspace != null ? effectiveWorkspace.name : 'Message'),
-      createdAt: now,
-      tokens: ContextManager.estimateTokens(displayContent),
-    );
-    await _db.saveMessage(userMsg);
+    final Message userMsg;
+    if (isRegeneration) {
+      userMsg = regenerateFrom;
+    } else {
+      userMsg = Message(
+        id: '${now.millisecondsSinceEpoch}_user',
+        conversationId: convId,
+        role: 'user',
+        content: displayContent.isNotEmpty ? displayContent : (effectiveWorkspace != null ? effectiveWorkspace.name : 'Message'),
+        createdAt: now,
+        tokens: ContextManager.estimateTokens(displayContent),
+      );
+      await _db.saveMessage(userMsg);
+    }
+    _lastPayloadMessageId = userMsg.id;
+    _lastPayload = promptPayload;
 
     // 3. Add placeholder assistant message
     final assistantMsgId = '${now.millisecondsSinceEpoch + 1}_assistant';
@@ -361,7 +429,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
       createdAt: DateTime.now(),
     );
 
-    final updatedMessages = [...state.messages, userMsg, assistantMsg];
+    final updatedMessages = [...state.messages, if (!isRegeneration) userMsg, assistantMsg];
+    _activeAssistantId = assistantMsgId;
     final hasPdf = effectiveFiles.any((f) => f.extension == '.pdf') ||
         claudeWorkspaceFiles.any((f) => f.extension == '.pdf');
 
@@ -404,18 +473,13 @@ class ChatNotifier extends StateNotifier<ChatState> {
         break;
     }
 
-    final int? ollamaNumCtx;
-    final int slidingWindowBudget;
-    if (totalTokens > 3600) {
-      ollamaNumCtx = 8192;
-      slidingWindowBudget = 8192 - 600;
-    } else if (totalTokens > 1800) {
-      ollamaNumCtx = 4096;
-      slidingWindowBudget = 4096 - 500;
-    } else {
-      ollamaNumCtx = null;
-      slidingWindowBudget = 2048 - 400;
-    }
+    final budget = ContextManager.planBudget(
+      systemTokens: systemTokens,
+      promptTokens: userTokens,
+      latestMessageTokens: userMsg.tokens,
+    );
+    final ollamaNumCtx = budget.numCtx;
+    final slidingWindowBudget = budget.historyTokens;
 
     // Prepare message payload with sliding window bounded by slidingWindowBudget
     final rawHistory = updatedMessages
@@ -445,7 +509,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     int tokenEstimate = 0;
 
     // Only clear standalone attachments if no workspace is active (preserve workspace files across conversation)
-    if (wsState.workspace == null) {
+    if (wsState.workspace == null && !isRegeneration) {
       wsNotifier.clearAttachments();
     }
 
@@ -545,7 +609,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
               isGenerating: false,
               clearStatusMessage: true,
               clearStatusTokens: true,
-              errorMessage: 'Stream error: $err',
+              errorMessage: _describeError(err),
             );
           },
           onDone: () async {
@@ -565,14 +629,18 @@ class ChatNotifier extends StateNotifier<ChatState> {
                 }
 
                 if (reqPath != null && effectiveWorkspace != null && mounted) {
-                  state = state.copyWith(statusMessage: 'Reading $reqPath...');
+                  state = state.copyWith(statusMessage: I18n.readingFile(reqPath));
 
-                  final fullPath = p.join(effectiveWorkspace.path, reqPath);
-                  final file = await AttachedFile.fromPath(
-                    fullPath,
-                    workspaceRoot: effectiveWorkspace.path,
-                    maxLines: 400,
-                  );
+                  final fullPath = await WorkspaceService.resolveInsideWorkspace(effectiveWorkspace.path, reqPath);
+                  final file = fullPath == null
+                      ? null
+                      : await AttachedFile.fromPath(
+                          fullPath,
+                          workspaceRoot: effectiveWorkspace.path,
+                          maxLines: 400,
+                        );
+                  // The user may have stopped or switched chats while the file was read.
+                  if (!mounted || _activeAssistantId != assistantMsgId) return;
 
                   promptMessages.add({
                     'role': 'assistant',
@@ -618,6 +686,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
               generationDurationMs: stopwatch.elapsedMilliseconds,
             );
 
+            _activeAssistantId = null;
             await _db.saveMessage(finalizedMsg);
             if (!mounted) return;
 
@@ -649,7 +718,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
             isGenerating: false,
             clearStatusMessage: true,
             clearStatusTokens: true,
-            errorMessage: 'Ollama error: $err',
+            errorMessage: _describeError(err),
           );
         }
       }
@@ -659,11 +728,26 @@ class ChatNotifier extends StateNotifier<ChatState> {
   }
 
   void stopGeneration() {
-    _activeStream?.cancel();
-    state = state.copyWith(
-      isGenerating: false,
-      clearStatusMessage: true,
-      clearStatusTokens: true,
+    _interruptGeneration();
+  }
+
+  /// Replaces the last answer: drops everything after the last user message and
+  /// generates again for that same message instead of sending it a second time.
+  Future<void> regenerateLast(String modelName) async {
+    if (state.isGenerating) return;
+    final idx = state.messages.lastIndexWhere((m) => m.role == 'user');
+    if (idx == -1) return;
+
+    final userMsg = state.messages[idx];
+    for (final stale in state.messages.skip(idx + 1)) {
+      await _db.deleteMessage(stale.id);
+    }
+    state = state.copyWith(messages: state.messages.sublist(0, idx + 1));
+
+    await sendMessage(
+      stripAttachmentPrefix(userMsg.content),
+      modelName,
+      regenerateFrom: userMsg,
     );
   }
 

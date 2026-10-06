@@ -143,6 +143,16 @@ class I18n {
       ? 'CPU finalisiert Kontext ($tokenStr Tokens, ${seconds}s)...'
       : 'CPU finalizing context ($tokenStr tokens, ${seconds}s)...';
 
+  // Errors
+  static String ollamaUnreachable(String url) => isGerman
+      ? 'Ollama ist unter $url nicht erreichbar. Läuft "ollama serve"?'
+      : 'Ollama is not reachable at $url. Is "ollama serve" running?';
+  static String generationFailed(String detail) => isGerman
+      ? 'Antwort fehlgeschlagen: $detail'
+      : 'Response failed: $detail';
+  static String get retry => isGerman ? 'Erneut versuchen' : 'Retry';
+  static String readingFile(String path) => isGerman ? 'Lese $path...' : 'Reading $path...';
+
   static String get subtitle => isGerman
       ? 'Lokales, sicheres Interface für Ollama'
       : 'Local, secure interface for Ollama';
