@@ -26,6 +26,7 @@ class AppIcons {
   static const IconData workspace = IconData(0xe464, fontFamily: _family); // squaresFour
   static const IconData knowledge = IconData(0xe466, fontFamily: _family); // stack
 
+  static const IconData delete = IconData(0xe4a6, fontFamily: _family); // trash
   static const IconData pin = IconData(0xe65c, fontFamily: _family); // pushPinSimple
   static const IconData pinned = IconData(0xe3e2, fontFamily: _family); // pushPin
   static const IconData export = IconData(0xe20c, fontFamily: _family); // downloadSimple

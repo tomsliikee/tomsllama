@@ -28,7 +28,7 @@ void main() {
     await tester.tap(find.text('Open Dialog'));
     await tester.pumpAndSettle();
 
-    expect(find.text(I18n.newWorkspace), findsOneWidget);
+    expect(find.text(I18n.newWorkspaceTitle), findsOneWidget);
     expect(find.byType(TextField), findsNWidgets(2));
 
     // Enter name

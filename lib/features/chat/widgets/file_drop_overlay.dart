@@ -95,7 +95,7 @@ class _FileDropOverlayState extends State<FileDropOverlay>
                   const SizedBox(height: 16.0),
                   Text(
                     I18n.dropFilesToAttach,
-                    style: AppTypography.headline.copyWith(
+                    style: AppTypography.title.copyWith(
                       color: Colors.white,
                       fontSize: 18.0,
                       fontWeight: FontWeight.w600,
@@ -124,7 +124,7 @@ class _FileDropOverlayState extends State<FileDropOverlay>
                     ),
                     child: Text(
                       I18n.willAttachToConversation,
-                      style: AppTypography.uiControl.copyWith(
+                      style: AppTypography.label.copyWith(
                         color: Colors.white.withValues(alpha: 0.9),
                         fontSize: 12.0,
                         fontWeight: FontWeight.w500,
@@ -181,7 +181,7 @@ class _CuteLlamaHoldingDocPainter extends CustomPainter {
     final Paint outlinePaint = Paint()
       ..color = accentColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.4 * scale
+      ..strokeWidth = 1.8 * scale
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
@@ -225,7 +225,7 @@ class _CuteLlamaHoldingDocPainter extends CustomPainter {
     final Paint eyePaint = Paint()
       ..color = accentColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0 * scale
+      ..strokeWidth = 1.6 * scale
       ..strokeCap = StrokeCap.round;
     final Rect eyeRect = Rect.fromCenter(
       center: Offset(originX + 29 * scale, originY + 27 * scale),
@@ -237,7 +237,7 @@ class _CuteLlamaHoldingDocPainter extends CustomPainter {
     // Cute Blushing Cheek
     final double blushAlpha = (0.5 + 0.4 * math.sin(t * 2 * math.pi)).clamp(0.0, 1.0);
     final Paint blushPaint = Paint()
-      ..color = Colors.pinkAccent.shade100.withValues(alpha: blushAlpha * 0.85)
+      ..color = accentColor.withValues(alpha: blushAlpha * 0.4)
       ..style = PaintingStyle.fill;
     canvas.drawCircle(
       Offset(originX + 33 * scale, originY + 33 * scale),
@@ -257,7 +257,7 @@ class _CuteLlamaHoldingDocPainter extends CustomPainter {
     final Paint armPaint = Paint()
       ..color = accentColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.6 * scale
+      ..strokeWidth = 2.2 * scale
       ..strokeCap = StrokeCap.round;
     canvas.drawPath(armPath, armPaint);
 
@@ -348,7 +348,7 @@ class _CuteLlamaHoldingDocPainter extends CustomPainter {
 
     // Document mini code tag badge '{ }'
     final Paint tagPaint = Paint()
-      ..color = Colors.amber.shade700
+      ..color = accentColor
       ..style = PaintingStyle.fill;
     canvas.drawCircle(Offset(docRect.left + 7 * scale, docRect.top + docH - 6 * scale), 2.2 * scale, tagPaint);
 
@@ -396,7 +396,7 @@ class _CuteLlamaHoldingDocPainter extends CustomPainter {
         canvas,
         pos1,
         3.6 * scale * s1Alpha,
-        Colors.amberAccent.withValues(alpha: s1Alpha),
+        accentColor.withValues(alpha: s1Alpha),
       );
     }
 

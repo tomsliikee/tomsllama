@@ -126,7 +126,7 @@ class TomsllamaLogoPainter extends CustomPainter {
       final double blushAlpha = (math.sin(t * math.pi)).clamp(0.0, 1.0) * 0.65;
       if (blushAlpha > 0.05) {
         final Paint blushPaint = Paint()
-          ..color = Colors.pinkAccent.shade100.withValues(alpha: blushAlpha)
+          ..color = accentColor.withValues(alpha: (blushAlpha) * 0.45)
           ..style = PaintingStyle.fill;
         canvas.drawCircle(
           Offset(14.0 * scaleX, 12.8 * scaleY),

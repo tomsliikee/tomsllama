@@ -6,9 +6,6 @@ class AppTypography {
   static const String serifFamily = 'Newsreader';
   static const String monoFamily = 'GeistMono';
 
-  // Still used by screens that have not been moved to the new scale yet.
-  static const String sansFamily = 'Inter';
-
   // --- The scale ---
 
   /// 10.5 mono: section labels, set in tracked uppercase by the caller.
@@ -84,20 +81,5 @@ class AppTypography {
     fontSize: 10.5,
     fontWeight: FontWeight.w400,
     fontFeatures: [FontFeature.tabularFigures()],
-  );
-
-  // --- Pre-scale styles, kept for screens not yet restyled ---
-
-  static const TextStyle headline = TextStyle(
-    fontFamily: serifFamily,
-    fontSize: 24.0,
-    fontWeight: FontWeight.w600,
-    height: 1.2,
-  );
-
-  static const TextStyle uiControl = TextStyle(
-    fontFamily: sansFamily,
-    fontSize: 13.0,
-    fontWeight: FontWeight.w500,
   );
 }

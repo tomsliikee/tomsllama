@@ -19,6 +19,17 @@ import 'package:tomsllama/core/services/database_service.dart';
 import 'package:tomsllama/core/theme/app_theme.dart';
 import 'package:tomsllama/features/chat/controllers/chat_controller.dart';
 import 'package:tomsllama/features/models/controllers/model_controller.dart';
+import 'package:tomsllama/core/models/workspace.dart';
+import 'package:tomsllama/core/models/workspace_context_file.dart';
+import 'package:tomsllama/features/chat/widgets/cute_send_button.dart';
+import 'package:tomsllama/features/chat/widgets/file_drop_overlay.dart';
+import 'package:tomsllama/features/models/widgets/model_manager_dialog.dart';
+import 'package:tomsllama/features/models/widgets/quick_switcher_modal.dart';
+import 'package:tomsllama/features/settings/widgets/settings_dialog.dart';
+import 'package:tomsllama/features/shell/widgets/tomsllama_logo.dart';
+import 'package:tomsllama/features/workspace/widgets/cute_llama_file_mascot.dart';
+import 'package:tomsllama/features/workspace/widgets/new_workspace_dialog.dart';
+import 'package:tomsllama/features/workspace/widgets/workspace_hub_view.dart';
 import 'package:tomsllama/main.dart';
 
 class _HarnessChat extends ChatNotifier {
@@ -89,7 +100,6 @@ void main() {
     const fonts = 'assets/fonts';
     await _loadFont('Newsreader', ['$fonts/Newsreader-Regular.ttf', '$fonts/Newsreader-Italic.ttf', '$fonts/Newsreader-SemiBold.ttf']);
     await _loadFont('GeistMono', ['$fonts/GeistMono-Regular.ttf', '$fonts/GeistMono-Medium.ttf', '$fonts/GeistMono-SemiBold.ttf']);
-    await _loadFont('Inter', ['$fonts/Inter-Regular.ttf', '$fonts/Inter-Medium.ttf', '$fonts/Inter-SemiBold.ttf']);
 
     final flutterRoot = Platform.environment['FLUTTER_ROOT'] ?? p.dirname(p.dirname(Platform.resolvedExecutable));
     await _loadFont('MaterialIcons', [
@@ -207,6 +217,102 @@ void main() {
     // Unmount so periodic timers in the logo and indicators are cancelled.
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 1));
+    debugDisableShadows = true;
+  });
+
+  // Screens that live outside the main chat layout, each rendered on its own.
+  testWidgets('render secondary screens', (tester) async {
+    debugDisableShadows = false;
+    tester.view.physicalSize = const Size(1100, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final now = DateTime.now();
+    final workspace = Workspace(
+      id: 'ws_render',
+      name: 'Erlebnisplaner',
+      prompt: 'You are the principal engineer on this project. Answer briefly and in German.',
+      createdAt: now,
+      updatedAt: now,
+    );
+    final files = [
+      WorkspaceContextFile(
+        id: 'f1', workspaceId: 'ws_render', filePath: '/p/spec.md', fileName: 'spec.md',
+        fileSize: 4200, content: '# Spec', estimatedTokens: 1240, createdAt: now,
+      ),
+      WorkspaceContextFile(
+        id: 'f2', workspaceId: 'ws_render', filePath: '/p/vertrag.pdf', fileName: 'vertrag.pdf',
+        fileSize: 88000, content: 'Vertrag', estimatedTokens: 610, createdAt: now,
+      ),
+    ];
+    final chats = [
+      for (final title in ['Datenbank-Schema planen', 'Rollen und Rechte', 'Release-Checkliste'])
+        Conversation(id: title, title: title, createdAt: now, updatedAt: now, workspaceId: 'ws_render'),
+    ];
+
+    final scenes = <String, Widget>{
+      'hub': WorkspaceHubView(
+        workspace: workspace,
+        files: files,
+        chats: chats,
+        onStartChat: (_, __, ___) {},
+        onOpenChat: (_) {},
+        onDeleteChat: (_) {},
+      ),
+      'settings': const Center(child: SettingsDialog()),
+      'models': const Center(child: ModelManagerDialog()),
+      'switcher': Center(child: QuickSwitcherModal(conversations: chats, onSelect: (_) {})),
+      'new_workspace': const Center(child: NewWorkspaceDialog()),
+      'drop': const FileDropOverlay(),
+      'mascots': Center(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CuteLlamaFileMascot(size: 160.0),
+            const SizedBox(width: 60.0),
+            const TomsllamaLogo(size: 120.0),
+            const SizedBox(width: 60.0),
+            CuteSendButton(isGenerating: false, hasText: true, onTap: () {}),
+            const SizedBox(width: 24.0),
+            CuteSendButton(isGenerating: true, hasText: true, onTap: () {}),
+          ],
+        ),
+      ),
+    };
+
+    // One container for all scenes: disposing it would dispose app-wide singletons it exposes.
+    final container = ProviderContainer(overrides: [
+      modelProvider.overrideWith((ref) => _HarnessModels(ref)),
+    ]);
+
+    Directory(outDir).createSync(recursive: true);
+    for (final theme in [AppThemeType.claude, AppThemeType.dark]) {
+      for (final scene in scenes.entries) {
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              debugShowCheckedModeBanner: false,
+              theme: getThemeData(theme),
+              home: Scaffold(body: scene.value),
+            ),
+          ),
+        );
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+        for (var i = 0; i < 4; i++) {
+          await tester.pump(const Duration(milliseconds: 250));
+        }
+        await expectLater(
+          find.byType(MaterialApp),
+          matchesGoldenFile(p.join(outDir, 'x_${theme.name}_${scene.key}.png')),
+        );
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump(const Duration(seconds: 1));
+      }
+    }
     debugDisableShadows = true;
   });
 }

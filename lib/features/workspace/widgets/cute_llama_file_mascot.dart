@@ -20,12 +20,8 @@ class _CuteLlamaFileMascotState extends State<CuteLlamaFileMascot>
   late final AnimationController _controller;
   late final Timer _cycleTimer;
 
-  static const List<Map<String, dynamic>> _fileTypes = [
-    {'ext': '.dart', 'color': Color(0xFF00B4AB)},
-    {'ext': '.pdf', 'color': Color(0xFFE53935)},
-    {'ext': '.md', 'color': Color(0xFF42A5F5)},
-    {'ext': '.json', 'color': Color(0xFFFFB300)},
-  ];
+  // The file the llama holds changes type; the colour does not, it stays in the theme's accent.
+  static const List<String> _fileTypes = ['.dart', '.pdf', '.md', '.json'];
 
   int _currentFileIndex = 0;
 
@@ -62,9 +58,8 @@ class _CuteLlamaFileMascotState extends State<CuteLlamaFileMascot>
     final appColors = context.appColors;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final currentFile = _fileTypes[_currentFileIndex];
-    final String currentExt = currentFile['ext'] as String;
-    final Color fileColor = currentFile['color'] as Color;
+    final String currentExt = _fileTypes[_currentFileIndex];
+    final Color fileColor = appColors.accent;
 
     return AnimatedBuilder(
       animation: _controller,
@@ -83,6 +78,7 @@ class _CuteLlamaFileMascotState extends State<CuteLlamaFileMascot>
                 fileColor: fileColor,
                 fileExt: currentExt,
                 isDark: isDark,
+                surfaceColor: appColors.surface,
               ),
             ),
           ),
@@ -98,6 +94,7 @@ class _LlamaMascotPainter extends CustomPainter {
   final Color fileColor;
   final String fileExt;
   final bool isDark;
+  final Color surfaceColor;
 
   _LlamaMascotPainter({
     required this.progress,
@@ -105,6 +102,7 @@ class _LlamaMascotPainter extends CustomPainter {
     required this.fileColor,
     required this.fileExt,
     required this.isDark,
+    required this.surfaceColor,
   });
 
   @override
@@ -129,7 +127,7 @@ class _LlamaMascotPainter extends CustomPainter {
     final Paint outlinePaint = Paint()
       ..color = accentColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0 * scale
+      ..strokeWidth = 1.6 * scale
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
@@ -160,7 +158,7 @@ class _LlamaMascotPainter extends CustomPainter {
     final Paint eyePaint = Paint()
       ..color = accentColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8 * scale
+      ..strokeWidth = 1.4 * scale
       ..strokeCap = StrokeCap.round;
 
     final Rect eyeRect = Rect.fromCenter(
@@ -172,7 +170,7 @@ class _LlamaMascotPainter extends CustomPainter {
 
     // Cute Blushing Cheek
     final Paint blushPaint = Paint()
-      ..color = Colors.pinkAccent.shade100.withValues(alpha: 0.6)
+      ..color = accentColor.withValues(alpha: 0.28)
       ..style = PaintingStyle.fill;
     canvas.drawCircle(
       Offset(originX + 27 * scale, originY + 24 * scale),
@@ -208,7 +206,7 @@ class _LlamaMascotPainter extends CustomPainter {
 
     // Document background fill
     final Paint docFill = Paint()
-      ..color = isDark ? const Color(0xFF1E1E22) : Colors.white
+      ..color = surfaceColor
       ..style = PaintingStyle.fill;
     canvas.drawRRect(roundedDoc, docFill);
 
@@ -216,7 +214,7 @@ class _LlamaMascotPainter extends CustomPainter {
     final Paint docBorder = Paint()
       ..color = fileColor.withValues(alpha: 0.85)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4 * scale;
+      ..strokeWidth = 1.2 * scale;
     canvas.drawRRect(roundedDoc, docBorder);
 
     // Document folded corner top-right

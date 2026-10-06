@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../core/constants/app_icons.dart';
+import '../../../core/constants/app_tokens.dart';
 import '../../../core/models/ollama_model.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
@@ -32,16 +34,16 @@ class ModelSelectorDropdown extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14.0),
       decoration: BoxDecoration(
         color: appColors.surface,
-        borderRadius: BorderRadius.circular(18.0),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
         border: Border.all(color: appColors.borderSubtle),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: safeValue,
-          borderRadius: BorderRadius.circular(16.0),
+          borderRadius: BorderRadius.circular(AppRadii.card),
           icon: Padding(
             padding: const EdgeInsets.only(left: 6.0),
-            child: Icon(Icons.keyboard_arrow_down, size: 15.0, color: appColors.textSecondary),
+            child: Icon(AppIcons.caretDown, size: 15.0, color: appColors.textSecondary),
           ),
           dropdownColor: appColors.surface,
           style: AppTypography.code.copyWith(
@@ -54,7 +56,7 @@ class ModelSelectorDropdown extends StatelessWidget {
               DropdownMenuItem<String>(
                 value: null,
                 enabled: false,
-                child: Text(I18n.noModelsInstalled, style: TextStyle(color: appColors.textSecondary)),
+                child: Text(I18n.noModelsInstalled, style: AppTypography.label.copyWith(color: appColors.textSecondary)),
               ),
             ...models.map((model) {
               return DropdownMenuItem<String>(
@@ -67,11 +69,11 @@ class ModelSelectorDropdown extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.tune, size: 14.0, color: appColors.textSecondary),
+                  Icon(AppIcons.settings, size: 14.0, color: appColors.textSecondary),
                   const SizedBox(width: 8.0),
                   Text(
                     I18n.manageModels,
-                    style: AppTypography.uiControl.copyWith(
+                    style: AppTypography.label.copyWith(
                       color: appColors.textSecondary,
                       fontSize: 12.0,
                     ),

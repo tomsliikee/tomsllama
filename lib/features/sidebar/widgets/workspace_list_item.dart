@@ -4,6 +4,7 @@ import '../../../core/models/workspace.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../core/constants/app_tokens.dart';
+import '../../../core/widgets/app_dialog.dart';
 import '../../../core/services/localization_service.dart';
 import 'chat_list_item.dart';
 
@@ -151,39 +152,24 @@ class _WorkspaceListItemState extends State<WorkspaceListItem> {
     final appColors = context.appColors;
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: appColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadii.pill),
-          side: BorderSide(color: appColors.borderSubtle, width: 1.0),
-        ),
-        title: Text(
-          I18n.deleteWorkspaceConfirm,
-          style: AppTypography.headline.copyWith(fontSize: 16.5, color: appColors.textPrimary),
-        ),
-        content: Text(
-          I18n.deleteWorkspaceConfirmMessage(widget.workspace.name),
-          style: AppTypography.label.copyWith(fontSize: 12.0, color: appColors.textSecondary),
-        ),
+      builder: (ctx) => AppDialog(
+        title: I18n.deleteWorkspaceConfirm,
+        width: 420.0,
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(
-              I18n.close,
-              style: AppTypography.label.copyWith(color: appColors.textSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
+          AppButton(label: I18n.cancel, onTap: () => Navigator.of(ctx).pop()),
+          AppButton(
+            label: I18n.delete,
+            isDestructive: true,
+            onTap: () {
               Navigator.of(ctx).pop();
               widget.onDelete?.call();
             },
-            child: Text(
-              I18n.delete,
-              style: AppTypography.label.copyWith(color: Colors.redAccent),
-            ),
           ),
         ],
+        child: Text(
+          I18n.deleteWorkspaceConfirmMessage(widget.workspace.name),
+          style: AppTypography.small.copyWith(color: appColors.textSecondary, height: 1.45),
+        ),
       ),
     );
   }

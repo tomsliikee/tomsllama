@@ -365,7 +365,7 @@ class _CloudMorphPainter extends CustomPainter {
 
     // Blush cheek
     final blushPaint = Paint()
-      ..color = Colors.pinkAccent.shade100.withValues(alpha: 0.65 * alpha)
+      ..color = accentColor.withValues(alpha: (0.65 * alpha) * 0.45)
       ..style = PaintingStyle.fill;
     canvas.drawCircle(const Offset(3.5, 1.5), 1.25, blushPaint);
 
@@ -415,7 +415,7 @@ class _CloudMorphPainter extends CustomPainter {
       ..close();
 
     final Paint heartPaint = Paint()
-      ..color = Colors.pinkAccent.shade100.withValues(alpha: (1.0 - heartProgress * 0.7) * alpha)
+      ..color = accentColor.withValues(alpha: ((1.0 - heartProgress * 0.7) * 0.45) * alpha)
       ..style = PaintingStyle.fill;
     canvas.drawPath(heartPath, heartPaint);
   }

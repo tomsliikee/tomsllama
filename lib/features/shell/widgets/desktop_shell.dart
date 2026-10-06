@@ -245,7 +245,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
           Expanded(
             child: Text(
               workspace.name,
-              style: AppTypography.headline.copyWith(
+              style: AppTypography.small.copyWith(
                 fontFamily: AppTypography.serifFamily,
                 fontStyle: FontStyle.italic,
                 color: appColors.textPrimary,

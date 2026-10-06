@@ -156,7 +156,7 @@ class LatexBlockBuilder extends MarkdownElementBuilder {
       child: Center(
         child: Math.tex(
           element.textContent,
-          textStyle: const TextStyle(fontSize: 15.0),
+          textStyle: TextStyle(fontSize: 16.5, color: preferredStyle?.color),
         ),
       ),
     );
@@ -168,7 +168,7 @@ class LatexInlineBuilder extends MarkdownElementBuilder {
   Widget visitElementAfter(md.Element element, TextStyle? preferredStyle) {
     return Math.tex(
       element.textContent,
-      textStyle: const TextStyle(fontSize: 15.0),
+      textStyle: TextStyle(fontSize: 16.5, color: preferredStyle?.color),
     );
   }
 }

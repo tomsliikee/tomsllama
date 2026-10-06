@@ -34,7 +34,7 @@ class BranchSwitcher extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 4.0),
           child: Text(
             '${currentIndex + 1} / $totalBranches',
-            style: AppTypography.uiControl.copyWith(
+            style: AppTypography.label.copyWith(
               color: appColors.textSecondary,
               fontSize: 12.0,
             ),

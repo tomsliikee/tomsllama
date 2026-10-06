@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../../core/constants/app_icons.dart';
+import '../../../core/constants/app_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
@@ -11,6 +13,7 @@ import '../../../core/models/workspace.dart';
 import '../../../core/models/workspace_context_file.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/widgets/app_pill.dart';
 import '../../../core/services/localization_service.dart';
 import '../../../core/services/hardware_calibration_service.dart';
 import '../../chat/controllers/chat_controller.dart';
@@ -178,13 +181,13 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                       padding: const EdgeInsets.all(8.0),
                       decoration: BoxDecoration(
                         color: cardBackground,
-                        borderRadius: BorderRadius.circular(16.0),
+                        borderRadius: BorderRadius.circular(AppRadii.card),
                         border: Border.all(
                           color: appColors.borderSubtle,
                           width: 1.0,
                         ),
                       ),
-                      child: Icon(Icons.folder_special_outlined, size: 22.0, color: appColors.textSecondary),
+                      child: Icon(AppIcons.folderOpen, size: 22.0, color: appColors.textSecondary),
                     ),
                     const SizedBox(width: 14.0),
                     Expanded(
@@ -193,11 +196,11 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                         children: [
                           Text(
                             widget.workspace.name,
-                            style: AppTypography.headline.copyWith(
+                            style: AppTypography.display.copyWith(
                               fontFamily: AppTypography.serifFamily,
                               fontStyle: FontStyle.italic,
                               color: appColors.textPrimary,
-                              fontSize: 28.0,
+                              fontSize: 30.0,
                               fontWeight: FontWeight.w400,
                               letterSpacing: -0.2,
                             ),
@@ -209,7 +212,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                               widget.files.length,
                               activeWsState.totalEstimatedTokens,
                             ),
-                            style: AppTypography.uiControl.copyWith(
+                            style: AppTypography.label.copyWith(
                               color: appColors.textSecondary,
                               fontSize: 12.0,
                             ),
@@ -257,7 +260,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
         color: cardBackground,
-        borderRadius: BorderRadius.circular(16.0),
+        borderRadius: BorderRadius.circular(AppRadii.card),
         border: Border.all(color: appColors.borderSubtle, width: 1.0),
       ),
       child: Column(
@@ -268,34 +271,29 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.psychology_outlined, size: 16.0, color: appColors.accent),
+                  Icon(AppIcons.modeThinking, size: 16.0, color: appColors.accent),
                   const SizedBox(width: 6.0),
                   Text(
                     I18n.workspacePromptTitle,
-                    style: AppTypography.code.copyWith(
-                      color: appColors.textSecondary,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5,
-                    ),
+                    style: AppTypography.micro.copyWith(color: appColors.textSecondary),
                   ),
                 ],
               ),
               InkWell(
                 onTap: _savePrompt,
-                borderRadius: BorderRadius.circular(16.0),
+                borderRadius: BorderRadius.circular(AppRadii.card),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
                   decoration: BoxDecoration(
                     color: isDark ? appColors.surface : appColors.background,
-                    borderRadius: BorderRadius.circular(16.0),
+                    borderRadius: BorderRadius.circular(AppRadii.card),
                     border: Border.all(color: appColors.borderSubtle, width: 1.0),
                   ),
                   child: Text(
                     I18n.save,
-                    style: AppTypography.uiControl.copyWith(
+                    style: AppTypography.label.copyWith(
                       color: appColors.textPrimary,
-                      fontSize: 11.5,
+                      fontSize: 12.0,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -308,16 +306,16 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
             controller: _promptController,
             maxLines: 4,
             minLines: 2,
-            style: AppTypography.uiControl.copyWith(
+            style: AppTypography.small.copyWith(
               color: appColors.textPrimary,
-              fontSize: 13.5,
               height: 1.45,
             ),
             decoration: InputDecoration(
               hintText: I18n.workspacePromptHint,
-              hintStyle: AppTypography.uiControl.copyWith(
-                color: appColors.textSecondary.withValues(alpha: 0.6),
-                fontSize: 13.0,
+              hintStyle: AppTypography.small.copyWith(
+                color: appColors.textSecondary.withValues(alpha: 0.7),
+                fontStyle: FontStyle.italic,
+                height: 1.45,
               ),
               border: InputBorder.none,
               isDense: true,
@@ -355,7 +353,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
         padding: const EdgeInsets.all(16.0),
         decoration: BoxDecoration(
           color: cardBackground,
-          borderRadius: BorderRadius.circular(16.0),
+          borderRadius: BorderRadius.circular(AppRadii.card),
           border: Border.all(
             color: _isDraggingOverContext ? appColors.accent : appColors.borderSubtle,
             width: 1.0,
@@ -377,39 +375,34 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.inventory_2_outlined, size: 16.0, color: appColors.accent),
+                              Icon(AppIcons.knowledge, size: 16.0, color: appColors.accent),
                               const SizedBox(width: 6.0),
                               Text(
                                 I18n.workspaceContextTitle,
-                                style: AppTypography.code.copyWith(
-                                  color: appColors.textSecondary,
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.5,
-                                ),
+                                style: AppTypography.micro.copyWith(color: appColors.textSecondary),
                               ),
                             ],
                           ),
                           InkWell(
                             onTap: _pickFiles,
-                            borderRadius: BorderRadius.circular(16.0),
+                            borderRadius: BorderRadius.circular(AppRadii.card),
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
                               decoration: BoxDecoration(
                                 color: isDark ? appColors.surface : appColors.background,
-                                borderRadius: BorderRadius.circular(16.0),
+                                borderRadius: BorderRadius.circular(AppRadii.card),
                                 border: Border.all(color: appColors.borderSubtle, width: 1.0),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.add, size: 13.0, color: appColors.textPrimary),
+                                  Icon(AppIcons.add, size: 13.0, color: appColors.textPrimary),
                                   const SizedBox(width: 4.0),
                                   Text(
                                     I18n.addFile,
-                                    style: AppTypography.uiControl.copyWith(
+                                    style: AppTypography.label.copyWith(
                                       color: appColors.textPrimary,
-                                      fontSize: 11.5,
+                                      fontSize: 12.0,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -422,9 +415,9 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                       const SizedBox(height: 6.0),
                       Text(
                         I18n.workspaceDropFilesHint,
-                        style: AppTypography.uiControl.copyWith(
+                        style: AppTypography.small.copyWith(
                           color: appColors.textSecondary,
-                          fontSize: 11.5,
+                          fontSize: 14.0,
                         ),
                       ),
                       const SizedBox(height: 12.0),
@@ -436,9 +429,9 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                           alignment: Alignment.centerLeft,
                           child: Text(
                             I18n.workspaceNoFilesHint,
-                            style: AppTypography.uiControl.copyWith(
-                              color: appColors.textSecondary.withValues(alpha: 0.7),
-                              fontSize: 12.0,
+                            style: AppTypography.small.copyWith(
+                              color: appColors.textSecondary.withValues(alpha: 0.8),
+                              fontSize: 14.0,
                               fontStyle: FontStyle.italic,
                             ),
                           ),
@@ -453,16 +446,16 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                               padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.5),
                               decoration: BoxDecoration(
                                 color: isDark ? appColors.surface : appColors.background,
-                                borderRadius: BorderRadius.circular(16.0),
+                                borderRadius: BorderRadius.circular(AppRadii.card),
                                 border: Border.all(color: appColors.borderSubtle, width: 1.0),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
-                                    isPdf ? Icons.picture_as_pdf_outlined : Icons.description_outlined,
+                                    isPdf ? AppIcons.pdf : AppIcons.file,
                                     size: 13.0,
-                                    color: isPdf ? Colors.redAccent.shade200 : appColors.textSecondary,
+                                    color: isPdf ? appColors.accent : appColors.textSecondary,
                                   ),
                                   const SizedBox(width: 6.0),
                                   ConstrainedBox(
@@ -472,7 +465,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                                       overflow: TextOverflow.ellipsis,
                                       style: AppTypography.code.copyWith(
                                         color: appColors.textPrimary,
-                                        fontSize: 11.5,
+                                        fontSize: 12.0,
                                       ),
                                     ),
                                   ),
@@ -487,8 +480,8 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                                   const SizedBox(width: 6.0),
                                   InkWell(
                                     onTap: () => ref.read(activeWorkspaceProvider.notifier).removeFile(file.id),
-                                    borderRadius: BorderRadius.circular(10.0),
-                                    child: Icon(Icons.close_rounded, size: 13.0, color: appColors.textSecondary),
+                                    borderRadius: BorderRadius.circular(AppRadii.control),
+                                    child: Icon(AppIcons.close, size: 13.0, color: appColors.textSecondary),
                                   ),
                                 ],
                               ),
@@ -518,7 +511,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
             Row(
               children: [
                 Icon(
-                  Icons.speed_rounded,
+                  AppIcons.speed,
                   size: 13.0,
                   color: appColors.textSecondary,
                 ),
@@ -528,7 +521,7 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                       ? '${I18n.totalLabel}: $tokenStr • ${fileEstimate.speedDisplay}'
                       : '${I18n.totalLabel}: $tokenStr • ${fileEstimate.speedDisplay} • ${fileEstimate.durationDisplay}',
                   style: AppTypography.code.copyWith(
-                    fontSize: 11.0,
+                    fontSize: 10.5,
                     color: appColors.textSecondary,
                     fontWeight: FontWeight.w500,
                   ),
@@ -551,24 +544,13 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
       decoration: BoxDecoration(
         color: composerBg,
-        borderRadius: BorderRadius.circular(20.0),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
+        // Same rule as the chat composer: one hairline, accent only while focused.
         border: Border.all(
-          color: _isInputFocused ? appColors.accent : appColors.accent.withValues(alpha: 0.40),
-          width: 1.2,
+          color: _isInputFocused ? appColors.accent.withValues(alpha: 0.7) : appColors.border,
+          width: 1.0,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.40 : 0.07),
-            blurRadius: 18.0,
-            offset: const Offset(0, 4),
-          ),
-          if (_isInputFocused)
-            BoxShadow(
-              color: appColors.accentSubtle,
-              spreadRadius: 2.0,
-              blurRadius: 0.0,
-            ),
-        ],
+        boxShadow: AppElevation.floating(Theme.of(context).brightness),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -579,16 +561,16 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
             maxLines: 8,
             minLines: 2,
             textInputAction: TextInputAction.send,
-            style: AppTypography.uiControl.copyWith(
+            style: AppTypography.body.copyWith(
               color: appColors.textPrimary,
-              fontSize: 15.0,
               height: 1.5,
             ),
             decoration: InputDecoration(
               hintText: I18n.askInWorkspace,
-              hintStyle: AppTypography.uiControl.copyWith(
-                color: appColors.textSecondary.withValues(alpha: 0.6),
-                fontSize: 14.0,
+              hintStyle: AppTypography.body.copyWith(
+                color: appColors.textSecondary.withValues(alpha: 0.7),
+                fontStyle: FontStyle.italic,
+                height: 1.5,
               ),
               border: InputBorder.none,
               isDense: true,
@@ -615,18 +597,18 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                         padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
                         decoration: BoxDecoration(
                           color: isDark ? appColors.surface : appColors.background,
-                          borderRadius: BorderRadius.circular(16.0),
+                          borderRadius: BorderRadius.circular(AppRadii.card),
                           border: Border.all(color: appColors.borderSubtle, width: 1.0),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.bolt, size: 12.5, color: appColors.textSecondary),
+                            Icon(AppIcons.model, size: 12.5, color: appColors.textSecondary),
                             const SizedBox(width: 4.0),
                             Text(
                               activeModel,
                               style: AppTypography.code.copyWith(
-                                fontSize: 11.5,
+                                fontSize: 12.0,
                                 color: appColors.textPrimary,
                               ),
                             ),
@@ -665,18 +647,13 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
           children: [
             Text(
               I18n.workspaceChatsTitle,
-              style: AppTypography.code.copyWith(
-                color: appColors.textSecondary,
-                fontSize: 12.0,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
+              style: AppTypography.micro.copyWith(color: appColors.textSecondary),
             ),
             Text(
               I18n.workspaceConversationsCount(widget.chats.length),
-              style: AppTypography.uiControl.copyWith(
+              style: AppTypography.label.copyWith(
                 color: appColors.textSecondary,
-                fontSize: 11.5,
+                fontSize: 12.0,
               ),
             ),
           ],
@@ -689,15 +666,15 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: cardBackground,
-              borderRadius: BorderRadius.circular(14.0),
+              borderRadius: BorderRadius.circular(AppRadii.card),
               border: Border.all(color: appColors.borderSubtle, width: 1.0),
             ),
             child: Text(
               I18n.workspaceNoChatsHint,
               textAlign: TextAlign.center,
-              style: AppTypography.uiControl.copyWith(
+              style: AppTypography.label.copyWith(
                 color: appColors.textSecondary,
-                fontSize: 12.5,
+                fontSize: 12.0,
                 height: 1.4,
               ),
             ),
@@ -714,17 +691,17 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
 
               return InkWell(
                 onTap: () => widget.onOpenChat(chat.id),
-                borderRadius: BorderRadius.circular(16.0),
+                borderRadius: BorderRadius.circular(AppRadii.card),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
                   decoration: BoxDecoration(
                     color: cardBackground,
-                    borderRadius: BorderRadius.circular(16.0),
+                    borderRadius: BorderRadius.circular(AppRadii.card),
                     border: Border.all(color: appColors.borderSubtle, width: 1.0),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.chat_bubble_outline, size: 16.0, color: appColors.textSecondary),
+                      Icon(AppIcons.chats, size: 16.0, color: appColors.textSecondary),
                       const SizedBox(width: 10.0),
                       Expanded(
                         child: Column(
@@ -734,31 +711,29 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                               chat.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: AppTypography.uiControl.copyWith(
+                              style: AppTypography.small.copyWith(
                                 color: appColors.textPrimary,
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w500,
+                                height: 1.25,
                               ),
                             ),
-                            const SizedBox(height: 2.0),
+                            const SizedBox(height: 4.0),
                             Text(
-                              '$dateStr • ${I18n.roleLabel}${chat.persona}',
-                              style: AppTypography.uiControl.copyWith(
-                                color: appColors.textSecondary,
-                                fontSize: 11.0,
-                              ),
+                              '$dateStr · ${I18n.roleLabel}${chat.persona}',
+                              style: AppTypography.telemetry.copyWith(color: appColors.textSecondary),
                             ),
                           ],
                         ),
                       ),
                       if (widget.onDeleteChat != null)
-                        IconButton(
-                          icon: Icon(Icons.close_rounded, size: 14.0, color: appColors.textSecondary),
-                          onPressed: () => widget.onDeleteChat!(chat.id),
+                        AppIconButton(
+                          icon: AppIcons.close,
+                          size: 14.0,
                           tooltip: I18n.deleteChatConfirm,
-                          splashRadius: 16.0,
+                          hoverColor: appColors.accent,
+                          onTap: () => widget.onDeleteChat!(chat.id),
                         ),
-                      Icon(Icons.chevron_right, size: 16.0, color: appColors.textSecondary),
+                      const SizedBox(width: 4.0),
+                      Icon(AppIcons.caretRight, size: 16.0, color: appColors.textSecondary),
                     ],
                   ),
                 ),
