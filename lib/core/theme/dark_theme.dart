@@ -1,19 +1,11 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import 'app_theme.dart';
+import 'theme_builder.dart';
 
-final ThemeData darkTheme = ThemeData(
-  brightness: Brightness.dark,
-  scaffoldBackgroundColor: AppColors.darkBackground,
-  primaryColor: AppColors.darkAccent,
-  colorScheme: const ColorScheme.dark(
-    primary: AppColors.darkAccent,
-    surface: AppColors.darkBackground,
-  ),
-  dividerColor: AppColors.darkBorder,
-  fontFamily: 'Inter',
-  extensions: const <ThemeExtension<dynamic>>[
-    AppThemeExtension(
+final ThemeData darkTheme = buildAppTheme(
+  Brightness.dark,
+  const AppThemeExtension(
       background: AppColors.darkBackground,
       sidebar: AppColors.darkSidebar,
       surface: AppColors.darkSurface,
@@ -26,5 +18,4 @@ final ThemeData darkTheme = ThemeData(
       codeBackground: AppColors.darkCodeBackground,
       hover: AppColors.darkHover,
     ),
-  ],
 );

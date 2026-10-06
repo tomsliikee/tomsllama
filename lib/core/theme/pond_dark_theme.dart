@@ -1,19 +1,11 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import 'app_theme.dart';
+import 'theme_builder.dart';
 
-final ThemeData pondDarkTheme = ThemeData(
-  brightness: Brightness.dark,
-  scaffoldBackgroundColor: AppColors.pondDarkBackground,
-  primaryColor: AppColors.pondDarkAccent,
-  colorScheme: const ColorScheme.dark(
-    primary: AppColors.pondDarkAccent,
-    surface: AppColors.pondDarkBackground,
-  ),
-  dividerColor: AppColors.pondDarkBorder,
-  fontFamily: 'Inter',
-  extensions: const <ThemeExtension<dynamic>>[
-    AppThemeExtension(
+final ThemeData pondDarkTheme = buildAppTheme(
+  Brightness.dark,
+  const AppThemeExtension(
       background: AppColors.pondDarkBackground,
       sidebar: AppColors.pondDarkSidebar,
       surface: AppColors.pondDarkSurface,
@@ -26,5 +18,4 @@ final ThemeData pondDarkTheme = ThemeData(
       codeBackground: AppColors.pondDarkCodeBackground,
       hover: AppColors.pondDarkHover,
     ),
-  ],
 );
