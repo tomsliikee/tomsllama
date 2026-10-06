@@ -340,6 +340,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
     final isCanvasOpen = ref.watch(chatProvider.select((s) => s.isCanvasOpen));
     final canvasContent = ref.watch(chatProvider.select((s) => s.canvasContent));
     final canvasLanguage = ref.watch(chatProvider.select((s) => s.canvasLanguage));
+    final generatingIds = ref.watch(chatProvider.select((s) => s.generatingConversationIds));
     final sidebarMode = ref.watch(sidebarModeProvider);
     final workspaceListState = ref.watch(workspaceListProvider);
     final activeWsState = ref.watch(activeWorkspaceProvider);
@@ -396,6 +397,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> with WindowListener
                         SidebarView(
                           conversations: sidebarState.filteredConversations,
                           activeConversationId: conversationId ?? sidebarState.activeConversationId,
+                          generatingConversationIds: generatingIds,
                           searchController: _searchController,
                           onSearchChanged: (q) {
                             sidebarNotifier.setSearchQuery(q);

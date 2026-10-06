@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tomsllama/core/widgets/breathing_tint.dart';
 import 'package:tomsllama/core/constants/app_icons.dart';
 import 'package:tomsllama/core/theme/claude_theme.dart';
 import 'package:tomsllama/core/models/conversation.dart';
@@ -87,5 +88,44 @@ void main() {
     await tester.tap(find.byIcon(AppIcons.pinned));
     await tester.pumpAndSettle();
     expect(pinnedToggledId, '1');
+  });
+
+  testWidgets('a generating chat breathes and stops when the answer is done', (WidgetTester tester) async {
+    final now = DateTime.now();
+    final conversations = [
+      Conversation(id: 'a', title: 'Busy chat', createdAt: now, updatedAt: now),
+      Conversation(id: 'b', title: 'Idle chat', createdAt: now, updatedAt: now),
+    ];
+    Widget build(Set<String> generating) => MaterialApp(
+          theme: claudeTheme,
+          home: Scaffold(
+            body: SidebarView(
+              conversations: conversations,
+              activeConversationId: 'b',
+              generatingConversationIds: generating,
+              onNewChat: () {},
+              onSelectChat: (_) {},
+            ),
+          ),
+        );
+
+    Finder breathingOf(String title) =>
+        find.ancestor(of: find.text(title), matching: find.byType(BreathingTint));
+    double tintOf(String title) {
+      // The tint is the first box inside the breathing layer; the row's own fill comes after it.
+      final box = tester.widget<DecoratedBox>(
+        find.descendant(of: breathingOf(title), matching: find.byType(DecoratedBox)).first,
+      );
+      return (box.decoration as BoxDecoration).color!.a;
+    }
+
+    await tester.pumpWidget(build({'a'}));
+    await tester.pump(const Duration(milliseconds: 1750));
+    expect(tintOf('Busy chat'), greaterThan(0.05));
+    expect(tester.widget<BreathingTint>(breathingOf('Idle chat')).active, isFalse);
+
+    await tester.pumpWidget(build(const {}));
+    await tester.pumpAndSettle();
+    expect(tintOf('Busy chat'), 0.0);
   });
 }

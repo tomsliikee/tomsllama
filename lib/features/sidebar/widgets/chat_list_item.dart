@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../core/constants/app_tokens.dart';
 import '../../../core/widgets/ink_fade_in.dart';
+import '../../../core/widgets/breathing_tint.dart';
 import '../../../core/services/localization_service.dart';
 
 /// Tactile wobble / jiggle animation wrapper for items during drag-and-drop
@@ -93,6 +94,7 @@ class _WobbleItemState extends State<WobbleItem> with SingleTickerProviderStateM
 class ChatListItem extends StatefulWidget {
   final Conversation conversation;
   final bool isSelected;
+  final bool isGenerating;
   final VoidCallback onTap;
   final VoidCallback? onDelete;
   final VoidCallback? onTogglePin;
@@ -104,6 +106,7 @@ class ChatListItem extends StatefulWidget {
     super.key,
     required this.conversation,
     required this.isSelected,
+    this.isGenerating = false,
     required this.onTap,
     this.onDelete,
     this.onTogglePin,
@@ -136,10 +139,15 @@ class _ChatListItemState extends State<ChatListItem> {
           cursor: SystemMouseCursors.click,
           child: GestureDetector(
             onTap: widget.onTap,
-            child: AnimatedContainer(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 2.0),
+              // A chat with an answer in progress breathes, whether or not it is the open one.
+              child: BreathingTint(
+                active: widget.isGenerating,
+                color: appColors.textPrimary,
+                child: AnimatedContainer(
               duration: AppMotion.fast,
               curve: AppMotion.standard,
-              margin: const EdgeInsets.only(bottom: 2.0),
               padding: const EdgeInsets.only(left: 10.0, right: 6.0, top: 7.0, bottom: 7.0),
               // The open chat is marked by a soft tint of the text colour and a
               // firmer title, nothing drawn on top of it.
@@ -257,6 +265,8 @@ class _ChatListItemState extends State<ChatListItem> {
                     ),
                     ),
                 ],
+              ),
+            ),
               ),
             ),
           ),

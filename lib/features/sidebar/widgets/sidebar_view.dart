@@ -16,6 +16,7 @@ import 'workspace_list_item.dart';
 class SidebarView extends StatefulWidget {
   final List<Conversation> conversations;
   final String? activeConversationId;
+  final Set<String> generatingConversationIds;
   final VoidCallback onNewChat;
   final ValueChanged<String> onSelectChat;
   final ValueChanged<String>? onDeleteChat;
@@ -41,6 +42,7 @@ class SidebarView extends StatefulWidget {
     super.key,
     required this.conversations,
     this.activeConversationId,
+    this.generatingConversationIds = const {},
     required this.onNewChat,
     required this.onSelectChat,
     this.onDeleteChat,
@@ -309,6 +311,7 @@ class _SidebarViewState extends State<SidebarView> {
           index: index,
           isWobbling: _isDragging,
           isSelected: c.id == widget.activeConversationId,
+          isGenerating: widget.generatingConversationIds.contains(c.id),
           onTap: () => widget.onSelectChat(c.id),
           onTogglePin: widget.onTogglePinChat != null
               ? () => widget.onTogglePinChat!(c.id)
