@@ -552,7 +552,7 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
                           maxLines: 12,
                           minLines: 2,
                           textInputAction: TextInputAction.newline,
-                          style: AppTypography.body.copyWith(
+                          style: AppTypography.input.copyWith(
                             color: appColors.textPrimary,
                             height: 1.5,
                           ),
@@ -561,9 +561,8 @@ class _ComposerBarState extends ConsumerState<ComposerBar> {
                               activeModel ??
                                   (widget.models.isNotEmpty ? widget.models.first.name : 'qwen2.5:3b'),
                             ),
-                            hintStyle: AppTypography.body.copyWith(
+                            hintStyle: AppTypography.input.copyWith(
                               color: appColors.textSecondary.withValues(alpha: 0.7),
-                              fontStyle: FontStyle.italic,
                               height: 1.5,
                             ),
                             border: InputBorder.none,

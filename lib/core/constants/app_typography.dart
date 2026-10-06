@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
-/// Two families: Newsreader for anything that is read, Geist Mono for anything
-/// that labels, measures or is code. Sizes come from the six-step scale below.
+/// Three families, each with one job: Newsreader for long-form reading
+/// (answers, headings), Inter for the interface (titles in lists, inputs,
+/// short prose in dialogs), Geist Mono for labels, metadata and code.
 class AppTypography {
   static const String serifFamily = 'Newsreader';
+  static const String sansFamily = 'Inter';
   static const String monoFamily = 'GeistMono';
 
   // --- The scale ---
@@ -26,15 +28,23 @@ class AppTypography {
     height: 1.25,
   );
 
-  /// 15 serif: list titles and secondary reading text.
+  /// 13 sans: list titles, short prose in the interface.
   static const TextStyle small = TextStyle(
-    fontFamily: serifFamily,
-    fontSize: 15.0,
+    fontFamily: sansFamily,
+    fontSize: 13.0,
     fontWeight: FontWeight.w400,
-    height: 1.35,
+    height: 1.4,
   );
 
-  /// 16.5 serif: answers and anything typed by the user.
+  /// 15 sans: text the user types, and the hint shown before they do.
+  static const TextStyle input = TextStyle(
+    fontFamily: sansFamily,
+    fontSize: 15.0,
+    fontWeight: FontWeight.w400,
+    height: 1.5,
+  );
+
+  /// 16.5 serif: answers and other long-form reading.
   static const TextStyle body = TextStyle(
     fontFamily: serifFamily,
     fontSize: 16.5,

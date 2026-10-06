@@ -67,3 +67,10 @@ flutter:
     - family: PhosphorLight
       fonts:
         - asset: assets/fonts/PhosphorLight.ttf
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600

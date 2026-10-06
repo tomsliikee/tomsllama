@@ -22,11 +22,12 @@
   - Form: Geometrical vector fusion of Gemini's four-pointed star and faceted diamond cut lines.
   - Style: Clean 1.6px geometric strokes in `var(--accent)`, subtle 25% opacity center facet fill, zero 3D-kitsch.
 - **Icons:** One family at one weight: Phosphor Light, bundled as `assets/fonts/PhosphorLight.ttf`. Use them only through `AppIcons` (`lib/core/constants/app_icons.dart`), which names icons by meaning. Never use Material `Icons.*`.
-- **Typography (two families, all themes):**
-  - **Everything that is read:** *Newsreader* (serif): answers, the user's own messages and input, chat and workspace titles, headings, dialog titles.
-  - **Everything that labels, measures or is code:** *Geist Mono*: controls, chips, section labels, metadata, telemetry, code.
-  - **No sans-serif.** Inter and FiraCode were removed.
-  - **Scale:** only the styles in `AppTypography` (`micro` 10.5, `label` 12, `small` 15, `body` 16.5, `title` 20, `display` 30, plus `code` and `telemetry`). Do not introduce other sizes.
+- **Typography (three families, each with one job, all themes):**
+  - **Long-form reading:** *Newsreader* (serif): answers, the user's sent messages, headings, dialog titles, the brand name.
+  - **Interface text:** *Inter* (sans): chat and workspace titles in lists, the composer and every other text input with its hint, short prose in dialogs and the hub.
+  - **Labels, measurements and code:** *Geist Mono*: chips, buttons, section labels, metadata, telemetry, code.
+  - Inter ships upright only, so never set interface text in italics.
+  - **Scale:** only the styles in `AppTypography` (`micro` 10.5, `label` 12, `small` 13, `input` 15, `body` 16.5, `title` 20, `display` 30, plus `code` and `telemetry`). Do not introduce other sizes.
   - **Zero Network Reliance:** Fonts are embedded in `assets/fonts/` for 100% offline privacy.
 - **Design tokens (`lib/core/constants/app_tokens.dart`):**
   - **Radii:** `panel` 18 → `card` 12 → `control` 8 → `pill`. A shape nested in another uses the next step down.

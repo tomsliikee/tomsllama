@@ -314,7 +314,6 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
               hintText: I18n.workspacePromptHint,
               hintStyle: AppTypography.small.copyWith(
                 color: appColors.textSecondary.withValues(alpha: 0.7),
-                fontStyle: FontStyle.italic,
                 height: 1.45,
               ),
               border: InputBorder.none,
@@ -417,7 +416,6 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                         I18n.workspaceDropFilesHint,
                         style: AppTypography.small.copyWith(
                           color: appColors.textSecondary,
-                          fontSize: 14.0,
                         ),
                       ),
                       const SizedBox(height: 12.0),
@@ -432,7 +430,6 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
                             style: AppTypography.small.copyWith(
                               color: appColors.textSecondary.withValues(alpha: 0.8),
                               fontSize: 14.0,
-                              fontStyle: FontStyle.italic,
                             ),
                           ),
                         )
@@ -561,15 +558,14 @@ class _WorkspaceHubViewState extends ConsumerState<WorkspaceHubView> {
             maxLines: 8,
             minLines: 2,
             textInputAction: TextInputAction.send,
-            style: AppTypography.body.copyWith(
+            style: AppTypography.input.copyWith(
               color: appColors.textPrimary,
               height: 1.5,
             ),
             decoration: InputDecoration(
               hintText: I18n.askInWorkspace,
-              hintStyle: AppTypography.body.copyWith(
+              hintStyle: AppTypography.input.copyWith(
                 color: appColors.textSecondary.withValues(alpha: 0.7),
-                fontStyle: FontStyle.italic,
                 height: 1.5,
               ),
               border: InputBorder.none,

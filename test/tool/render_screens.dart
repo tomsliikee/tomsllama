@@ -107,6 +107,7 @@ void main() {
       p.join(flutterRoot, 'bin', 'cache', 'artifacts', 'material_fonts', 'MaterialIcons-Regular.otf'),
     ]);
     await _loadFont('PhosphorLight', ['$fonts/PhosphorLight.ttf']);
+    await _loadFont('Inter', ['$fonts/Inter-Regular.ttf', '$fonts/Inter-Medium.ttf', '$fonts/Inter-SemiBold.ttf']);
   });
 
   testWidgets('render chat screen', (tester) async {

@@ -38,14 +38,12 @@ class SearchBarView extends StatelessWidget {
             child: TextField(
               controller: controller,
               onChanged: onChanged,
-              style: AppTypography.small.copyWith(color: appColors.textPrimary, fontSize: 14.0, height: 1.2),
+              style: AppTypography.small.copyWith(color: appColors.textPrimary, height: 1.2),
               decoration: InputDecoration(
                 hintText: I18n.searchChats,
                 hintStyle: AppTypography.small.copyWith(
                   color: appColors.textSecondary.withValues(alpha: 0.8),
-                  fontSize: 14.0,
                   height: 1.2,
-                  fontStyle: FontStyle.italic,
                 ),
                 border: InputBorder.none,
                 isDense: true,

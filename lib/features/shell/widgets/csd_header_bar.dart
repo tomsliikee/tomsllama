@@ -61,9 +61,8 @@ class _CsdHeaderBarState extends ConsumerState<CsdHeaderBar> {
                   const SizedBox(width: 8.0),
                   Text(
                     'tomsllama',
-                    style: AppTypography.small.copyWith(
+                    style: AppTypography.title.copyWith(
                       color: appColors.textPrimary,
-                      fontWeight: FontWeight.w600,
                       fontSize: 16.5,
                       height: 1.0,
                       letterSpacing: -0.2,

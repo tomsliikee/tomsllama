@@ -135,7 +135,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                         I18n.defaultModelAutomatic,
                         style: AppTypography.small.copyWith(
                           color: appColors.textSecondary,
-                          fontStyle: FontStyle.italic,
                           height: 1.2,
                         ),
                       ),

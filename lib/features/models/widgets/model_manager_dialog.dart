@@ -168,7 +168,6 @@ class _ModelManagerDialogState extends State<ModelManagerDialog> {
                             I18n.noModelsInstalled,
                             style: AppTypography.small.copyWith(
                               color: appColors.textSecondary,
-                              fontStyle: FontStyle.italic,
                             ),
                           ),
                         ),

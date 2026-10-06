@@ -164,7 +164,6 @@ InputDecoration appInputDecoration(BuildContext context, {String? hint, Widget? 
     hintText: hint,
     hintStyle: (mono ? AppTypography.code : AppTypography.small).copyWith(
       color: colors.textSecondary.withValues(alpha: 0.7),
-      fontStyle: mono ? FontStyle.normal : FontStyle.italic,
     ),
     prefixIcon: prefixIcon,
     prefixIconConstraints: const BoxConstraints(minWidth: 38.0, minHeight: 0.0),

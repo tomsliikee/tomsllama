@@ -81,12 +81,11 @@ class _QuickSwitcherModalState extends State<QuickSwitcherModal> {
                       controller: _controller,
                       onChanged: _filter,
                       autofocus: true,
-                      style: AppTypography.body.copyWith(color: appColors.textPrimary, height: 1.3),
+                      style: AppTypography.input.copyWith(color: appColors.textPrimary, height: 1.3),
                       decoration: InputDecoration(
                         hintText: I18n.quickSearchPlaceholder,
-                        hintStyle: AppTypography.body.copyWith(
+                        hintStyle: AppTypography.input.copyWith(
                           color: appColors.textSecondary.withValues(alpha: 0.7),
-                          fontStyle: FontStyle.italic,
                           height: 1.3,
                         ),
                         border: InputBorder.none,
